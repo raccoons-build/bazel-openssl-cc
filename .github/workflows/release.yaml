@@ -1,0 +1,34 @@
+name: Release
+'on':
+  workflow_dispatch: null
+  push:
+    tags:
+    - '*'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4.2.2
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - run: sudo bash -c "curl --fail -L -o /usr/bin/buildifier https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64 && chmod 0755 /usr/bin/buildifier"
+    - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
+    - name: Checkout BCR
+      uses: actions/checkout@v4.2.2
+      with:
+        repository: illicitonion/bazel-central-registry
+        token: ${{ secrets.BCR_GITHUB_TOKEN }}
+        path: bazel-central-registry
+        ref: refs/heads/openssl-base
+    - run: python3 generate.py --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=$(pwd)/bazel-openssl-cc-${{github.ref_name}}.tar.gz --tag=${{github.ref_name}}
+    - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
+      env:
+        GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          bazel-openssl-cc-${{github.ref_name}}.tar.gz
