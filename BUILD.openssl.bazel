@@ -1,7 +1,7 @@
 # This code is heavily based on the implementation in `dbx_build_tools`:
 #   Ref: https://github.com/dropbox/dbx_build_tools/blob/master/thirdparty/openssl/BUILD.openssl.tail
 
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@openssl-generated-overlay//:collate_into_directory.bzl", "collate_into_directory")
 load("@openssl-generated-overlay//:common.bzl", "COMMON_GENERATED_FILES")
 load(
     "@openssl-generated-overlay//:constants-darwin64-arm64-cc.bzl",
@@ -58,6 +58,7 @@ load(
     _LINUX_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
     _LINUX_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//:utils.bzl", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
@@ -322,10 +323,10 @@ filegroup(
 [
     genrule(
         name = "copy_generated_{}".format(src),
-        cmd = "cp $< $@",
         srcs = ["@openssl-generated-overlay//:{}".format(src)],
         outs = [src],
-    )   
+        cmd = "cp $< $@",
+    )
     for src in COMMON_GENERATED_FILES
 ]
 
@@ -356,4 +357,23 @@ genrule(
             filename = k,
         ) for k, v in _DARWIN_X86_64_GEN_FILES.items()]),
     }),
+)
+
+collate_into_directory(
+    name = "gen_dir",
+    outs_prefix_map = {
+        ":crypto": "lib/",
+        ":openssl": "bin/",
+        ":ssl": "lib/",
+    },
+    srcs_prefix_map = {
+        ":crypto": "external/{}".format(_REPO_NAME),
+        ":generated-headers": "external/{}".format(_REPO_NAME),
+        ":openssl": "external/{}".format(_REPO_NAME),
+        ":ssl": "external/{}".format(_REPO_NAME),
+    } | {
+        k: "external/{}".format(_REPO_NAME)
+        for k in glob(["include/openssl/*.h"])
+    },
+    visibility = ["//visibility:public"],
 )

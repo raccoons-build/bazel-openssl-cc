@@ -132,10 +132,12 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template
             ) in generated_path_to_platform_to_contents.items():
                 if len(set(platform_to_contents.values())) == 1:
                     os.makedirs(
-                        os.path.dirname(os.path.join(output_tar_dir, path)), exist_ok=True
+                        os.path.dirname(os.path.join(output_tar_dir, path)),
+                        exist_ok=True,
                     )
                     shutil.copyfile(
-                        os.path.join(openssl_dir, path), os.path.join(output_tar_dir, path)
+                        os.path.join(openssl_dir, path),
+                        os.path.join(output_tar_dir, path),
                     )
                     platform_independent_generated_files.append(path)
                 else:
@@ -157,9 +159,20 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template
                 "BUILD.openssl.bazel", os.path.join(overlay_dir, "BUILD.bazel")
             )
             copy_from_here_to("utils.bzl", os.path.join(overlay_dir, "utils.bzl"))
+            copy_from_here_to(
+                "collate_into_directory.bzl",
+                os.path.join(output_tar_dir, "collate_into_directory.bzl"),
+            )
+            copy_from_here_to(
+                "move_file_and_strip_prefix.sh",
+                os.path.join(output_tar_dir, "move_file_and_strip_prefix.sh"),
+                executable=True,
+            )
 
             with open(os.path.join(output_tar_dir, "common.bzl"), "w") as f:
-                f.write(f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n")
+                f.write(
+                    f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n"
+                )
 
             copy_from_here_to(
                 "BUILD.test.bazel",
@@ -167,13 +180,32 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template
             )
 
             with open(os.path.join(output_tar_dir, "BUILD.bazel"), "w") as f:
-                f.write("exports_files(glob([\"**\"]))\n")
+                f.write('exports_files(glob(["**"]))\n')
 
             files_to_tar = list(sorted(os.listdir(output_tar_dir)))
             tar = "gtar" if sys.platform == "darwin" else "tar"
-            subprocess.check_call([tar, "--owner", "root", "--group", "wheel", "--mtime=UTC 1980-01-01", "-czf", overlay_tar_path] + files_to_tar, cwd=output_tar_dir)
+            subprocess.check_call(
+                [
+                    tar,
+                    "--owner",
+                    "root",
+                    "--group",
+                    "wheel",
+                    "--mtime=UTC 1980-01-01",
+                    "-czf",
+                    overlay_tar_path,
+                ]
+                + files_to_tar,
+                cwd=output_tar_dir,
+            )
 
-            write_module_files(out_dir, openssl_version, tag, release_tar_url_template.format(tag=tag), integrity_hash(overlay_tar_path))
+            write_module_files(
+                out_dir,
+                openssl_version,
+                tag,
+                release_tar_url_template.format(tag=tag),
+                integrity_hash(overlay_tar_path),
+            )
 
         write_source_json(out_dir, openssl_info)
     add_to_metadata(openssl_module_dir, tag)
@@ -199,7 +231,13 @@ def download_openssl(version: str):
         yield os.path.join(tempdir, prefix_dir), openssl_info
 
 
-def write_module_files(out_dir: str, openssl_version: str, tag: int, overlay_archive_url: str, overlay_archive_integrity: str):
+def write_module_files(
+    out_dir: str,
+    openssl_version: str,
+    tag: int,
+    overlay_archive_url: str,
+    overlay_archive_integrity: str,
+):
     module_bazel_path = os.path.join(out_dir, "MODULE.bazel")
     with open(module_bazel_path, "w") as f:
         f.write(
@@ -279,9 +317,11 @@ GEN_FILES = {json.dumps(platform_specific_generated_files, indent="    ", sort_k
     subprocess.check_call(["buildifier", path])
 
 
-def copy_from_here_to(local_path: str, dst: str):
+def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     shutil.copyfile(os.path.join(os.path.dirname(__file__), local_path), dst)
+    if executable:
+        os.chmod(dst, 0o755)
 
 
 def add_to_metadata(openssl_module_dir, tag):
@@ -299,6 +339,9 @@ if __name__ == "__main__":
     parser.add_argument("--bcr_dir", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--overlay_tar_path", required=True)
-    parser.add_argument("--release_tar_url_template", default="https://github.com/raccoons-build/bazel-openssl-cc/releases/download/{tag}/bazel-openssl-cc-{tag}.tar.gz")
+    parser.add_argument(
+        "--release_tar_url_template",
+        default="https://github.com/raccoons-build/bazel-openssl-cc/releases/download/{tag}/bazel-openssl-cc-{tag}.tar.gz",
+    )
     args = parser.parse_args()
     main(args.bcr_dir, args.overlay_tar_path, args.tag, args.release_tar_url_template)
