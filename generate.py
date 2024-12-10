@@ -208,6 +208,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template
             )
 
         write_source_json(out_dir, openssl_info)
+
+        previous_tag_dir = guess_previous_tag_dir(openssl_module_dir, tag)
+        dedupe_content_with_symlinks(previous_tag_dir, out_dir)
+
     add_to_metadata(openssl_module_dir, tag)
 
 
@@ -332,6 +336,40 @@ def add_to_metadata(openssl_module_dir, tag):
     to_save = json.dumps(content, sort_keys=True, indent="  ") + "\n"
     with open(metadata_path, "w") as f:
         f.write(to_save)
+
+
+def guess_previous_tag_dir(openssl_module_dir, tag):
+    parts = tag.split(".")
+    if len(parts) < 2:
+        return None
+    if parts[-2] != "bcr":
+        return None
+    try:
+        bcr_iteration = int(parts[-1])
+    except:
+        return None
+    if bcr_iteration < 1:
+        return None
+    previous_tag = ".".join(parts[:-1] + [f"{bcr_iteration - 1}"])
+    previous_dir = os.path.join(openssl_module_dir, previous_tag)
+    if not os.path.exists(previous_dir):
+        return None
+    return previous_dir
+
+
+def dedupe_content_with_symlinks(previous_tag_dir, out_dir):
+    for root, dir, files in os.walk(out_dir):
+        for file in files:
+            full_path = os.path.join(root, file)
+            module_relative_path = os.path.relpath(full_path, out_dir)
+            old_path = os.path.join(previous_tag_dir, module_relative_path)
+            old_hash = integrity_hash(old_path)
+            new_path = os.path.join(out_dir, module_relative_path)
+            new_hash = integrity_hash(new_path)
+            if old_hash == new_hash:
+                link_target = os.path.relpath(old_path, os.path.dirname(new_path))
+                os.unlink(new_path)
+                os.symlink(link_target, new_path)
 
 
 if __name__ == "__main__":
