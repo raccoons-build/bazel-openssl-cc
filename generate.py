@@ -243,12 +243,13 @@ def write_module_files(
     overlay_archive_integrity: str,
 ):
     module_bazel_path = os.path.join(out_dir, "MODULE.bazel")
+    compatibility = tag.split(".")[0]
     with open(module_bazel_path, "w") as f:
         f.write(
             f"""module(
     name = "openssl",
     version = "{tag}",
-    compatibility_level = {tag.replace(".bcr", "").replace(".", "0")},
+    compatibility_level = {compatibility},
 )
 
 bazel_dep(name = "platforms", version = "0.0.10")
