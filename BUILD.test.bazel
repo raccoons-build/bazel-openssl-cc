@@ -29,3 +29,18 @@ EOF
 """,
     executable = True,
 )
+
+cc_library(
+    name = "includes_bn",
+    srcs = [":includes_bh.cpp"],
+    deps = ["@openssl//:ssl"],
+)
+
+genrule(
+    name = "generate_includes_bh",
+    outs = ["includes_bh.cpp"],
+    cmd = """cat >$@ <<'EOF'
+#include <openssl/bn.h>
+EOF
+""",
+)

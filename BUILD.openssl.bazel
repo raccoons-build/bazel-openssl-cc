@@ -192,8 +192,7 @@ cc_library(
             "include/crypto/*.h",
             "include/crypto/**/*.h",
         ],
-        exclude = COMMON_GENERATED_FILES,
-    ),
+    ) + [":generated-headers"],
     additional_compiler_inputs = [":generated-headers"] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
@@ -251,9 +250,8 @@ cc_library(
     }),
     hdrs = glob(
         ["include/openssl/*.h"],
-        exclude = COMMON_GENERATED_FILES,
-    ),
-    additional_compiler_inputs = [":generated-headers"],
+    ) + [":generated-headers"],
+    additional_compiler_inputs = [":generated-files"],
     copts = COMMON_OPENSSL_COPTS + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
@@ -316,8 +314,13 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
 ]
 
 filegroup(
+    name = "generated-files",
+    srcs = COMMON_GENERATED_FILES + [":generate-platform-specific-files"],
+)
+
+filegroup(
     name = "generated-headers",
-    srcs = COMMON_GENERATED_FILES + [":generate-platform-specific-headers"],
+    srcs = [f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")],
 )
 
 [
@@ -337,7 +340,7 @@ E_O_F
 """
 
 genrule(
-    name = "generate-platform-specific-headers",
+    name = "generate-platform-specific-files",
     outs = sorted(_DARWIN_ARM64_GEN_FILES.keys()),
     cmd = select({
         "@bazel_tools//src/conditions:linux_aarch64": "\n".join([GEN_FILE_CMD.format(
