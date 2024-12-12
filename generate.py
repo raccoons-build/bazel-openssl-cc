@@ -201,7 +201,6 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template
 
             write_module_files(
                 out_dir,
-                openssl_version,
                 tag,
                 release_tar_url_template.format(tag=tag),
                 integrity_hash(overlay_tar_path),
@@ -237,19 +236,20 @@ def download_openssl(version: str):
 
 def write_module_files(
     out_dir: str,
-    openssl_version: str,
     tag: int,
     overlay_archive_url: str,
     overlay_archive_integrity: str,
 ):
     module_bazel_path = os.path.join(out_dir, "MODULE.bazel")
-    compatibility = tag.split(".")[0]
     with open(module_bazel_path, "w") as f:
         f.write(
             f"""module(
     name = "openssl",
     version = "{tag}",
-    compatibility_level = {compatibility},
+    # Note: This should rarely change. For now, we hold it as a constant.
+    # Realistically, we should only change it if the major version of openssl changes.
+    # When that happens, we probably want to change this to a single-digit number representing that version number.
+    compatibility_level = 3030100,
 )
 
 bazel_dep(name = "platforms", version = "0.0.10")
