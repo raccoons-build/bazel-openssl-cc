@@ -73,7 +73,7 @@ generated_files = [
 ]
 
 
-def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template: str):
+def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str):
     openssl_module_dir = os.path.join(bcr_dir, "modules", "openssl")
     out_dir = os.path.join(openssl_module_dir, tag)
     os.makedirs(out_dir)
@@ -153,6 +153,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template
                         path: generated_path_to_platform_to_contents[path][platform]
                         for path in platform_specific_generated_paths
                     },
+                    buildifier_path,
                 )
 
             copy_from_here_to(
@@ -209,7 +210,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, release_tar_url_template
         write_source_json(out_dir, openssl_info)
 
         previous_tag_dir = guess_previous_tag_dir(openssl_module_dir, tag)
-        dedupe_content_with_symlinks(previous_tag_dir, out_dir)
+        if previous_tag_dir:
+            dedupe_content_with_symlinks(previous_tag_dir, out_dir)
 
     add_to_metadata(openssl_module_dir, tag)
 
@@ -307,6 +309,7 @@ def write_platform_specific_constants(
     platform: str,
     perl_output: str,
     platform_specific_generated_files: Dict[str, str],
+    buildifier_path: str,
 ):
     out = f"""# Generated code. DO NOT EDIT.
 
@@ -319,7 +322,7 @@ GEN_FILES = {json.dumps(platform_specific_generated_files, indent="    ", sort_k
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
-    subprocess.check_call(["buildifier", path])
+    subprocess.check_call([buildifier_path, path])
 
 
 def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
@@ -382,5 +385,6 @@ if __name__ == "__main__":
         "--release_tar_url_template",
         default="https://github.com/raccoons-build/bazel-openssl-cc/releases/download/{tag}/bazel-openssl-cc-{tag}.tar.gz",
     )
+    parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
-    main(args.bcr_dir, args.overlay_tar_path, args.tag, args.release_tar_url_template)
+    main(args.bcr_dir, args.overlay_tar_path, args.tag, args.buildifier, args.release_tar_url_template)
