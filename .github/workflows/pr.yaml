@@ -41,6 +41,7 @@ jobs:
         os:
           - macos-14
           - ubuntu-latest
+          - windows-latest
     needs:
     - pr-generate
     runs-on: ${{ matrix.os }}

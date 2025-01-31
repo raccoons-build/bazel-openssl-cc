@@ -19,6 +19,11 @@ platforms = [
     "darwin64-x86_64-cc",
     "linux-x86_64-clang",
     "linux-aarch64",
+    "VC-WIN32",
+    "VC-WIN64A",
+    "VC-WIN64-ARM",
+    "VC-WIN64-CLANGASM-ARM",
+    "VC-CLANG-WIN64-CLANGASM-ARM",
 ]
 
 generated_files = [
