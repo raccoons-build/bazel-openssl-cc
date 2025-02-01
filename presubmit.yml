@@ -4,6 +4,8 @@ matrix:
   - ubuntu2004_arm64
   - macos
   - macos_arm64
+  - windows
+  - windows_arm64
   bazel:
   - 7.x
   - 8.0.0rc6
