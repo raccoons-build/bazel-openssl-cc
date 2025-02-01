@@ -284,7 +284,7 @@ cc_library(
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBSSL_SRCS,
-        "@bazel_tools//src/conditions:windows_x86_64": _WINDOWS_X86_64_LIBSSL_SRCS,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBSSL_SRCS,
     }),
     hdrs = glob(
         ["include/openssl/*.h"],
