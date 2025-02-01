@@ -146,7 +146,7 @@ cc_binary(
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_SRCS,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_x86_64_OPENSSL_APP_SRCS,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_SRCS,
     }),
     copts = [
         "-iquote",
@@ -161,7 +161,7 @@ cc_binary(
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_x86_64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
     }),
     visibility = ["//visibility:public"],
     deps = [":ssl"],
@@ -217,7 +217,7 @@ cc_library(
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_SRCS,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_SRCS,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_SRCS,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_x86_64_LIBCRYPTO_SRCS,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_SRCS,
     }),
     hdrs = glob(
         [
@@ -254,12 +254,12 @@ cc_library(
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_x86_64_OPENSSL_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_DEFINES,
     }) + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_x86_64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_DEFINES,
     }),
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = ["include"],
@@ -284,7 +284,7 @@ cc_library(
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBSSL_SRCS,
-        "@bazel_tools//src/conditions:windows_x86_64": _WINDOWS_x86_64_LIBSSL_SRCS,
+        "@bazel_tools//src/conditions:windows_x86_64": _WINDOWS_X86_64_LIBSSL_SRCS,
     }),
     hdrs = glob(
         ["include/openssl/*.h"],
@@ -296,14 +296,14 @@ cc_library(
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_x86_64_OPENSSL_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_DEFINES,
     }) + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBSSL_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_x86_64_LIBSSL_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBSSL_DEFINES,
     }),
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = ["include"],
