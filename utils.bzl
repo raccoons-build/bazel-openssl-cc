@@ -42,10 +42,10 @@ def remove_pairs_of_files(list_of_files):
 
         next_file = sorted_list[index + 1]
 
-        file_wo_s_or_p = remove_file_suffix(file)
-        next_file_wo_s_or_p = remove_file_suffix(next_file)
+        file_wo_s_or_p = remove_file_suffix_and_prefix(file)
+        next_file_wo_s_or_p = remove_file_suffix_and_prefix(next_file)
 
-        if file_wo_s_or_p == next_file_wo_suffix:
+        if file_wo_s_or_p == next_file_wo_s_or_p:
             indicies_to_remove.append(index)
             indicies_to_remove.append(index + 1)
 
@@ -62,8 +62,15 @@ def remove_pairs_of_files(list_of_files):
     print(final_list)
     return final_list
 
-def remove_file_suffix(file_name):
+def remove_file_suffix_and_prefix(file_name):
+    
     if file_name.endswith(".h") or file_name.endswith(".c"):
-        return file_name[:-2]
+        file_name = file_name[:-2]
 
-    return file_name
+    last_index_of_slash = 0
+    index = 0
+    for chr in file_name: 
+        if chr == '/' or chr == '\':
+            last_index_of_slash = index
+        index += 1
+    return file_name[last_index_of_slash + 1:]
