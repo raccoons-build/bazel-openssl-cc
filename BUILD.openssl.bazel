@@ -138,16 +138,18 @@ COMMON_OPENSSL_APP_SRCS = glob(
     ":include/openssl/x509_vfy.h",
 ]
 
+ALL_OPENSSL_APP_SRCS = COMMON_OPENSSL_APP_SRCS + select({
+    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
+    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
+    "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
+    "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
+    "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_SRCS,
+})
+
 cc_binary(
     name = "openssl",
-    srcs = COMMON_OPENSSL_APP_SRCS + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
-        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
-        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_SRCS,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_SRCS,
-    }),
+    srcs = ALL_OPENSSL_APP_SRCS,
     copts = [
         "-iquote",
         "$(BINDIR)/external/{}/apps".format(_REPO_NAME),
@@ -222,16 +224,18 @@ COMMON_LIBCRYPTO_SRCS = glob(
     exclude = COMMON_GENERATED_FILES,
 )
 
+ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
+    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
+    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_SRCS,
+    "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_SRCS,
+    "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_SRCS,
+    "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_SRCS,
+})
+
 cc_library(
     name = "crypto",
-    srcs = COMMON_LIBCRYPTO_SRCS + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_SRCS,
-        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_SRCS,
-        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_SRCS,
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_SRCS,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_SRCS,
-    }),
+    srcs = ALL_LIBCRYPTO_SRCS,
     hdrs = glob(
         [
             "include/openssl/*.h",
@@ -302,16 +306,18 @@ COMMON_LIBSSL_SRCS = glob(
     exclude = COMMON_GENERATED_FILES,
 )
 
+ALL_LIBSSL_SRCS = COMMON_LIBSSL_SRCS + select({
+    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBSSL_SRCS,
+    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBSSL_SRCS,
+    "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
+    "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
+    "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBSSL_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBSSL_SRCS,
+})
+
 cc_library(
     name = "ssl",
-    srcs = COMMON_LIBSSL_SRCS + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBSSL_SRCS,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBSSL_SRCS,
-        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
-        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBSSL_SRCS,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBSSL_SRCS,
-    }),
+    srcs = ALL_LIBSSL_SRCS,
     hdrs = glob(
         ["include/openssl/*.h"],
     ) + [":generated-headers"],
@@ -390,9 +396,35 @@ filegroup(
     srcs = COMMON_GENERATED_FILES + [":generate-platform-specific-files"],
 )
 
+# Function to convert a .c file name to a .h file name
+def convert_c_to_h(c_file_name):
+    if c_file_name.endswith(".c"):
+        # Replace .c with .h
+        h_file_name = c_file_name[:-2] + ".h"
+        return h_file_name
+    else:
+        # Return the same name if it's not a .c file
+        return c_file_name
+
+ALL_SRCS = ALL_LIBCRYPTO_SRCS + ALL_LIBSSL_SRCS + ALL_OPENSSL_APP_SRCS
+
+GENERATED_WINDOWS_HEADERS = [
+    genrule(
+        name = "copy_generated_{}_as_h".format(src),
+        srcs = ["@openssl-generated-overlay//:{}".format(src)],
+        outs = [convert_c_to_h(src)],
+        cmd = "touch $@",
+    )
+    for src in ALL_SRCS
+]
+
 filegroup(
     name = "generated-headers",
-    srcs = [f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")],
+    srcs = [f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")] + select({
+        "@bazel_tools//src/conditions:windows_arm64": GENERATED_WINDOWS_HEADERS,
+        "@bazel_tools//src/conditions:windows_x64": GENERATED_WINDOWS_HEADERS,
+        "//conditions:default": [],
+    }),
 )
 
 [
