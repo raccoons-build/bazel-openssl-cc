@@ -89,12 +89,6 @@ load(
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//:utils.bzl", "get_repo_name")
 
-print(_WINDOWS_X86_64_LIBCRYPTO_DEFINES)
-
-print(_WINDOWS_X86_64_LIBSSL_DEFINES)
-
-print(_WINDOWS_X86_64_OPENSSL_DEFINES)
-
 _REPO_NAME = get_repo_name()
 
 cc_library(
