@@ -87,7 +87,7 @@ load(
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "get_repo_name")
+load("//:utils.bzl", "convert_c_to_h", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -395,16 +395,6 @@ filegroup(
     name = "generated-files",
     srcs = COMMON_GENERATED_FILES + [":generate-platform-specific-files"],
 )
-
-# Function to convert a .c file name to a .h file name
-def convert_c_to_h(c_file_name):
-    if c_file_name.endswith(".c"):
-        # Replace .c with .h
-        h_file_name = c_file_name[:-2] + ".h"
-        return h_file_name
-    else:
-        # Return the same name if it's not a .c file
-        return c_file_name
 
 ALL_SRCS = ALL_LIBCRYPTO_SRCS + ALL_LIBSSL_SRCS + ALL_OPENSSL_APP_SRCS
 
