@@ -20,4 +20,10 @@ def to_target_name(file_name):
     return file_name.replace(":", "")
 
 def dedupe(list_of_str):
-    return list(set(list_of_str))
+    final_list = []
+    for thing in list_of_str:
+        if thing in final_list: 
+            pass
+        else: 
+            final_list.append(thing)
+    return final_list
