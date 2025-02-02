@@ -393,8 +393,6 @@ filegroup(
     srcs = [f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")],
 )
 
-print([f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")])
-
 [
     genrule(
         name = "copy_generated_{}".format(src),
@@ -441,11 +439,6 @@ genrule(
         ) for k, v in _WINDOWS_X86_64_GEN_FILES.items()]),
     }),
 )
-
-print("\n".join([GEN_FILE_CMD.format(
-    contents = v,
-    filename = k,
-) for k, v in _WINDOWS_X86_64_GEN_FILES.items()]))
 
 collate_into_directory(
     name = "gen_dir",
