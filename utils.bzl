@@ -18,3 +18,6 @@ def to_build_rule_name(file_name):
 # Function that takes a src and makes it work as a target name
 def to_target_name(file_name):
     return file_name.replace(":", "")
+
+def dedupe(list_of_str):
+    return list(set(list_of_str))
