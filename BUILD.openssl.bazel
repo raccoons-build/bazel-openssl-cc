@@ -220,19 +220,6 @@ COMMON_LIBCRYPTO_SRCS = glob(
     exclude = COMMON_GENERATED_FILES,
 )
 
-LIBCRYPTO_HDRS = glob(
-    [
-        "include/openssl/*.h",
-        "include/openssl/**/*.h",
-        "include/crypto/*.h",
-        "include/crypto/**/*.h",
-    ],
-) + [":generated-headers"]
-
-print(COMMON_LIBCRYPTO_SRCS)
-
-print(LIBCRYPTO_HDRS)
-
 cc_library(
     name = "crypto",
     srcs = COMMON_LIBCRYPTO_SRCS + select({
@@ -243,7 +230,14 @@ cc_library(
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_SRCS,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_SRCS,
     }),
-    hdrs = LIBCRYPTO_HDRS,
+    hdrs = glob(
+        [
+            "include/openssl/*.h",
+            "include/openssl/**/*.h",
+            "include/crypto/*.h",
+            "include/crypto/**/*.h",
+        ],
+    ) + [":generated-headers"],
     additional_compiler_inputs = [":generated-headers"] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
