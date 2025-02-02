@@ -30,15 +30,15 @@ def dedupe(list_of_str):
 
 # Removes a .h and its .c if they exist as a pair
 def remove_pairs_of_files(list_of_files):
-    sorted = merge_sort(list_of_files)
+    sorted_list = sorted(list_of_files)
 
     indicies_to_remove = []
     index = 0
-    for file in sorted:
-        if index + 1 == len(sorted):
+    for file in sorted_list:
+        if index + 1 == len(sorted_list):
             continue
 
-        next_file = sorted[index + 1]
+        next_file = sorted_list[index + 1]
 
         file_wo_suffix = remove_file_suffix(file)
         next_file_wo_suffix = remove_file_suffix(next_file)
@@ -50,7 +50,7 @@ def remove_pairs_of_files(list_of_files):
         index += 1
     final_list = []
     index = 0
-    for file in sorted:
+    for file in sorted_list:
         if index in indicies_to_remove:
             pass
         else:
@@ -63,26 +63,3 @@ def remove_file_suffix(file_name):
         return file_name[:-2]
 
     return file_name
-
-# Merge function to merge two sorted lists using recursion
-def merge(left, right):
-    # Base cases: if one list is empty, return the other
-    if len(left) == 0:
-        return right
-    if len(right) == 0:
-        return left
-
-    # Recursive case: compare the first elements of both lists
-    if left[0] < right[0]:
-        return [left[0]] + merge(left[1:], right)
-    else:
-        return [right[0]] + merge(left, right[1:])
-
-# Merge sort function
-def merge_sort(arr):
-    if len(arr) <= 1:
-        return arr
-    mid = len(arr) // 2
-    left = merge_sort(arr[:mid])
-    right = merge_sort(arr[mid:])
-    return merge(left, right)
