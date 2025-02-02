@@ -42,10 +42,10 @@ def remove_pairs_of_files(list_of_files):
 
         next_file = sorted_list[index + 1]
 
-        file_wo_suffix = remove_file_suffix(file)
-        next_file_wo_suffix = remove_file_suffix(next_file)
+        file_wo_s_or_p = remove_file_suffix(file)
+        next_file_wo_s_or_p = remove_file_suffix(next_file)
 
-        if file_wo_suffix == next_file_wo_suffix:
+        if file_wo_s_or_p == next_file_wo_suffix:
             indicies_to_remove.append(index)
             indicies_to_remove.append(index + 1)
 
