@@ -229,7 +229,7 @@ LIBCRYPTO_HDRS = glob(
     ],
 ) + [":generated-headers"]
 
-print(LIBCRYPTO_SRCS)
+print(COMMON_LIBCRYPTO_SRCS)
 
 print(LIBCRYPTO_HDRS)
 
