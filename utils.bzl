@@ -10,3 +10,7 @@ def convert_c_to_h(c_file_name):
     else:
         # Return the same name if it's not a .c file
         return c_file_name
+
+# Function that takes a src and makes it work as a target name
+def to_target_name(file_name):
+    return file_name.replace("/", "_").replace(":", "_")

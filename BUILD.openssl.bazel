@@ -87,7 +87,7 @@ load(
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "convert_c_to_h", "get_repo_name")
+load("//:utils.bzl", "convert_c_to_h", "get_repo_name", "to_target_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -401,7 +401,7 @@ ALL_WINDOWS_X86_SRCS = COMMON_OPENSSL_APP_SRCS + COMMON_LIBCRYPTO_SRCS + COMMON_
 GENERATED_WINDOWS_X86_HEADERS = [
     genrule(
         name = "copy_generated_x86_as_h_{}".format(src),
-        srcs = ["@openssl-generated-overlay//:{}".format(src)],
+        srcs = ["@openssl-generated-overlay//:{}".format(to_target_name(src))],
         outs = [convert_c_to_h(src)],
         cmd = "touch $@",
     )
@@ -413,7 +413,7 @@ ALL_WINDOWS_ARM64_SRCS = COMMON_OPENSSL_APP_SRCS + COMMON_LIBCRYPTO_SRCS + COMMO
 GENERATED_WINDOWS_ARM64_HEADERS = [
     genrule(
         name = "copy_generated_arm64_as_h_{}".format(src),
-        srcs = ["@openssl-generated-overlay//:{}".format(src)],
+        srcs = ["@openssl-generated-overlay//:{}".format(to_target_name(src))],
         outs = [convert_c_to_h(src)],
         cmd = "touch $@",
     )
