@@ -87,7 +87,7 @@ load(
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "convert_c_to_h", "dedupe", "get_repo_name", "to_build_rule_name", "to_target_name")
+load("//:utils.bzl", "convert_c_to_h", "dedupe", "get_repo_name", "remove_pairs_of_files", "to_build_rule_name", "to_target_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -233,17 +233,19 @@ ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
     "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_SRCS,
 })
 
+EXISTING_LIBCRYPTO_HDRS = glob(
+    [
+        "include/openssl/*.h",
+        "include/openssl/**/*.h",
+        "include/crypto/*.h",
+        "include/crypto/**/*.h",
+    ],
+)
+
 cc_library(
     name = "crypto",
     srcs = ALL_LIBCRYPTO_SRCS,
-    hdrs = glob(
-        [
-            "include/openssl/*.h",
-            "include/openssl/**/*.h",
-            "include/crypto/*.h",
-            "include/crypto/**/*.h",
-        ],
-    ) + [":generated-headers"],
+    hdrs = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"],
     additional_compiler_inputs = [":generated-headers"] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
@@ -315,12 +317,14 @@ ALL_LIBSSL_SRCS = COMMON_LIBSSL_SRCS + select({
     "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBSSL_SRCS,
 })
 
+EXISTING_LIBSSL_HDRS = glob(
+    ["include/openssl/*.h"],
+)
+
 cc_library(
     name = "ssl",
     srcs = ALL_LIBSSL_SRCS,
-    hdrs = glob(
-        ["include/openssl/*.h"],
-    ) + [":generated-headers"],
+    hdrs = EXISTING_LIBSSL_HDRS + [":generated-headers"],
     additional_compiler_inputs = [":generated-files"],
     copts = COMMON_OPENSSL_COPTS + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
@@ -396,7 +400,9 @@ filegroup(
     srcs = COMMON_GENERATED_FILES + [":generate-platform-specific-files"],
 )
 
-ALL_WINDOWS_X86_SRCS = dedupe(COMMON_OPENSSL_APP_SRCS + COMMON_LIBCRYPTO_SRCS + COMMON_LIBSSL_SRCS + _WINDOWS_X86_64_LIBCRYPTO_SRCS + _WINDOWS_X86_64_LIBSSL_SRCS + _WINDOWS_X86_64_OPENSSL_APP_SRCS)
+ALL_COMMON_SRCS_AND_HDRS = COMMON_OPENSSL_APP_SRCS + COMMON_LIBCRYPTO_SRCS + COMMON_LIBSSL_SRCS + EXISTING_LIBCRYPTO_HDRS + EXISTING_LIBSSL_HDRS
+
+ALL_WINDOWS_X86_SRCS = remove_pairs_of_files(dedupe(ALL_COMMON_SRCS_AND_HDRS + _WINDOWS_X86_64_LIBCRYPTO_SRCS + _WINDOWS_X86_64_LIBSSL_SRCS + _WINDOWS_X86_64_OPENSSL_APP_SRCS))
 
 GENERATED_WINDOWS_X86_HEADERS = [
     genrule(
@@ -408,7 +414,7 @@ GENERATED_WINDOWS_X86_HEADERS = [
     for src in ALL_WINDOWS_X86_SRCS
 ]
 
-ALL_WINDOWS_ARM64_SRCS = dedupe(COMMON_OPENSSL_APP_SRCS + COMMON_LIBCRYPTO_SRCS + COMMON_LIBSSL_SRCS + _WINDOWS_ARM64_LIBCRYPTO_SRCS + _WINDOWS_ARM64_LIBSSL_SRCS + _WINDOWS_ARM64_OPENSSL_APP_SRCS)
+ALL_WINDOWS_ARM64_SRCS = remove_pairs_of_files(dedupe(ALL_COMMON_SRCS_AND_HDRS + _WINDOWS_ARM64_LIBCRYPTO_SRCS + _WINDOWS_ARM64_LIBSSL_SRCS + _WINDOWS_ARM64_OPENSSL_APP_SRCS))
 
 GENERATED_WINDOWS_ARM64_HEADERS = [
     genrule(
