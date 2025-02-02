@@ -89,12 +89,6 @@ load(
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//:utils.bzl", "get_repo_name")
 
-print(_WINDOWS_X86_64_GEN_FILES)
-
-print(_WINDOWS_X86_64_LIBCRYPTO_DEFINES)
-
-print(_WINDOWS_X86_64_LIBCRYPTO_SRCS)
-
 _REPO_NAME = get_repo_name()
 
 cc_library(
@@ -255,8 +249,6 @@ cc_library(
         "external/{}/providers/implementations/macs".format(_REPO_NAME),
         "-iquote",
         "external/{}/providers/implementations/include".format(_REPO_NAME),
-        "-I",
-        "external/{}/providers/implementations/include".format(_REPO_NAME),
         "-iquote",
         "external/{}/providers/common/include".format(_REPO_NAME),
         "-iquote",
@@ -279,6 +271,19 @@ cc_library(
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_DEFINES,
+    }) + select({
+        "@bazel_tools//src/conditions:windows_arm64": [
+            "/I",
+            "external/{}/providers/implementations/include".format(_REPO_NAME),
+        ],
+        "@bazel_tools//src/conditions:windows_x64": [
+            "/I",
+            "external/{}/providers/implementations/include".format(_REPO_NAME),
+        ],
+        "//conditions:default": [
+            "-I",
+            "external/{}/providers/implementations/include".format(_REPO_NAME),
+        ],
     }),
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = ["include"],
