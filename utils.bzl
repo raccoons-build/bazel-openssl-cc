@@ -47,22 +47,23 @@ def remove_pairs_of_files(list_of_files):
             The list of files with pairs and dupes removed.
     """
     no_suffix_or_prefix_list = [remove_file_suffix_and_prefix(file_name) for file_name in list_of_files]
-    sorted_list = sorted(no_suffix_or_prefix_list)
     indicies_to_remove = []
     index = 0
-    for file in sorted_list:
+    for file in no_suffix_or_prefix_list:
         rest_of_list = sorted_list[index + 1:]
         if file in rest_of_list:
             indicies_to_remove.append(index)
         index += 1
     final_list = []
     index = 0
+    print(indicies_to_remove)
     for file in list_of_files:
         if index in indicies_to_remove:
             pass
         else:
             final_list.append(file)
         index += 1
+    print(final_list)
     return final_list
 
 def remove_file_suffix_and_prefix(file_name):
