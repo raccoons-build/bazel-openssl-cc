@@ -237,6 +237,33 @@ EXISTING_LIBCRYPTO_HDRS = glob(
     ],
 )
 
+LIBCRYPTO_NIX_COPTS = [
+    "-iquote",
+    "external/{}/providers/implementations/macs".format(_REPO_NAME),
+    "-iquote",
+    "external/{}/providers/implementations/include".format(_REPO_NAME),
+    "-iquote",
+    "external/{}/providers/common/include".format(_REPO_NAME),
+    "-iquote",
+    "$(BINDIR)/external/{}/providers/common/include".format(_REPO_NAME),
+    "-iquote",
+    "$(BINDIR)/external/{}/crypto".format(_REPO_NAME),
+    "-iquote",
+    "external/{}/crypto".format(_REPO_NAME),
+    "-I",
+    "external/{}/providers/implementations/include".format(_REPO_NAME),
+]
+
+LIBCRYPTO_WINDOWS_COPTS = [
+    "/Iexternal/{}/providers/implementations/macs".format(_REPO_NAME),
+    "/Iexternal/{}/providers/implementations/include".format(_REPO_NAME),
+    "/Iexternal/{}/providers/common/include".format(_REPO_NAME),
+    "/I$(BINDIR)/external/{}/providers/common/include".format(_REPO_NAME),
+    "/I$(BINDIR)/external/{}/crypto".format(_REPO_NAME),
+    "/Iexternal/{}/crypto".format(_REPO_NAME),
+    "/Iexternal/{}/providers/implementations/include".format(_REPO_NAME),
+]
+
 cc_library(
     name = "crypto",
     srcs = ALL_LIBCRYPTO_SRCS,
@@ -247,20 +274,7 @@ cc_library(
         ["providers/implementations/**/*.c"],
         exclude = COMMON_GENERATED_FILES,
     ),
-    copts = COMMON_OPENSSL_COPTS + [
-        "-iquote",
-        "external/{}/providers/implementations/macs".format(_REPO_NAME),
-        "-iquote",
-        "external/{}/providers/implementations/include".format(_REPO_NAME),
-        "-iquote",
-        "external/{}/providers/common/include".format(_REPO_NAME),
-        "-iquote",
-        "$(BINDIR)/external/{}/providers/common/include".format(_REPO_NAME),
-        "-iquote",
-        "$(BINDIR)/external/{}/crypto".format(_REPO_NAME),
-        "-iquote",
-        "external/{}/crypto".format(_REPO_NAME),
-    ] + select({
+    copts = COMMON_OPENSSL_COPTS + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
@@ -275,16 +289,9 @@ cc_library(
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_DEFINES,
     }) + select({
-        "@bazel_tools//src/conditions:windows_arm64": [
-            "/Iexternal/{}/providers/implementations/include".format(_REPO_NAME),
-        ],
-        "@bazel_tools//src/conditions:windows_x64": [
-            "/Iexternal/{}/providers/implementations/include".format(_REPO_NAME),
-        ],
-        "//conditions:default": [
-            "-I",
-            "external/{}/providers/implementations/include".format(_REPO_NAME),
-        ],
+        "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_COPTS,
+        "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_COPTS,
+        "//conditions:default": LIBCRYPTO_NIX_COPTS,
     }),
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = ["include"],
