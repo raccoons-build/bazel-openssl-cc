@@ -88,6 +88,8 @@ load("//:utils.bzl", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
+print(_REPO_NAME)
+
 cc_library(
     name = "crypto-textual-hdrs",
     textual_hdrs = [
