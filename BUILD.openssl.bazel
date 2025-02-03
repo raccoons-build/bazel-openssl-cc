@@ -58,7 +58,7 @@ load(
     _LINUX_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
-    "@openssl-generated-overlay//:constants-windows_arm64.bzl",
+    "@openssl-generated-overlay//:constants-VC-WIN64-ARM.bzl",
     _WINDOWS_ARM64_GEN_FILES = "GEN_FILES",
     _WINDOWS_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
     _WINDOWS_ARM64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
@@ -71,7 +71,7 @@ load(
     _WINDOWS_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
-    "@openssl-generated-overlay//:constants-windows_x64.bzl",
+    "@openssl-generated-overlay//:constants-VC-WIN64A.bzl",
     _WINDOWS_X86_64_GEN_FILES = "GEN_FILES",
     _WINDOWS_X86_64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
     _WINDOWS_X86_64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",

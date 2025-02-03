@@ -19,8 +19,8 @@ platforms = [
     "darwin64-x86_64-cc",
     "linux-x86_64-clang",
     "linux-aarch64",
-    "windows_x64",
-    "windows_arm64",
+    "VC-WIN64A",
+    "VC-WIN64-ARM",
 ]
 
 generated_files = [
@@ -323,7 +323,6 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json.dumps(platform_specific_generated_files, indent="    ", sort_keys=True)}
 """
-    print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
