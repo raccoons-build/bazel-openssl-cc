@@ -87,7 +87,7 @@ load(
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "convert_c_to_h", "dedupe", "get_repo_name", "remove_pairs_of_files", "to_build_rule_name", "to_target_name")
+load("//:utils.bzl", "convert_c_to_h", "get_repo_name", "remove_pairs_of_files", "to_build_rule_name", "to_target_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -402,7 +402,7 @@ filegroup(
 
 ALL_COMMON_SRCS_AND_HDRS = COMMON_OPENSSL_APP_SRCS + COMMON_LIBCRYPTO_SRCS + COMMON_LIBSSL_SRCS + EXISTING_LIBCRYPTO_HDRS + EXISTING_LIBSSL_HDRS
 
-ALL_WINDOWS_X86_SRCS = remove_pairs_of_files(dedupe(ALL_COMMON_SRCS_AND_HDRS + _WINDOWS_X86_64_LIBCRYPTO_SRCS + _WINDOWS_X86_64_LIBSSL_SRCS + _WINDOWS_X86_64_OPENSSL_APP_SRCS))
+ALL_WINDOWS_X86_SRCS = remove_pairs_of_files(ALL_COMMON_SRCS_AND_HDRS + _WINDOWS_X86_64_LIBCRYPTO_SRCS + _WINDOWS_X86_64_LIBSSL_SRCS + _WINDOWS_X86_64_OPENSSL_APP_SRCS)
 
 GENERATED_WINDOWS_X86_HEADERS = [
     genrule(
@@ -414,7 +414,7 @@ GENERATED_WINDOWS_X86_HEADERS = [
     for src in ALL_WINDOWS_X86_SRCS
 ]
 
-ALL_WINDOWS_ARM64_SRCS = remove_pairs_of_files(dedupe(ALL_COMMON_SRCS_AND_HDRS + _WINDOWS_ARM64_LIBCRYPTO_SRCS + _WINDOWS_ARM64_LIBSSL_SRCS + _WINDOWS_ARM64_OPENSSL_APP_SRCS))
+ALL_WINDOWS_ARM64_SRCS = remove_pairs_of_files(ALL_COMMON_SRCS_AND_HDRS + _WINDOWS_ARM64_LIBCRYPTO_SRCS + _WINDOWS_ARM64_LIBSSL_SRCS + _WINDOWS_ARM64_OPENSSL_APP_SRCS)
 
 GENERATED_WINDOWS_ARM64_HEADERS = [
     genrule(

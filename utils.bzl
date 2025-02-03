@@ -32,8 +32,9 @@ def dedupe(list_of_str):
 
 # Removes a .h and its .c if they exist as a pair
 def remove_pairs_of_files(list_of_files):
-    no_suffix_or_prefix_lst = [remove_file_suffix_and_prefix(file_name) for file_name in list_of_files]
-    sorted_list = sorted(no_suffix_or_prefix_lst)
+    no_suffix_or_prefix_list = [remove_file_suffix_and_prefix(file_name) for file_name in list_of_files]
+    deduped_list = dedupe(no_suffix_or_prefix_list)
+    sorted_list = sorted(deduped_list)
 
     indicies_to_remove = []
     index = 0
