@@ -59,16 +59,13 @@ jobs:
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
   pr-generate-windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4.2.2
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: ./download-buildifier.sh
+      - run: download-buildifier.ps1
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - name: Checkout BCR
         uses: actions/checkout@v4.2.2
@@ -95,9 +92,6 @@ jobs:
           path: bcr.tar.gz
           if-no-files-found: error
   pr-test-windows:
-    defaults:
-      run:
-        shell: msys2 {0}
     strategy:
       matrix:
         os:
