@@ -275,7 +275,7 @@ http_archive(
 def write_source_json(out_dir: str, openssl_info: Dict):
     overlay_info = {}
     overlay_dir = os.path.join(out_dir, "overlay")
-    for root, dir, files in os.walk(overlay_dir):
+    for root, _, files in os.walk(overlay_dir):
         for file in files:
             full_path = os.path.join(root, file)
             overlay_relative_path = os.path.relpath(full_path, overlay_dir)
@@ -364,7 +364,7 @@ def guess_previous_tag_dir(openssl_module_dir, tag):
 
 
 def dedupe_content_with_symlinks(previous_tag_dir, out_dir):
-    for root, dir, files in os.walk(out_dir):
+    for root, _, files in os.walk(out_dir):
         for file in files:
             full_path = os.path.join(root, file)
             module_relative_path = os.path.relpath(full_path, out_dir)

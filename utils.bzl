@@ -1,3 +1,4 @@
+# Get the repository name from the BUILD file
 def get_repo_name():
     return Label("//:BUILD.bazel").workspace_name
 
@@ -19,6 +20,7 @@ def to_build_rule_name(file_name):
 def to_target_name(file_name):
     return file_name.replace(":", "")
 
+# Deduplicate a list of strings
 def dedupe(list_of_str):
     final_list = []
     for thing in list_of_str:
@@ -62,15 +64,16 @@ def remove_pairs_of_files(list_of_files):
     print(final_list)
     return final_list
 
+# Remove the suffix and prefix of a file name.
+# e.g. some:/path/to/file_name.h --> file_name
 def remove_file_suffix_and_prefix(file_name):
-    
     if file_name.endswith(".h") or file_name.endswith(".c"):
         file_name = file_name[:-2]
 
     last_index_of_slash = 0
     index = 0
-    for chr in file_name: 
-        if chr == '/' or chr == '\':
+    for chr in file_name:
+        if chr == "/" or chr == "\\":
             last_index_of_slash = index
         index += 1
     return file_name[last_index_of_slash + 1:]
