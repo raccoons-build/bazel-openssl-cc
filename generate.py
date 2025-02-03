@@ -87,7 +87,7 @@ def get_platforms(os: str):
         raise ValueError(f'Unknown os: {os}')
 
 
-def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, os: str):
+def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str):
     openssl_module_dir = os.path.join(bcr_dir, "modules", "openssl")
     out_dir = os.path.join(openssl_module_dir, tag)
     os.makedirs(out_dir)
@@ -99,7 +99,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     with download_openssl(openssl_version) as (openssl_dir, openssl_info):
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
-        for platform in get_platforms(os):
+        for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
