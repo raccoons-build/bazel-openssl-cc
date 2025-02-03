@@ -58,6 +58,7 @@ def remove_pairs_of_files(list_of_files):
         else:
             final_list.append(file)
         index += 1
+    print(final_list)
     return final_list
 
 # Remove the suffix and prefix of a file name.
