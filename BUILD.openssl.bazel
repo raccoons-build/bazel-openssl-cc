@@ -159,6 +159,16 @@ OPENSSL_APP_WINDOWS_COPTS = [
     "/Iexternal/{}/apps/include".format(_REPO_NAME),
 ]
 
+COMMON_OPENSSL_WINDOWS_DEFINES = [
+    "_WINSOCKAPI_",
+]
+
+COMMON_OPENSSL_DEFINES = select({
+    "@bazel_tools//src/conditions:windows_arm64": COMMON_OPENSSL_WINDOWS_DEFINES,
+    "@bazel_tools//src/conditions:windows_x64": COMMON_OPENSSL_WINDOWS_DEFINES,
+    "//conditions:default": [],
+})
+
 cc_binary(
     name = "openssl",
     srcs = ALL_OPENSSL_APP_SRCS,
@@ -216,16 +226,6 @@ COMMON_OPENSSL_COPTS = [
         "-I",
         "external/{}/include".format(_REPO_NAME),
     ],
-})
-
-COMMON_OPENSSL_WINDOWS_DEFINES = [
-    "_WINSOCKAPI_",
-]
-
-COMMON_OPENSSL_DEFINES = select({
-    "@bazel_tools//src/conditions:windows_arm64": COMMON_OPENSSL_WINDOWS_DEFINES,
-    "@bazel_tools//src/conditions:windows_x64": COMMON_OPENSSL_WINDOWS_DEFINES,
-    "//conditions:default": [],
 })
 
 COMMON_LIBCRYPTO_SRCS = glob(
