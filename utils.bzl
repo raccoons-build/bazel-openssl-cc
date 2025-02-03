@@ -39,17 +39,9 @@ def remove_pairs_of_files(list_of_files):
     indicies_to_remove = []
     index = 0
     for file in sorted_list:
-        if "opensslconf" in file: 
-            print(file)
-        if index + 1 == len(sorted_list):
-            continue
-
-        next_file = sorted_list[index + 1]
-
-        if file == next_file:
+        rest_of_list = sorted_list[index + 1:]
+        if file in rest_of_list:
             indicies_to_remove.append(index)
-            indicies_to_remove.append(index + 1)
-
         index += 1
     final_list = []
     index = 0
