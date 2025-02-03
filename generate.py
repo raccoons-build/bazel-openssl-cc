@@ -14,14 +14,17 @@ from typing import Dict
 
 openssl_version = "3.3.1"
 
-platforms = [
+nix_platforms = [
     "darwin64-arm64-cc",
     "darwin64-x86_64-cc",
     "linux-x86_64-clang",
     "linux-aarch64",
-    "VC-WIN64A",
-    "VC-WIN64-ARM",
 ]
+
+windows_platforms = ["VC-WIN64A",
+                     "VC-WIN64-ARM"]
+
+all_platforms = nix_platforms + windows_platforms
 
 generated_files = [
     "apps/progs.c",
@@ -75,7 +78,16 @@ generated_files = [
 ]
 
 
-def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str):
+def get_platforms(os: str):
+    if os == 'windows':
+        return windows_platforms
+    elif os == 'nix':
+        return nix_platforms
+    else:
+        raise ValueError(f'Unknown os: {os}')
+
+
+def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, os: str):
     openssl_module_dir = os.path.join(bcr_dir, "modules", "openssl")
     out_dir = os.path.join(openssl_module_dir, tag)
     os.makedirs(out_dir)
@@ -87,7 +99,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     with download_openssl(openssl_version) as (openssl_dir, openssl_info):
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
-        for platform in platforms:
+        for platform in get_platforms(os):
             write_config_file(openssl_dir, platform)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
@@ -145,7 +157,9 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 else:
                     platform_specific_generated_paths.append(path)
 
-            for platform in platforms:
+            # We need to write constants for ALL platforms not just the ones we are configuring openssl
+            # for so the BUILD file imports work
+            for platform in all_platforms:
                 write_platform_specific_constants(
                     output_tar_dir,
                     openssl_version,
@@ -291,7 +305,7 @@ def integrity_hash(path: str) -> str:
     algo = "sha256"
     with open(path, "rb") as f:
         digest = hashlib.file_digest(f, algo).digest()
-    return f"{algo}-{base64.b64encode(digest).decode("utf-8")}"
+    return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
 
 def write_config_file(openssl_dir, platform):
@@ -383,6 +397,7 @@ def dedupe_content_with_symlinks(previous_tag_dir, out_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("bazel-openssl-cc")
+    parser.add_argument("--os", required=True)
     parser.add_argument("--bcr_dir", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--overlay_tar_path", required=True)

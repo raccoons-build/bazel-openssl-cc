@@ -1,60 +1,122 @@
 name: Release
-'on':
+"on":
   workflow_dispatch: null
   pull_request: null
 jobs:
-  pr-generate:
+  pr-generate-nix:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4.2.2
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
-    - run: ./download-buildifier.sh
-    - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-    - name: Checkout BCR
-      uses: actions/checkout@v4.2.2
-      with:
-        repository: illicitonion/bazel-central-registry
-        token: ${{ secrets.BCR_GITHUB_TOKEN }}
-        path: bazel-central-registry
-        ref: refs/heads/main
-    - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-    - run: python3 generate.py --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.tar.gz --tag=3.3.1.bcr.wip --release_tar_url_template=file:///tmp/3.3.1.bcr.wip.tar.gz --buildifier=/tmp/buildifier.exe
-    - run: tar czf bcr.tar.gz bazel-central-registry
-    - name: Upload overlay
-      uses: actions/upload-artifact@v4
-      with:
-        name: 3.3.1.bcr.wip.tar.gz
-        path: /tmp/3.3.1.bcr.wip.tar.gz
-        if-no-files-found: error
-    - name: Upload bcr
-      uses: actions/upload-artifact@v4
-      with:
-        name: bcr.tar.gz
-        path: bcr.tar.gz
-        if-no-files-found: error
-  pr-test:
+      - name: Checkout repo
+        uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: ./download-buildifier.sh
+      - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
+      - name: Checkout BCR
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: illicitonion/bazel-central-registry
+          token: ${{ secrets.BCR_GITHUB_TOKEN }}
+          path: bazel-central-registry
+          ref: refs/heads/main
+      - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
+      - run: python3 generate.py --os=nix --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.tar.gz --tag=3.3.1.bcr.wip --release_tar_url_template=file:///tmp/3.3.1.bcr.wip.tar.gz --buildifier=/tmp/buildifier.exe
+      - run: tar czf bcr.tar.gz bazel-central-registry
+      - name: Upload overlay
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3.3.1.bcr.wip.tar.gz
+          path: /tmp/3.3.1.bcr.wip.tar.gz
+          if-no-files-found: error
+      - name: Upload bcr
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcr.tar.gz
+          path: bcr.tar.gz
+          if-no-files-found: error
+  pr-test-nix:
     strategy:
       matrix:
         os:
           - macos-14
           - ubuntu-latest
-          - windows-latest
     needs:
-    - pr-generate
+      - pr-generate-nix
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Download overlay
-      uses: actions/download-artifact@v4
-      with:
-        name: 3.3.1.bcr.wip.tar.gz
-        path: /tmp/
-    - name: Download bcr
-      uses: actions/download-artifact@v4
-      with:
-        name: bcr.tar.gz
-        path: /tmp/
-    - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-    - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//... || { cat $(bazel info execution_root)/bazel-out/x64_windows-fastbuild/bin/external/openssl+/_objs/crypto/seed_cfb.obj.params ; exit 1; }
+      - name: Download overlay
+        uses: actions/download-artifact@v4
+        with:
+          name: 3.3.1.bcr.wip.tar.gz
+          path: /tmp/
+      - name: Download bcr
+        uses: actions/download-artifact@v4
+        with:
+          name: bcr.tar.gz
+          path: /tmp/
+      - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
+      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
+  pr-generate-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: ./download-buildifier.sh
+      - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
+      - name: Checkout BCR
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: illicitonion/bazel-central-registry
+          token: ${{ secrets.BCR_GITHUB_TOKEN }}
+          path: bazel-central-registry
+          ref: refs/heads/main
+      - name: Setup nasm and msvc
+        uses: ilammy/msvc-dev-cmd@v1 ilammy/setup-nasm@v1
+      - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
+      - run: python3 generate.py --os=windows --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.tar.gz --tag=3.3.1.bcr.wip --release_tar_url_template=file:///tmp/3.3.1.bcr.wip.tar.gz --buildifier=/tmp/buildifier.exe
+      - run: tar czf bcr.tar.gz bazel-central-registry
+      - name: Upload overlay
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3.3.1.bcr.wip.tar.gz
+          path: /tmp/3.3.1.bcr.wip.tar.gz
+          if-no-files-found: error
+      - name: Upload bcr
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcr.tar.gz
+          path: bcr.tar.gz
+          if-no-files-found: error
+  pr-test-windows:
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+    needs:
+      - pr-generate-windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download overlay
+        uses: actions/download-artifact@v4
+        with:
+          name: 3.3.1.bcr.wip.tar.gz
+          path: /tmp/
+      - name: Download bcr
+        uses: actions/download-artifact@v4
+        with:
+          name: bcr.tar.gz
+          path: /tmp/
+      - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
+      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
+      - run: bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
+        shell: pwsh
