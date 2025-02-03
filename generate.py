@@ -161,7 +161,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
             copy_from_here_to(
                 "BUILD.openssl.bazel", os.path.join(overlay_dir, "BUILD.bazel")
             )
-            copy_from_here_to("utils.bzl", os.path.join(overlay_dir, "utils.bzl"))
+            copy_from_here_to("utils.bzl", os.path.join(
+                overlay_dir, "utils.bzl"))
             copy_from_here_to(
                 "collate_into_directory.bzl",
                 os.path.join(output_tar_dir, "collate_into_directory.bzl"),
@@ -269,7 +270,8 @@ http_archive(
 )
 """
         )
-    os.symlink("../MODULE.bazel", os.path.join(out_dir, "overlay", "MODULE.bazel"))
+    os.symlink("../MODULE.bazel",
+               os.path.join(out_dir, "overlay", "MODULE.bazel"))
 
 
 def write_source_json(out_dir: str, openssl_info: Dict):
@@ -321,6 +323,7 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json.dumps(platform_specific_generated_files, indent="    ", sort_keys=True)}
 """
+    print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
@@ -373,7 +376,8 @@ def dedupe_content_with_symlinks(previous_tag_dir, out_dir):
             new_path = os.path.join(out_dir, module_relative_path)
             new_hash = integrity_hash(new_path)
             if old_hash == new_hash:
-                link_target = os.path.relpath(old_path, os.path.dirname(new_path))
+                link_target = os.path.relpath(
+                    old_path, os.path.dirname(new_path))
                 os.unlink(new_path)
                 os.symlink(link_target, new_path)
 
@@ -389,4 +393,5 @@ if __name__ == "__main__":
     )
     parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
-    main(args.bcr_dir, args.overlay_tar_path, args.tag, args.buildifier, args.release_tar_url_template)
+    main(args.bcr_dir, args.overlay_tar_path, args.tag,
+         args.buildifier, args.release_tar_url_template)
