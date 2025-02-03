@@ -45,6 +45,7 @@ def remove_pairs_of_files(list_of_files):
         index += 1
     final_list = []
     index = 0
+    print(indicies_to_remove)
     for file in list_of_files:
         if index in indicies_to_remove:
             pass
