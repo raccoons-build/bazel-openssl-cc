@@ -408,4 +408,4 @@ if __name__ == "__main__":
     parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
     main(args.bcr_dir, args.overlay_tar_path, args.tag,
-         args.buildifier, args.release_tar_url_template)
+         args.buildifier, args.release_tar_url_template, args.os)
