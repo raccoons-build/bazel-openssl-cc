@@ -50,7 +50,7 @@ def remove_pairs_of_files(list_of_files):
         index += 1
     final_list = []
     index = 0
-    for file in sorted_list:
+    for file in list_of_files:
         if index in indicies_to_remove:
             pass
         else:
