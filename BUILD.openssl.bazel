@@ -88,8 +88,6 @@ load("//:utils.bzl", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
-print(_REPO_NAME)
-
 cc_library(
     name = "crypto-textual-hdrs",
     textual_hdrs = [
@@ -146,23 +144,35 @@ ALL_OPENSSL_APP_SRCS = COMMON_OPENSSL_APP_SRCS + select({
     "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_SRCS,
 })
 
+OPENSSL_APP_NIX_COPTS = [
+    "-iquote",
+    "$(BINDIR)/external/{}/apps".format(_REPO_NAME),
+    "-iquote",
+    "external/{}/apps".format(_REPO_NAME),
+    "-iquote",
+    "external/{}/apps/include".format(_REPO_NAME),
+]
+
+OPENSSL_APP_WINDOWS_COPTS = [
+    "/I$(BINDIR)/external/{}/apps".format(_REPO_NAME),
+    "/Iexternal/{}/apps".format(_REPO_NAME),
+    "/Iexternal/{}/apps/include".format(_REPO_NAME),
+]
+
 cc_binary(
     name = "openssl",
     srcs = ALL_OPENSSL_APP_SRCS,
-    copts = [
-        "-iquote",
-        "$(BINDIR)/external/{}/apps".format(_REPO_NAME),
-        "-iquote",
-        "external/{}/apps".format(_REPO_NAME),
-        "-iquote",
-        "external/{}/apps/include".format(_REPO_NAME),
-    ] + select({
+    copts = select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
+    }) + +select({
+        "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
+        "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
+        "//conditions:default": OPENSSL_APP_NIX_COPTS,
     }),
     visibility = ["//visibility:public"],
     deps = [":ssl"],
