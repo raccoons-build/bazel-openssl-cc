@@ -169,7 +169,7 @@ cc_binary(
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
-    }) + +select({
+    }) + select({
         "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
         "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
         "//conditions:default": OPENSSL_APP_NIX_COPTS,
