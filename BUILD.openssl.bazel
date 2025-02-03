@@ -399,7 +399,7 @@ filegroup(
 
 ALL_WINDOWS_SRCS_AND_HDRS = remove_pairs_of_files(dedupe(COMMON_OPENSSL_APP_SRCS + COMMON_LIBCRYPTO_SRCS + COMMON_LIBSSL_SRCS + EXISTING_LIBCRYPTO_HDRS + EXISTING_LIBSSL_HDRS + _WINDOWS_X86_64_LIBCRYPTO_SRCS + _WINDOWS_X86_64_LIBSSL_SRCS + _WINDOWS_X86_64_OPENSSL_APP_SRCS + _WINDOWS_ARM64_LIBCRYPTO_SRCS + _WINDOWS_ARM64_LIBSSL_SRCS + _WINDOWS_ARM64_OPENSSL_APP_SRCS))
 
-GENERATED_WINDOWS_HEADERS = [
+[
     genrule(
         name = "copy_generated_as_h_{}".format(to_build_rule_name(src)),
         srcs = ["@openssl-generated-overlay//:{}".format(to_target_name(src))],
@@ -409,11 +409,13 @@ GENERATED_WINDOWS_HEADERS = [
     for src in ALL_WINDOWS_SRCS_AND_HDRS
 ]
 
+GENERATED_WINDOWS_HEADERS_STR = [file_name for file_name in ALL_WINDOWS_SRCS_AND_HDRS]
+
 filegroup(
     name = "generated-headers",
     srcs = [f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")] + select({
-        "@bazel_tools//src/conditions:windows_arm64": GENERATED_WINDOWS_HEADERS,
-        "@bazel_tools//src/conditions:windows_x64": GENERATED_WINDOWS_HEADERS,
+        "@bazel_tools//src/conditions:windows_arm64": GENERATED_WINDOWS_HEADERS_STR,
+        "@bazel_tools//src/conditions:windows_x64": GENERATED_WINDOWS_HEADERS_STR,
         "//conditions:default": [],
     }),
 )
