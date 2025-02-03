@@ -50,7 +50,7 @@ def remove_pairs_of_files(list_of_files):
     indicies_to_remove = []
     index = 0
     for file in no_suffix_or_prefix_list:
-        rest_of_list = sorted_list[index + 1:]
+        rest_of_list = no_suffix_or_prefix_list[index + 1:]
         if file in rest_of_list:
             indicies_to_remove.append(index)
         index += 1
