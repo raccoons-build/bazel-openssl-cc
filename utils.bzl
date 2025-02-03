@@ -20,8 +20,9 @@ def to_build_rule_name(file_name):
 def to_target_name(file_name):
     return file_name.replace(":", "")
 
-# Deduplicate a list of strings
 def dedupe(list_of_str):
+""" Deduplicate a list of strings
+"""
     final_list = []
     for thing in list_of_str:
         if thing in final_list:
@@ -30,12 +31,11 @@ def dedupe(list_of_str):
             final_list.append(thing)
     return final_list
 
-# Removes a .h and its .c if they exist as a pair
 def remove_pairs_of_files(list_of_files):
+""" Removes a .h and its .c if they exist as a pair
+"""
     no_suffix_or_prefix_list = [remove_file_suffix_and_prefix(file_name) for file_name in list_of_files]
-    deduped_list = dedupe(no_suffix_or_prefix_list)
-    sorted_list = sorted(deduped_list)
-    print(sorted_list)
+    sorted_list = sorted(no_suffix_or_prefix_list)
     indicies_to_remove = []
     index = 0
     for file in sorted_list:
@@ -53,9 +53,11 @@ def remove_pairs_of_files(list_of_files):
         index += 1
     return final_list
 
-# Remove the suffix and prefix of a file name.
-# e.g. some:/path/to/file_name.h --> file_name
+
 def remove_file_suffix_and_prefix(file_name):
+""" Remove the suffix and prefix of a file name.
+    e.g. some:/path/to/file_name.h --> file_name
+"""
     if file_name.endswith(".h") or file_name.endswith(".c"):
         file_name = file_name[:-2]
 
