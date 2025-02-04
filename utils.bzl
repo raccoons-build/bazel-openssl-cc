@@ -9,7 +9,7 @@ def dedupe(lst):
 
         Args:
             lst: A list of things
-        Returns:
+        Return:
             The deuped list.
     """
     final_lst = []
@@ -20,3 +20,15 @@ def dedupe(lst):
             final_lst.append(thing)
 
     return final_lst
+
+def fix_paths_for_windows(path_lst):
+    """Replace the \\ with / on Windows.
+
+        We need them to be the opposite way when writing the generated bzl files on Windows.
+        But when we use the files we need to fix the paths.
+        Args:
+            path_lst: The list of paths to fix.
+        Return:
+            The fixed path list.
+    """
+    return [path.replace("\\", "/") for path in path_lst]
