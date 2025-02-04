@@ -391,7 +391,7 @@ GEN_FILES = {json_dump}
 """
     # Buildifier thinks that Windows paths are escape sequences.
     if "WIN" in platform:
-        out = replace_backslashes_in_path(out)
+        out = replace_backslashes_in_paths(out)
         print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
