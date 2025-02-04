@@ -364,8 +364,8 @@ LIBSSL_DEFINES = []
 LIBSSL_SRCS = []
 OPENSSL_APP_SRCS = []
 OPENSSL_DEFINES = []
-PERLASM_GEN = []
-PERLASM_TOOLS = []
+PERLASM_GEN = ''
+PERLASM_TOOLS = ''
         """
     out = f"""# Generated code. DO NOT EDIT.
 
