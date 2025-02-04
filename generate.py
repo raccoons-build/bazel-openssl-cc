@@ -343,7 +343,9 @@ def write_source_json(out_dir: str, openssl_info: Dict):
 
 def integrity_hash(path: str) -> str:
     algo = "sha256"
-    with open(pathlib.Path(path), "rb") as f:
+    if not os.path.exists(path):
+        raise ValueError(f"Path doesnt exist: {path}")
+    with open(pathlib.Path(path).resolve(), "rb") as f:
         digest = hashlib.file_digest(f, algo).digest()
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
