@@ -342,8 +342,7 @@ def write_source_json(out_dir: str, openssl_info: Dict):
     for root, _, files in os.walk(overlay_dir):
         for file in files:
             full_path = pathlib.Path(os.path.join(root, file))
-            overlay_relative_path =
-            os.path.relpath(full_path, overlay_dir)
+            overlay_relative_path = os.path.relpath(full_path, overlay_dir)
             overlay_info[overlay_relative_path] = integrity_hash(full_path)
     openssl_info["overlay"] = overlay_info
     with open(pathlib.Path(os.path.join(out_dir, "source.json")), "w") as f:
