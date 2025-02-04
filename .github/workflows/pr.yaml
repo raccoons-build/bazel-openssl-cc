@@ -115,5 +115,5 @@ jobs:
         with:
           name: bcr.windows.tar.gz
           path: C:\
-      - run: (cd C:\ && tar xzf C:\bcr.windows.tar.gz && dir C:\ && dir C:\bazel-central-registry)
+      - run: (cd C:\ && tar xzf C:\bcr.windows.tar.gz && dir C:\ && dir C:\bazel-central-registry && dir C:\bazel-central-registry\modules)
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.windows.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
