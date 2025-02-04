@@ -106,6 +106,19 @@ def get_make_command(os: str):
         raise ValueError(f'Unknown os: {os}')
 
 
+def get_extra_tar_options(os: str):
+    if os == 'windows':
+        return []
+    elif os == 'nix':
+        return ["--owner",
+                "root",
+                "--group",
+                "wheel",
+                "--mtime=UTC 1980-01-01"]
+    else:
+        raise ValueError(f'Unknown os: {os}')
+
+
 def replace_backslashes_in_paths(string):
     """Replaces single backslashes with double backslashes in paths within a string."""
 
@@ -238,20 +251,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
             files_to_tar = list(sorted(os.listdir(output_tar_dir)))
             tar = "gtar" if sys.platform == "darwin" else "tar"
-            subprocess.check_call(
-                [
-                    tar,
-                    "--owner",
-                    "root",
-                    "--group",
-                    "wheel",
-                    "--mtime=UTC 1980-01-01",
-                    "-czf",
-                    overlay_tar_path,
-                ]
-                + files_to_tar,
-                cwd=output_tar_dir,
-            )
+            extra_tar_options = get_extra_tar_options(operating_system)
+            subprocess.check_call([tar] + extra_options + ["-czf", overlay_tar_path] + files_to_tar,
+                                  cwd=output_tar_dir,
+                                  )
 
             write_module_files(
                 out_dir,
