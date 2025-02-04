@@ -87,6 +87,24 @@ def get_platforms(os: str):
         raise ValueError(f'Unknown os: {os}')
 
 
+def get_start_configure_command(os: str):
+    if os == 'windows':
+        return "perl Configure"
+    elif os == 'nix':
+        return "./Configure"
+    else:
+        raise ValueError(f'Unknown os: {os}')
+
+
+def get_make_command(os: str):
+    if os == 'windows':
+        return "nmake"
+    elif os == 'nix':
+        return "make"
+    else:
+        raise ValueError(f'Unknown os: {os}')
+
+
 def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str):
     openssl_module_dir = os.path.join(bcr_dir, "modules", "openssl")
     out_dir = os.path.join(openssl_module_dir, tag)
@@ -101,10 +119,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
+            start_configure_command = get_start_configure_command(os)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
                 [
-                    "./Configure",
+                    start_configure_command,
                     "--config=config.conf",
                     "openssl_config",
                     "no-afalgeng",
@@ -112,8 +131,9 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 ],
                 cwd=openssl_dir,
             )
+            make_command = get_make_command(os)
             subprocess.check_call(
-                ["make"] + generated_files,
+                [make_command] + generated_files,
                 cwd=openssl_dir,
                 # SOURCE_DATE_EPOCH lets us put a deterministic value in the DATE in generated headers
                 # it needs to be non-zero
