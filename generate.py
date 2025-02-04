@@ -167,7 +167,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     # There should be no perl output when we aren't generating for a platform.
                     platform_to_perl_output.get(platform, ""),
                     {
-                        path: generated_path_to_platform_to_contents[path][platform]
+                        # If there is no path or platform then return nothing
+                        path: generated_path_to_platform_to_contents.get(path, {}).get(platform, "")
                         for path in platform_specific_generated_paths
                     },
                     buildifier_path,
