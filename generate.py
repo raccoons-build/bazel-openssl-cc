@@ -79,38 +79,41 @@ generated_files = [
     "providers/common/include/prov/der_wrap.h",
 ]
 
+WINDOWS = "windows"
+NIX = "nix"
+
 
 def get_platforms(os: str):
-    if os == 'windows':
+    if os == WINDOWS:
         return windows_platforms
-    elif os == 'nix':
+    elif os == NIX:
         return nix_platforms
     else:
         raise ValueError(f'Unknown os: {os}')
 
 
 def get_start_configure_list(os: str):
-    if os == 'windows':
+    if os == WINDOWS:
         return ["perl", "Configure"]
-    elif os == 'nix':
+    elif os == NIX:
         return ["./Configure"]
     else:
         raise ValueError(f'Unknown os: {os}')
 
 
 def get_make_command(os: str):
-    if os == 'windows':
+    if os == WINDOWS:
         return "nmake"
-    elif os == 'nix':
+    elif os == NIX:
         return "make"
     else:
         raise ValueError(f'Unknown os: {os}')
 
 
 def get_extra_tar_options(os: str):
-    if os == 'windows':
+    if os == WINDOWS:
         return []
-    elif os == 'nix':
+    elif os == NIX:
         return ["--owner",
                 "root",
                 "--group",
