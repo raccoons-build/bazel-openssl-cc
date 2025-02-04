@@ -376,6 +376,7 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """
+    print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
