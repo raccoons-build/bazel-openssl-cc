@@ -113,7 +113,7 @@ def replace_backslashes_in_paths(string):
         return match.group(0).replace('\\', '\\\\')
 
     # This pattern matches Windows-style paths (e.g., C:\Users\John\Documents)
-    pattern = r'([A-Z]:)?(\\\\[^\\:*?"<>|\r\n]+)+'
+    pattern = r'[\w\\\-.]+'
 
     return re.sub(pattern, replace_match, string)
 
