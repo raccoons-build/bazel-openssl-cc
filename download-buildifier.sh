@@ -10,7 +10,7 @@ case "$(uname)" in
     suffix="linux-amd64"
     ;;
   "MINGW64_NT-10.0-20348")
-    suffix="windows-amd64"
+    suffix="windows-amd64.exe"
     ;;
   *)
     echo >&2 "Unknown uname $(uname)"
