@@ -405,6 +405,7 @@ LIBSSL_SRCS = []
 OPENSSL_APP_SRCS = []
 OPENSSL_DEFINES = []
 PERLASM_GEN = ''
+PERLASM_OUTS = []
 PERLASM_TOOLS = []
         """
     # Buildifier thinks that Windows paths are escape sequences.

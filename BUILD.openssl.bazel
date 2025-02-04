@@ -68,6 +68,7 @@ load(
     _WINDOWS_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _WINDOWS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
     _WINDOWS_ARM64_PERLASM_GEN = "PERLASM_GEN",
+    _WINDOWS_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
     _WINDOWS_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
@@ -81,10 +82,11 @@ load(
     _WINDOWS_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _WINDOWS_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
     _WINDOWS_X86_64_PERLASM_GEN = "PERLASM_GEN",
+    _WINDOWS_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "get_repo_name")
+load("//:utils.bzl", "get_repo_name", "dedupe")
 
 _REPO_NAME = get_repo_name()
 
@@ -419,8 +421,11 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
         }),
     )
     for k, v in {
-        "arm64": _DARWIN_ARM64_PERLASM_OUTS,
-        "x86_64": _LINUX_X86_64_PERLASM_OUTS,
+        # When generating for nix use mac arm and linux x86.
+        # When generating for windows use windows arm and windows x86.
+        # When generating both then just combine and dedupe.
+        "arm64": dedupe(_DARWIN_ARM64_PERLASM_OUTS + _WINDOWS_ARM64_PERLASM_OUTS),
+        "x86_64": dedupe(_LINUX_X86_64_PERLASM_OUTS + _WINDOWS_X86_64_PERLASM_OUTS),
     }.items()
 ]
 
