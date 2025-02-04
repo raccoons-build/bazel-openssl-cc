@@ -26,7 +26,7 @@ jobs:
       - name: Upload overlay
         uses: actions/upload-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.nix.tar.gz
+          name: 3.3.1.bcr.nix.wip.tar.gz
           path: /tmp/3.3.1.bcr.wip.tar.gz
           if-no-files-found: error
       - name: Upload bcr
@@ -116,5 +116,4 @@ jobs:
           name: bcr.windows.tar.gz
           path: C:\
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.windows.wip")' > MODULE.bazel
-      - run: bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
+      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.windows.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
