@@ -9,6 +9,9 @@ case "$(uname)" in
   "Linux")
     suffix="linux-amd64"
     ;;
+  "Windows")
+    suffix="windows-amd64"
+    ;;
   *)
     echo >&2 "Unknown uname $(uname)"
     exit 1
