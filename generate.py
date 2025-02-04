@@ -4,6 +4,7 @@ from collections import defaultdict
 import hashlib
 import json
 import os
+import re
 
 from contextlib import contextmanager
 import shutil
@@ -103,6 +104,18 @@ def get_make_command(os: str):
         return "make"
     else:
         raise ValueError(f'Unknown os: {os}')
+
+
+def replace_backslashes_in_paths(string):
+    """Replaces single backslashes with double backslashes in paths within a string."""
+
+    def replace_match(match):
+        return match.group(0).replace('\\', '\\\\')
+
+    # This pattern matches Windows-style paths (e.g., C:\Users\John\Documents)
+    pattern = r'([A-Z]:)?(\\\\[^\\:*?"<>|\r\n]+)+'
+
+    return re.sub(pattern, replace_match, string)
 
 
 def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str):
@@ -375,10 +388,10 @@ OPENSSL_VERSION = "{openssl_version}"
 {perl_output}
 
 GEN_FILES = {json_dump}
-""" 
+"""
     # Buildifier thinks that Windows paths are escape sequences.
     if "WIN" in platform:
-        out = out.replace("\\", "\\\\")
+        out = replace_backslashes_in_path(out)
         print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
