@@ -133,13 +133,15 @@ def replace_backslashes_in_paths(string):
 
 
 def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str):
-    openssl_module_dir = os.path.join(bcr_dir, "modules", "openssl")
-    out_dir = os.path.join(openssl_module_dir, tag)
+    openssl_module_dir = pathlib.Path(
+        os.path.join(bcr_dir, "modules", "openssl"))
+    out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
     os.makedirs(out_dir)
-    overlay_dir = os.path.join(out_dir, "overlay")
+    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
     os.makedirs(overlay_dir)
 
-    copy_from_here_to("presubmit.yml", os.path.join(out_dir, "presubmit.yml"))
+    copy_from_here_to("presubmit.yml", pathlib.Path(
+        os.path.join(out_dir, "presubmit.yml")))
 
     with download_openssl(openssl_version) as (openssl_dir, openssl_info):
         generated_path_to_platform_to_contents = defaultdict(dict)
@@ -167,7 +169,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 env=dict(os.environ) | {"SOURCE_DATE_EPOCH": "443779200"},
             )
             for generated_file in generated_files:
-                with open(os.path.join(openssl_dir, generated_file), "r") as f:
+                with open(pathlib.Path(os.path.join(openssl_dir, generated_file)), "r") as f:
                     content = f.read()
                 generated_path_to_platform_to_contents[generated_file][
                     platform
@@ -178,7 +180,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     "-I.",
                     "-l",
                     "-Mconfigdata",
-                    os.path.join(os.path.dirname(__file__), "extract_srcs.pl"),
+                    pathlib.Path(os.path.join(
+                        os.path.dirname(__file__), "extract_srcs.pl")),
                 ],
                 cwd=openssl_dir,
             ).decode("utf-8")
@@ -188,17 +191,18 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
             platform_specific_generated_paths = []
 
             for (
-                path,
+                pathlib.Path(path),
                 platform_to_contents,
             ) in generated_path_to_platform_to_contents.items():
                 if len(set(platform_to_contents.values())) == 1:
                     os.makedirs(
-                        os.path.dirname(os.path.join(output_tar_dir, path)),
+                        os.path.dirname(pathlib.Path(
+                            os.path.join(output_tar_dir, path))),
                         exist_ok=True,
                     )
                     shutil.copyfile(
-                        os.path.join(openssl_dir, path),
-                        os.path.join(output_tar_dir, path),
+                        pathlib.Path(os.path.join(openssl_dir, path)),
+                        pathlib.Path(os.path.join(output_tar_dir, path)),
                     )
                     platform_independent_generated_files.append(path)
                 else:
@@ -219,35 +223,39 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                             path, {}).get(platform, "")
                         for path in platform_specific_generated_paths
                     },
-                    buildifier_path,
+                    pathlib.Path(buildifier_path),
                 )
 
             copy_from_here_to(
-                "BUILD.openssl.bazel", os.path.join(overlay_dir, "BUILD.bazel")
+                "BUILD.openssl.bazel", pathlib.Path(
+                    os.path.join(overlay_dir, "BUILD.bazel"))
             )
-            copy_from_here_to("utils.bzl", os.path.join(
-                overlay_dir, "utils.bzl"))
+            copy_from_here_to("utils.bzl", pathlib.Path(os.path.join(
+                overlay_dir, "utils.bzl")))
             copy_from_here_to(
                 "collate_into_directory.bzl",
-                os.path.join(output_tar_dir, "collate_into_directory.bzl"),
+                pathlib.Path(os.path.join(output_tar_dir,
+                             "collate_into_directory.bzl")),
             )
             copy_from_here_to(
                 "move_file_and_strip_prefix.sh",
-                os.path.join(output_tar_dir, "move_file_and_strip_prefix.sh"),
+                pathlib.Path(os.path.join(output_tar_dir,
+                             "move_file_and_strip_prefix.sh")),
                 executable=True,
             )
 
-            with open(os.path.join(output_tar_dir, "common.bzl"), "w") as f:
+            with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
                 f.write(
                     f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n"
                 )
 
             copy_from_here_to(
                 "BUILD.test.bazel",
-                os.path.join(overlay_dir, "test_bazel_build", "BUILD.bazel"),
+                pathlib.Path(os.path.join(
+                    overlay_dir, "test_bazel_build", "BUILD.bazel")),
             )
 
-            with open(os.path.join(output_tar_dir, "BUILD.bazel"), "w") as f:
+            with open(pathlib.Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
                 f.write('exports_files(glob(["**"]))\n')
 
             files_to_tar = list(sorted(os.listdir(output_tar_dir)))
@@ -276,7 +284,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 @contextmanager
 def download_openssl(version: str):
     with tempfile.TemporaryDirectory() as tempdir:
-        tar_path = os.path.join(tempdir, "openssl.tar.gz")
+        tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
         url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
         subprocess.check_call(
             ["curl", "--fail", "-L", "-o", tar_path, url],
@@ -290,7 +298,7 @@ def download_openssl(version: str):
             "strip_prefix": prefix_dir,
         }
 
-        yield os.path.join(tempdir, prefix_dir), openssl_info
+        yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
 
 
 def write_module_files(
@@ -299,7 +307,7 @@ def write_module_files(
     overlay_archive_url: str,
     overlay_archive_integrity: str,
 ):
-    module_bazel_path = os.path.join(out_dir, "MODULE.bazel")
+    module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
     with open(module_bazel_path, "w") as f:
         f.write(
             f"""module(
@@ -325,33 +333,32 @@ http_archive(
 """
         )
     os.symlink("../MODULE.bazel",
-               os.path.join(out_dir, "overlay", "MODULE.bazel"))
+               pathlib.Path(os.path.join(out_dir, "overlay", "MODULE.bazel")))
 
 
 def write_source_json(out_dir: str, openssl_info: Dict):
     overlay_info = {}
-    overlay_dir = os.path.join(out_dir, "overlay")
+    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
     for root, _, files in os.walk(overlay_dir):
         for file in files:
-            full_path = os.path.join(root, file)
-            overlay_relative_path = os.path.relpath(full_path, overlay_dir)
+            full_path = pathlib.Path(os.path.join(root, file))
+            overlay_relative_path = pathlib.Path(
+                os.path.relpath(full_path, overlay_dir))
             overlay_info[overlay_relative_path] = integrity_hash(full_path)
     openssl_info["overlay"] = overlay_info
-    with open(os.path.join(out_dir, "source.json"), "w") as f:
+    with open(pathlib.Path(os.path.join(out_dir, "source.json")), "w") as f:
         f.write(json.dumps(openssl_info, indent="    ", sort_keys=True) + "\n")
 
 
 def integrity_hash(path: str) -> str:
     algo = "sha256"
-    if not os.path.exists(path):
-        raise ValueError(f"Path doesnt exist: {path}")
     with open(pathlib.Path(path).resolve(), "rb") as f:
         digest = hashlib.file_digest(f, algo).digest()
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
 
 def write_config_file(openssl_dir, platform):
-    with open(os.path.join(openssl_dir, "config.conf"), "w") as f:
+    with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
         f.write(
             f"""(
     'openssl_config' => {{
@@ -398,21 +405,23 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """
-    path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
-    with open(path, "w") as f:
+    path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
+    with open(pathlib.Path(path), "w") as f:
         f.write(out)
-    subprocess.check_call([buildifier_path, path])
+    subprocess.check_call([pathlib.Path(buildifier_path), pathlib.Path(path)])
 
 
 def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    shutil.copyfile(os.path.join(os.path.dirname(__file__), local_path), dst)
+    shutil.copyfile(pathlib.Path(os.path.join(
+        os.path.dirname(__file__), local_path)), dst)
     if executable:
         os.chmod(dst, 0o755)
 
 
 def add_to_metadata(openssl_module_dir, tag):
-    metadata_path = os.path.join(openssl_module_dir, "metadata.json")
+    metadata_path = pathlib.Path(os.path.join(
+        openssl_module_dir, "metadata.json"))
     with open(metadata_path, "r") as f:
         content = json.load(f)
     content["versions"].append(tag)
@@ -434,7 +443,7 @@ def guess_previous_tag_dir(openssl_module_dir, tag):
     if bcr_iteration < 1:
         return None
     previous_tag = ".".join(parts[:-1] + [f"{bcr_iteration - 1}"])
-    previous_dir = os.path.join(openssl_module_dir, previous_tag)
+    previous_dir = pathlib.Path(os.path.join(openssl_module_dir, previous_tag))
     if not os.path.exists(previous_dir):
         return None
     return previous_dir
@@ -443,15 +452,18 @@ def guess_previous_tag_dir(openssl_module_dir, tag):
 def dedupe_content_with_symlinks(previous_tag_dir, out_dir):
     for root, _, files in os.walk(out_dir):
         for file in files:
-            full_path = os.path.join(root, file)
-            module_relative_path = os.path.relpath(full_path, out_dir)
-            old_path = os.path.join(previous_tag_dir, module_relative_path)
+            full_path = pathlib.Path(os.path.join(root, file))
+            module_relative_path = pathlib.Path(
+                os.path.relpath(full_path, out_dir))
+            old_path = pathlib.Path(os.path.join(
+                previous_tag_dir, module_relative_path))
             old_hash = integrity_hash(old_path)
-            new_path = os.path.join(out_dir, module_relative_path)
+            new_path = pathlib.Path(os.path.join(
+                out_dir, module_relative_path))
             new_hash = integrity_hash(new_path)
             if old_hash == new_hash:
-                link_target = os.path.relpath(
-                    old_path, os.path.dirname(new_path))
+                link_target = pathlib.Path(os.path.relpath(
+                    old_path, os.path.dirname(new_path)))
                 os.unlink(new_path)
                 os.symlink(link_target, new_path)
 
