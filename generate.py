@@ -358,14 +358,14 @@ def write_platform_specific_constants(
     # If there are no platform specific generated files then just make empty lists.
     if not perl_output:
         perl_output = """
-            LIBCRYPTO_DEFINES = []
-            LIBCRYPTO_SRCS = []
-            LIBSSL_DEFINES = []
-            LIBSSL_SRCS = []
-            OPENSSL_APP_SRCS = []
-            OPENSSL_DEFINES = []
-            PERLASM_GEN = []
-            PERLASM_TOOLS = []
+LIBCRYPTO_DEFINES = []
+LIBCRYPTO_SRCS = []
+LIBSSL_DEFINES = []
+LIBSSL_SRCS = []
+OPENSSL_APP_SRCS = []
+OPENSSL_DEFINES = []
+PERLASM_GEN = []
+PERLASM_TOOLS = []
         """
     out = f"""# Generated code. DO NOT EDIT.
 
