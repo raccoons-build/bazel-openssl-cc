@@ -86,7 +86,7 @@ load(
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "get_repo_name", "dedupe", "fix_paths_for_windows")
+load("//:utils.bzl", "dedupe", "fix_paths_for_windows", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -342,7 +342,7 @@ ALL_LIBSSL_SRCS = COMMON_LIBSSL_SRCS + select({
     "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
     "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
     "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBSSL_SRCS),
-    "@bazel_tools//src/conditions:windows_x64":fix_paths_for_windows(_WINDOWS_X86_64_LIBSSL_SRCS),
+    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBSSL_SRCS),
 })
 
 EXISTING_LIBSSL_HDRS = glob(
@@ -416,8 +416,8 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
             "@bazel_tools//src/conditions:linux_x86_64": depset(direct = _LINUX_X86_64_PERLASM_TOOLS).to_list(),
             "@bazel_tools//src/conditions:darwin_arm64": depset(direct = _DARWIN_ARM64_PERLASM_TOOLS).to_list(),
             "@bazel_tools//src/conditions:darwin_x86_64": depset(direct = _DARWIN_X86_64_PERLASM_TOOLS).to_list(),
-            "@bazel_tools//src/conditions:windows_arm64": depset(direct = _WINDOWS_ARM64_PERLASM_TOOLS).to_list(),
-            "@bazel_tools//src/conditions:windows_x64": depset(direct = _WINDOWS_X86_64_PERLASM_TOOLS).to_list(),
+            "@bazel_tools//src/conditions:windows_arm64": depset(direct = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)).to_list(),
+            "@bazel_tools//src/conditions:windows_x64": depset(direct = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)).to_list(),
         }),
     )
     for k, v in {
