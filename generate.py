@@ -376,10 +376,11 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """
-    print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
+    if not os.path.exists(buildifier_path):
+        raise ValueError(f'Buildifier doesnt exist at path {buildifier_path}')
     subprocess.check_call([buildifier_path, path])
 
 

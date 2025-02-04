@@ -8,10 +8,3 @@ Invoke-WebRequest -Uri "https://github.com/bazelbuild/buildtools/releases/downlo
 # Note: Windows doesn't have chmod, so this step is skipped on Windows
 # If you want to mark the file as executable, you could use the `Unblock-File` cmdlet
 Unblock-File -Path "C:\temp\buildifier.exe"
-
-if (Test-Path "C:\temp\buildifier.exe") {
- exit 0
-} else {
- Write-Host "Buildifier doesn't exist"
- exit 1
-}
