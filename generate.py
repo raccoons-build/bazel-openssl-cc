@@ -119,7 +119,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
-            start_configure_command = get_start_configure_command(os)
+            start_configure_command = get_start_configure_command(operating_system)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
                 [
@@ -131,7 +131,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 ],
                 cwd=openssl_dir,
             )
-            make_command = get_make_command(os)
+            make_command = get_make_command(operating_system)
             subprocess.check_call(
                 [make_command] + generated_files,
                 cwd=openssl_dir,
