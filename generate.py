@@ -79,8 +79,11 @@ generated_files = [
     "providers/common/include/prov/der_wrap.h",
 ]
 
+# Used for generation and testing on a pull request.
 WINDOWS = "windows"
 NIX = "nix"
+# Used for release flow.
+ALL = "all"
 
 
 def get_platforms(os: str):
@@ -88,6 +91,8 @@ def get_platforms(os: str):
         return windows_platforms
     elif os == NIX:
         return nix_platforms
+    elif os == ALL:
+        return all_platforms
     else:
         raise ValueError(f'Unknown os: {os}')
 
@@ -96,6 +101,8 @@ def get_start_configure_list(os: str):
     if os == WINDOWS:
         return ["perl", "Configure"]
     elif os == NIX:
+        return ["./Configure"]
+    elif os == ALL:
         return ["./Configure"]
     else:
         raise ValueError(f'Unknown os: {os}')
@@ -106,19 +113,24 @@ def get_make_command(os: str):
         return "nmake"
     elif os == NIX:
         return "make"
+    elif os == ALL:
+        return "make"
     else:
         raise ValueError(f'Unknown os: {os}')
 
 
 def get_extra_tar_options(os: str):
-    if os == WINDOWS:
-        return []
-    elif os == NIX:
-        return ["--owner",
+    all_tar_options = ["--owner",
                 "root",
                 "--group",
                 "wheel",
                 "--mtime=UTC 1980-01-01"]
+    if os == WINDOWS:
+        return []
+    elif os == NIX:
+        return all_tar_options
+    elif os == ALL:
+        return all_tar_options
     else:
         raise ValueError(f'Unknown os: {os}')
 
