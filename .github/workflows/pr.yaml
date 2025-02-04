@@ -65,7 +65,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: Start download-buildifier.ps1
+      - name: download-buildifier
+        uses: enflo/curl-action@master
+        with:
+          curl: -o "C:\temp\buildifier.exe" "https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-windows-amd64.exe"
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - name: Checkout BCR
         uses: actions/checkout@v4.2.2
