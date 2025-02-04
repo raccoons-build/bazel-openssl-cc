@@ -87,11 +87,11 @@ def get_platforms(os: str):
         raise ValueError(f'Unknown os: {os}')
 
 
-def get_start_configure_command(os: str):
+def get_start_configure_list(os: str):
     if os == 'windows':
-        return "perl Configure"
+        return ["perl", "Configure"]
     elif os == 'nix':
-        return "./Configure"
+        return ["./Configure"]
     else:
         raise ValueError(f'Unknown os: {os}')
 
@@ -119,15 +119,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
-            start_configure_command = get_start_configure_command(operating_system)
-            for root, dir, files in os.walk(openssl_dir):
-                print(root)
-                print(dir)
-                print(files)
+            start_configure_list = get_start_configure_list(operating_system)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
+                start_configure_list
                 [
-                    start_configure_command,
                     "--config=config.conf",
                     "openssl_config",
                     "no-afalgeng",
@@ -375,6 +371,7 @@ def write_platform_specific_constants(
 
     out = f"""# Generated code. DO NOT EDIT.
 
+PLATFORM = "{platform}"
 OPENSSL_VERSION = "{openssl_version}"
 
 {perl_output}
