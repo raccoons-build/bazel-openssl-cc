@@ -379,11 +379,10 @@ GEN_FILES = {json_dump}
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
-    if 'VC' in platform:
-        for root, dirs, files in os.walk("C:\\temp\\"):
-            print(root)
-            print(dirs)
-            print(files)
+    for root, dirs, files in os.walk("C:\\temp\\"):
+        print(root)
+        print(dirs)
+        print(files)
     subprocess.check_call([buildifier_path, path])
 
 
