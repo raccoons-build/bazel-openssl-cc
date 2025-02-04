@@ -120,6 +120,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
             start_configure_command = get_start_configure_command(operating_system)
+            for root, dir, files in os.walk(openssl_dir):
+                print(root)
+                print(dir)
+                print(files)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
                 [
@@ -356,7 +360,7 @@ def write_platform_specific_constants(
     json_dump = json.dumps(platform_specific_generated_files,
                            indent="    ", sort_keys=True)
     # If there are no platform specific generated files then just make empty lists.
-    if not json_dump:
+    if not platform_specific_generated_files:
         empty_dict = {
             "LIBCRYPTO_DEFINES": [],
             "LIBCRYPTO_SRCS": [],
@@ -377,6 +381,8 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """
+
+    print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
