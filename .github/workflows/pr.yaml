@@ -60,7 +60,7 @@ jobs:
       - name: Preparing nmake
         uses: ilammy/msvc-dev-cmd@v1
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-      - run: python3 generate.py --os=windows --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=C:/3.3.1.bcr.windows.wip.tar.gz --tag=3.3.1.bcr.windows.wip --release_tar_url_template=file://C:/3.3.1.bcr.windows.wip.tar.gz --buildifier=C:\buildifier.exe
+      - run: python3 generate.py --os=windows --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=C:/3.3.1.bcr.windows.wip.tar.gz --tag=3.3.1.bcr.windows.wip --release_tar_url_template=file:///C:/3.3.1.bcr.windows.wip.tar.gz --buildifier=C:\buildifier.exe
       - run: tar czf bcr.windows.tar.gz bazel-central-registry
       - name: Upload overlay
         uses: actions/upload-artifact@v4
@@ -116,4 +116,4 @@ jobs:
           name: bcr.windows.tar.gz
           path: C:\
       - run: (cd C:\ && tar xzf C:\bcr.windows.tar.gz)
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.windows.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file://C:/bazel-central-registry" -k @openssl//...
+      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.windows.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k @openssl//...
