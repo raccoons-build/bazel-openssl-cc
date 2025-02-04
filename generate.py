@@ -168,7 +168,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     platform_to_perl_output.get(platform, ""),
                     {
                         # If there is no path or platform then return nothing
-                        path: generated_path_to_platform_to_contents.get(path, {}).get(platform, "")
+                        path: generated_path_to_platform_to_contents.get(
+                            path, {}).get(platform, "")
                         for path in platform_specific_generated_paths
                     },
                     buildifier_path,
@@ -331,13 +332,30 @@ def write_platform_specific_constants(
     platform_specific_generated_files: Dict[str, str],
     buildifier_path: str,
 ):
+
+    json_dump = json.dumps(platform_specific_generated_files,
+                           indent="    ", sort_keys=True)
+    # If there are no platform specific generated files then just make empty lists.
+    if not json_dump:
+        empty_dict = {
+            "LIBCRYPTO_DEFINES": [],
+            "LIBCRYPTO_SRCS": [],
+            "LIBSSL_DEFINES": [],
+            "LIBSSL_SRCS": [],
+            "OPENSSL_APP_SRCS": [],
+            "OPENSSL_DEFINES": [],
+            "PERLASM_GEN": [],
+            "PERLASM_TOOLS": []
+        }
+        json_dump = json.dumps(empty_dict, indent="    ", sort_keys=True)
+
     out = f"""# Generated code. DO NOT EDIT.
 
 OPENSSL_VERSION = "{openssl_version}"
 
 {perl_output}
 
-GEN_FILES = {json.dumps(platform_specific_generated_files, indent="    ", sort_keys=True)}
+GEN_FILES = {json_dump}
 """
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
