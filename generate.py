@@ -379,6 +379,8 @@ GEN_FILES = {json_dump}
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
+    for _, _, files in os.walk("/tmp"):
+        print(files)
     subprocess.check_call([buildifier_path, path])
 
 
