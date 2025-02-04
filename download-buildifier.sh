@@ -9,7 +9,7 @@ case "$(uname)" in
   "Linux")
     suffix="linux-amd64"
     ;;
-  "Windows")
+  "MINGW64_NT-10.0-20348")
     suffix="windows-amd64"
     ;;
   *)
