@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import pathlib
 from typing import Dict
 
 openssl_version = "3.3.1"
@@ -342,7 +343,7 @@ def write_source_json(out_dir: str, openssl_info: Dict):
 
 def integrity_hash(path: str) -> str:
     algo = "sha256"
-    with open(path, "rb") as f:
+    with open(pathlib.Path(path), "rb") as f:
         digest = hashlib.file_digest(f, algo).digest()
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
