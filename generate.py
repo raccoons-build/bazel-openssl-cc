@@ -380,6 +380,9 @@ OPENSSL_DEFINES = []
 PERLASM_GEN = ''
 PERLASM_TOOLS = []
         """
+    # Buildifier thinks that Windows paths are escape sequences.
+    if "WIN" in platform:
+        perl_output = replace_backslashes_in_paths(perl_output)
     out = f"""# Generated code. DO NOT EDIT.
 
 PLATFORM = "{platform}"
@@ -389,10 +392,6 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """
-    # Buildifier thinks that Windows paths are escape sequences.
-    if "WIN" in platform:
-        out = replace_backslashes_in_paths(out)
-        print(out)
     path = os.path.join(overlay_dir, f"constants-{platform}.bzl")
     with open(path, "w") as f:
         f.write(out)
