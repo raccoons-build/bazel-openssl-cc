@@ -191,7 +191,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
             platform_specific_generated_paths = []
 
             for (
-                pathlib.Path(path),
+                path,
                 platform_to_contents,
             ) in generated_path_to_platform_to_contents.items():
                 if len(set(platform_to_contents.values())) == 1:
