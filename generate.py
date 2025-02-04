@@ -122,7 +122,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
             start_configure_list = get_start_configure_list(operating_system)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
-                start_configure_list
+                start_configure_list +
                 [
                     "--config=config.conf",
                     "openssl_config",
