@@ -137,6 +137,8 @@ COMMON_OPENSSL_APP_SRCS = glob(
     ":include/openssl/x509_vfy.h",
 ]
 
+print(COMMON_OPENSSL_APP_SRCS)
+
 ALL_OPENSSL_APP_SRCS = COMMON_OPENSSL_APP_SRCS + select({
     "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
     "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
@@ -145,6 +147,8 @@ ALL_OPENSSL_APP_SRCS = COMMON_OPENSSL_APP_SRCS + select({
     "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_OPENSSL_APP_SRCS),
     "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_OPENSSL_APP_SRCS),
 })
+
+print(_WINDOWS_X86_64_OPENSSL_APP_SRCS)
 
 OPENSSL_APP_NIX_COPTS = [
     "-iquote",
