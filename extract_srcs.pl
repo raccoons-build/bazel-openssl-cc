@@ -10,7 +10,7 @@ our %config;
 my %perlasm;
 
 sub get_recursive_srcs_of_one {
-    my ($value, %seen, %excludes) = @_;
+    my ($inital_value, $value, %seen, %excludes) = @_;
     my %result;
     if (exists $seen{$value}) {
         return(%result);
@@ -27,26 +27,26 @@ sub get_recursive_srcs_of_one {
         $result{$value} = ();
     }
     foreach my $s (@$srcs) {
-        %result = (%result, get_recursive_srcs_of_one($s, %seen));
+        %result = (%result, get_recursive_srcs_of_one($initial_value, $s, %seen));
     }
     foreach my $d (@$deps) {
-        %result = (%result, get_recursive_srcs_of_one($d, %seen));
+        %result = (%result, get_recursive_srcs_of_one($initial_value, $d, %seen));
     }
     # Remove the initial value from the result (if it's there)
     # This breaks openssl app on Windows since it finds no
     # unique sources.
-    delete $result{$value};
+    delete $result{$initial_value};
     return(%result);
 }
 
 sub gather_libcrypto_srcs {
-    my %srcs = get_recursive_srcs_of_one("libcrypto");
+    my %srcs = get_recursive_srcs_of_one("libcrypto", "libcrypto");
     return(%srcs);
 }
 
 sub gather_libssl_srcs {
     my %seen;
-    my $all = get_recursive_srcs_of_one("libssl", %seen);
+    my $all = get_recursive_srcs_of_one("libssl", "libssl", %seen);
 }
 
 sub get_recursive_defines {
@@ -65,11 +65,11 @@ sub get_recursive_defines {
     return %defines;
 }
 
-my %libcrypto_srcs = get_recursive_srcs_of_one("libcrypto");
+my %libcrypto_srcs = get_recursive_srcs_of_one("libcrypto", "libcrypto");
 my %excludes = %libcrypto_srcs;
-my %libssl_srcs = get_recursive_srcs_of_one("libssl", (), %excludes);
+my %libssl_srcs = get_recursive_srcs_of_one("libssl", "libssl", (), %excludes);
 %excludes = (%excludes, %libssl_srcs);
-my %openssl_app_srcs = get_recursive_srcs_of_one("apps/openssl", (), %excludes);
+my %openssl_app_srcs = get_recursive_srcs_of_one("apps/openssl", "apps/openssl", (), %excludes);
 
 my %libcrypto_defines = get_recursive_defines("libcrypto");
 my %libssl_defines = get_recursive_defines("libssl", ("libcrypto", 1));
