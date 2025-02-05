@@ -86,7 +86,7 @@ load(
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "dedupe", "fix_paths_for_windows", "get_repo_name")
+load("//:utils.bzl", "dedupe", "fix_paths_for_windows", "get_repo_name", "fix_path_for_windows_in_str")
 
 _REPO_NAME = get_repo_name()
 
@@ -400,8 +400,8 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
             "@bazel_tools//src/conditions:linux_x86_64": CC_ENV_CMD + _LINUX_X86_64_PERLASM_GEN,
             "@bazel_tools//src/conditions:darwin_arm64": CC_ENV_CMD + _DARWIN_ARM64_PERLASM_GEN,
             "@bazel_tools//src/conditions:darwin_x86_64": CC_ENV_CMD + _DARWIN_X86_64_PERLASM_GEN,
-            "@bazel_tools//src/conditions:windows_arm64": CC_ENV_CMD + fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_GEN),
-            "@bazel_tools//src/conditions:windows_x64": CC_ENV_CMD + fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_GEN),
+            "@bazel_tools//src/conditions:windows_arm64": CC_ENV_CMD + fix_path_for_windows_in_str(_WINDOWS_ARM64_PERLASM_GEN),
+            "@bazel_tools//src/conditions:windows_x64": CC_ENV_CMD + fix_path_for_windows_in_str(_WINDOWS_X86_64_PERLASM_GEN,
         }),
         target_compatible_with = [{
             "arm64": "@platforms//cpu:arm64",
