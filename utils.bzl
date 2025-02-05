@@ -33,7 +33,7 @@ def fix_paths_for_windows(path_lst):
     """
     return [fix_path_for_windows_in_str(path) for path in path_lst]
 
-def fix_paths_for_windows(str):
+def fix_path_for_windows_in_str(str):
     """Replace the \\ with / on Windows.
 
         We need them to be the opposite way when writing the generated bzl files on Windows.
