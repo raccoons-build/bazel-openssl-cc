@@ -121,10 +121,10 @@ def get_make_command(os: str):
 
 def get_extra_tar_options(os: str):
     all_tar_options = ["--owner",
-                "root",
-                "--group",
-                "wheel",
-                "--mtime=UTC 1980-01-01"]
+                       "root",
+                       "--group",
+                       "wheel",
+                       "--mtime=UTC 1980-01-01"]
     if os == WINDOWS:
         return []
     elif os == NIX:
@@ -420,7 +420,6 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """
-    print(perl_output)
     path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
     with open(pathlib.Path(path), "w") as f:
         f.write(out)

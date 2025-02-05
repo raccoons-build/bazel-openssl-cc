@@ -32,6 +32,10 @@ sub get_recursive_srcs_of_one {
     foreach my $d (@$deps) {
         %result = (%result, get_recursive_srcs_of_one($d, %seen));
     }
+    # Remove the initial value from the result (if it's there)
+    # This breaks openssl app on Windows since it finds no
+    # unique sources.
+    delete $result{$value};
     return(%result);
 }
 
