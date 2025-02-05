@@ -388,6 +388,9 @@ PERLASM_TOOLS = glob(
 
 CC_ENV_CMD = """export CC=$(CC)\n"""
 
+
+print(_WINDOWS_ARM64_PERLASM_GEN)
+print(_WINDOWS_X86_64_PERLASM_GEN)
 # Outs does not support select, so we trick a bit. Each architecture has its own
 # list of files, and we use the architecture as the key.
 [
