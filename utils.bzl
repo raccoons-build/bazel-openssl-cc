@@ -44,3 +44,26 @@ def fix_path_for_windows_in_str(str):
             The fixed string.
     """
     return str.replace("\\", "/")
+
+def fix_windows_spaces(str):
+    """Surround words with spaces in them in a path with quotes on Windows.
+
+        Args:
+            str: The string to fix.
+        Return:
+            The fixed string.
+    """
+
+    # Split the path by slashes
+    parts = str.split("/")
+
+    # Iterate over each part and add quotes if it contains spaces
+    quoted_parts = []
+    for part in parts:
+        if " " in part:  # Check if the word contains a space
+            quoted_parts.append('"' + part + '"')
+        else:
+            quoted_parts.append(part)
+
+    # Join the parts back into a single string with slashes
+    return "/".join(quoted_parts)
