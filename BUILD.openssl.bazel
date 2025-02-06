@@ -245,7 +245,12 @@ COMMON_LIBCRYPTO_SRCS = glob(
 )
 
 # We miss some sources and headers when doing the normal extraction
-OTHER_LIBCRYPTO_WINDOWS_SRCS = ["ms/uplink.h", "ms/applink.c"]
+OTHER_LIBCRYPTO_WINDOWS_SRCS = [
+    "ms/uplink.h",
+    "ms/applink.h",
+]
+
+OTHER_LIBCRYPTO_WINDOWS_DEPS = ["ms/applink.c"]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
     "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
@@ -294,10 +299,6 @@ LIBCRYPTO_WINDOWS_COPTS = [
 
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 
-
-print(ALL_LIBCRYPTO_SRCS)
-print(ALL_LIBCRYPTO_HDRS)
-
 cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
@@ -337,7 +338,11 @@ cc_library(
         "-pthread",
     ],
     visibility = ["//visibility:public"],
-    deps = [":crypto-textual-hdrs"],
+    deps = [":crypto-textual-hdrs"] + select({
+        "@bazel_tools//src/conditions:windows_arm64": OTHER_LIBCRYPTO_WINDOWS_DEPS,
+        "@bazel_tools//src/conditions:windows_x64": OTHER_LIBCRYPTO_WINDOWS_DEPS,
+        "//conditions:default": [],
+    }),
 )
 
 COMMON_LIBSSL_SRCS = glob(
