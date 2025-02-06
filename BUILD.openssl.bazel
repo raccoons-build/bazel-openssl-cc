@@ -244,16 +244,21 @@ COMMON_LIBCRYPTO_SRCS = glob(
     exclude = COMMON_GENERATED_FILES,
 )
 
-ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
+OTHER_LIBCRYPTO_WINDOWS_SRCS = glob([
+    "ms/*.h",
+    "ms/*.c",
+])
+
+# Need to dedupe since *some* of the ms/ files are found but not all. So if you want to scoop them all up you get dupes.
+# If you don't scoop them up you get missing files.
+ALL_LIBCRYPTO_SRCS = dedupe(COMMON_LIBCRYPTO_SRCS + select({
     "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
     "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_SRCS,
     "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_SRCS,
     "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS),
-    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS),
-})
-
-print(ALL_LIBCRYPTO_SRCS)
+    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+}))
 
 EXISTING_LIBCRYPTO_HDRS = glob(
     [
@@ -292,8 +297,6 @@ LIBCRYPTO_WINDOWS_COPTS = [
 ]
 
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
-
-print(ALL_LIBCRYPTO_HDRS)
 
 cc_library(
     name = "crypto",
