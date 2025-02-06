@@ -301,25 +301,10 @@ def download_openssl(version: str):
     with tempfile.TemporaryDirectory() as tempdir:
         tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
         url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
-        failed = True
-        times_failed = 0
-        while failed:
-            # On Windows sometimes it fails to download openssl but on subsequent retires it suceeds.
-            try:
-                subprocess.check_call(
-                    ["curl", "--fail", "-L", "-o", tar_path, url],
-                )
-                subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
-                failed = False
-            except Exception as e:
-                if times_failed > 3:
-                    raise e
-                failed = True
-                # We need to reset the backend.
-                # https://stackoverflow.com/questions/49082545/the-revocation-function-was-unable-to-check-revocation-because-the-revocation-se
-                subprocess.check_call(
-                    ['git config', '--global http.sslBackend openssl'])
-                times_failed += 1
+        subprocess.check_call(
+            ["curl", "--fail", "-L", "-o", tar_path, url],
+        )
+        subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
 
         prefix_dir = f"openssl-{version}"
         openssl_info = {
