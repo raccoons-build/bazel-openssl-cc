@@ -12,7 +12,6 @@ my %perlasm;
 sub get_recursive_srcs_of_one {
     my ($initial_value, $value, %seen, %excludes) = @_;
     my %result;
-    print $value;
     if (exists $seen{$value}) {
         return(%result);
     }
