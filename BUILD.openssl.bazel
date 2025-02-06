@@ -294,6 +294,10 @@ LIBCRYPTO_WINDOWS_COPTS = [
 
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 
+
+print(ALL_LIBCRYPTO_SRCS)
+print(ALL_LIBCRYPTO_HDRS)
+
 cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
