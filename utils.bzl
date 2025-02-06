@@ -53,7 +53,7 @@ def fix_windows_spaces(str):
         Return:
             The fixed string.
     """
-
+    print(str)
     # Split the path by slashes
     parts = str.split("/")
 
