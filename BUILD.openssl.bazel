@@ -244,13 +244,18 @@ COMMON_LIBCRYPTO_SRCS = glob(
     exclude = COMMON_GENERATED_FILES,
 )
 
+COMMON_LIBCRYPTO_WINDOWS_SRCS = glob([
+    "ms/*.c",
+    "ms/*.h",
+])
+
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
     "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
     "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_SRCS,
     "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_SRCS,
     "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS),
-    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS),
+    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS) + COMMON_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS) + COMMON_LIBCRYPTO_WINDOWS_SRCS,
 })
 
 EXISTING_LIBCRYPTO_HDRS = glob(
