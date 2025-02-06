@@ -315,6 +315,10 @@ def download_openssl(version: str):
                 if times_failed > 3:
                     raise e
                 failed = True
+                # We need to reset the backend.
+                # https://stackoverflow.com/questions/49082545/the-revocation-function-was-unable-to-check-revocation-because-the-revocation-se
+                subprocess.check_call(
+                    ['git config', '--global http.sslBackend openssl'])
                 times_failed += 1
 
         prefix_dir = f"openssl-{version}"
