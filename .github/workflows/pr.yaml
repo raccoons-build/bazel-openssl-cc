@@ -62,7 +62,7 @@ jobs:
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
       - uses: nick-fields/retry@v2
         with:
-          timeout-minutes: 2
+          timeout_minutes: 10
           max_attempts: 3
           command: python3 generate.py --os=windows --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=C:/3.3.1.bcr.windows.wip.tar.gz --tag=3.3.1.bcr.windows.wip --release_tar_url_template=file:///C:/3.3.1.bcr.windows.wip.tar.gz --buildifier=C:\buildifier.exe
       - run: tar czf bcr.windows.tar.gz bazel-central-registry
