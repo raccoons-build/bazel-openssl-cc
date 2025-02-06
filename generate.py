@@ -301,10 +301,21 @@ def download_openssl(version: str):
     with tempfile.TemporaryDirectory() as tempdir:
         tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
         url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
-        subprocess.check_call(
-            ["curl", "--fail", "-L", "-o", tar_path, url],
-        )
-        subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
+        failed = True
+        times_failed = 0
+        while failed:
+            # On Windows sometimes it fails to download openssl but on subsequent retires it suceeds.
+            try:
+                subprocess.check_call(
+                    ["curl", "--fail", "-L", "-o", tar_path, url],
+                )
+                subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
+                failed = False
+            except Exception as e:
+                if times_failed > 3:
+                    raise e
+                failed = True
+                times_failed += 1
 
         prefix_dir = f"openssl-{version}"
         openssl_info = {
