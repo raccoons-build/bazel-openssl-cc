@@ -244,10 +244,8 @@ COMMON_LIBCRYPTO_SRCS = glob(
     exclude = COMMON_GENERATED_FILES,
 )
 
-OTHER_LIBCRYPTO_WINDOWS_SRCS = glob([
-    "ms/*.h",
-    "ms/*.c",
-])
+# We miss some sources and headers when doing the normal extraction
+OTHER_LIBCRYPTO_WINDOWS_SRCS = ["ms/uplink.h", "ms/applink.c"]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
     "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
@@ -300,7 +298,7 @@ cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
     # as only some of them are picked up.
-    srcs = dedupe(ALL_LIBCRYPTO_SRCS),
+    srcs = ALL_LIBCRYPTO_SRCS,
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [":generated-headers"] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
