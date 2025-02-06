@@ -158,7 +158,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     copy_from_here_to("presubmit.yml", pathlib.Path(
         os.path.join(out_dir, "presubmit.yml")))
 
-    with download_openssl(openssl_version) as (openssl_dir, openssl_info):
+    with download_openssl(openssl_version, out_dir, overlay_dir) as (openssl_dir, openssl_info):
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
@@ -297,23 +297,38 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
 
 @contextmanager
-def download_openssl(version: str):
+def download_openssl(version: str, out_dir: str, overlay_dir: str):
     with tempfile.TemporaryDirectory() as tempdir:
-        tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
-        url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
-        subprocess.check_call(
-            ["curl", "--fail", "-L", "-o", tar_path, url],
-        )
-        subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
+        try:
+            tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
+            url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
+            subprocess.check_call(
+                ["curl", "--fail", "-L", "-o", tar_path, url],
+            )
+            subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
 
-        prefix_dir = f"openssl-{version}"
-        openssl_info = {
-            "url": url,
-            "integrity": integrity_hash(tar_path),
-            "strip_prefix": prefix_dir,
-        }
+            prefix_dir = f"openssl-{version}"
+            openssl_info = {
+                "url": url,
+                "integrity": integrity_hash(tar_path),
+                "strip_prefix": prefix_dir,
+            }
 
-        yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
+            yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
+        # On Windows this step can fail and we need to retry. But first clean things up.
+        except Exception as e:
+            cleanup(pathlib.Path(os.path.join(tempdir, prefix_dir)),
+                    out_dir, overlay_dir)
+            raise e
+
+
+def cleanup(openssl_dir: str, out_dir: str, overlay_dir: str):
+    if os.path.exists(openssl_dir):
+        os.removedirs(openssl_dir)
+    if os.path.exists(out_dir):
+        os.removedirs(out_dir)
+    if os.path.exists(overlay_dir):
+        os.removedirs(overlay_dir)
 
 
 def write_module_files(
