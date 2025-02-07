@@ -249,7 +249,7 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "ms/uplink.h",
     "ms/applink.c",
     "engines/e_capi_err.h",
-    "engines/e_capi_err.c"
+    "engines/e_capi_err.c",
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
@@ -300,7 +300,10 @@ LIBCRYPTO_WINDOWS_COPTS = [
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 
 # Windows needs some additional include directories.
-LIBCRYPTO_WINDOWS_INCLUDES = ["ms", "engines"]
+LIBCRYPTO_WINDOWS_INCLUDES = [
+    "ms",
+    "engines",
+]
 
 cc_library(
     name = "crypto",
@@ -405,6 +408,8 @@ PERLASM_TOOLS = glob(
 
 CC_ENV_CMD = """export CC=$(CC)\n"""
 
+CC_ENV_CMD_PS = """$env:CC=$(CC)\n"""
+
 # Outs does not support select, so we trick a bit. Each architecture has its own
 # list of files, and we use the architecture as the key.
 [
@@ -420,8 +425,8 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
             "//conditions:default": "",
         }),
         cmd_ps = select({
-            "@bazel_tools//src/conditions:windows_arm64": fix_windows_cc(CC_ENV_CMD) + fix_path_for_windows_in_str(_WINDOWS_ARM64_PERLASM_GEN),
-            "@bazel_tools//src/conditions:windows_x64": fix_windows_cc(CC_ENV_CMD) + fix_path_for_windows_in_str(_WINDOWS_X86_64_PERLASM_GEN),
+            "@bazel_tools//src/conditions:windows_arm64": fix_windows_cc(CC_ENV_CMD_PS) + fix_path_for_windows_in_str(_WINDOWS_ARM64_PERLASM_GEN),
+            "@bazel_tools//src/conditions:windows_x64": fix_windows_cc(CC_ENV_CMD_PS) + fix_path_for_windows_in_str(_WINDOWS_X86_64_PERLASM_GEN),
             "//conditions:default": "",
         }),
         target_compatible_with = [{
