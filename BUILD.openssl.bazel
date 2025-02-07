@@ -297,6 +297,8 @@ LIBCRYPTO_WINDOWS_COPTS = [
 
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 
+LIBCRYPTO_WINDOWS_INCLUDES = ["ms"]
+
 cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
@@ -330,7 +332,11 @@ cc_library(
     }),
     defines = COMMON_OPENSSL_DEFINES,
     # To make sure downstream targets add the right copts to be able to include the headers.
-    includes = ["include"],
+    includes = ["include"] + select({
+        "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_INCLUDES,
+        "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_INCLUDES,
+        "//conditions:default": [],
+    }),
     linkopts = [
         "-lc",
         "-pthread",
