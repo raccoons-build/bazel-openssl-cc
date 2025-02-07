@@ -317,14 +317,12 @@ def download_openssl(version: str, out_dir: str, overlay_dir: str):
             yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
         # On Windows this step can fail and we need to retry. But first clean things up.
         except Exception as e:
-            cleanup(pathlib.Path(os.path.join(tempdir, prefix_dir)),
-                    out_dir, overlay_dir)
+            cleanup(
+                out_dir, overlay_dir)
             raise e
 
 
-def cleanup(openssl_dir: str, out_dir: str, overlay_dir: str):
-    if os.path.exists(openssl_dir):
-        os.removedirs(openssl_dir)
+def cleanup(out_dir: str, overlay_dir: str):
     if os.path.exists(out_dir):
         os.removedirs(out_dir)
     if os.path.exists(overlay_dir):
