@@ -408,7 +408,7 @@ PERLASM_TOOLS = glob(
 
 CC_ENV_CMD = """export CC=$(CC)\n"""
 
-CC_ENV_CMD_PS = """[Environment]::SetEnvironmentVariable("CC", "$(CC)")"""
+CC_ENV_CMD_PS = """[Environment]::SetEnvironmentVariable("CC", $(CC))"""
 
 # Outs does not support select, so we trick a bit. Each architecture has its own
 # list of files, and we use the architecture as the key.
