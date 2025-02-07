@@ -248,6 +248,8 @@ COMMON_LIBCRYPTO_SRCS = glob(
 OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "ms/uplink.h",
     "ms/applink.c",
+    "engines/e_capi_err.h",
+    "engines/e_capi_err.c"
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
@@ -297,7 +299,8 @@ LIBCRYPTO_WINDOWS_COPTS = [
 
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 
-LIBCRYPTO_WINDOWS_INCLUDES = ["ms"]
+# Windows needs some additional include directories.
+LIBCRYPTO_WINDOWS_INCLUDES = ["ms", "engines"]
 
 cc_library(
     name = "crypto",
