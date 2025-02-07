@@ -248,6 +248,7 @@ COMMON_LIBCRYPTO_SRCS = glob(
 OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "ms/uplink.h",
     "ms/uplink.c",
+    "ms/applink.c"
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
@@ -297,12 +298,6 @@ LIBCRYPTO_WINDOWS_COPTS = [
 
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 
-cc_library(
-    name = "missing_windows_files",
-    srcs = ["ms/applink.c"],
-    hdrs = [],
-    deps = [],
-)
 
 cc_library(
     name = "crypto",
@@ -343,11 +338,7 @@ cc_library(
         "-pthread",
     ],
     visibility = ["//visibility:public"],
-    deps = [":crypto-textual-hdrs"] + select({
-        "@bazel_tools//src/conditions:windows_arm64": [":missing_windows_files"],
-        "@bazel_tools//src/conditions:windows_x64": [":missing_windows_files"],
-        "//conditions:default": [],
-    }),
+    deps = [":crypto-textual-hdrs"]
 )
 
 COMMON_LIBSSL_SRCS = glob(
