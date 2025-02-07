@@ -241,7 +241,7 @@ COMMON_LIBCRYPTO_SRCS = glob(
         "providers/*.inc",
         "providers/implementations/**/*.inc",
     ],
-    exclude = COMMON_GENERATED_FILES + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    exclude = COMMON_GENERATED_FILES,
 )
 
 # We miss some sources and headers when doing the normal extraction
