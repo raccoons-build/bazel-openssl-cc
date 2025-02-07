@@ -250,6 +250,7 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "ms/applink.c",
     "engines/e_capi_err.h",
     "engines/e_capi_err.c",
+    "crypto/bn/bn_asm.c",
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
@@ -303,6 +304,7 @@ ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 LIBCRYPTO_WINDOWS_INCLUDES = [
     "ms",
     "engines",
+    "crypto/bn",
 ]
 
 cc_library(
