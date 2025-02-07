@@ -247,6 +247,7 @@ COMMON_LIBCRYPTO_SRCS = glob(
 # We miss some sources and headers when doing the normal extraction
 OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "ms/uplink.h",
+    "ms/uplink.c",
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
@@ -299,7 +300,7 @@ ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
 cc_library(
     name = "missing_windows_files",
     srcs = ["ms/applink.c"],
-    hdrs = ["ms/applink.h"],
+    hdrs = [],
     deps = [],
 )
 
