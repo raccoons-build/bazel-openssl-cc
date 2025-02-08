@@ -350,7 +350,7 @@ cc_library(
     defines = COMMON_OPENSSL_DEFINES + select({
         "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_DEFINES,
-        "//conditions:default": "",
+        "//conditions:default": [],
     }),
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = ["include"] + select({
