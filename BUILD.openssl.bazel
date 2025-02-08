@@ -163,6 +163,7 @@ OPENSSL_APP_WINDOWS_COPTS = [
 
 COMMON_OPENSSL_WINDOWS_DEFINES = [
     "_WINSOCKAPI_",
+    "OPENSSL_SYS_WINCE"
 ]
 
 COMMON_OPENSSL_DEFINES = select({
@@ -252,7 +253,6 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "engines/e_capi_err.c",
     "crypto/LPdir_win32.c",
     "crypto/LPdir_win.c",
-    "crypto/o_dir.c",
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
