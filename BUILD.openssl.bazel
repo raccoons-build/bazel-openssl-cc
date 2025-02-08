@@ -86,7 +86,7 @@ load(
     _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "dedupe", "fix_path_for_windows_in_str", "fix_paths_for_windows", "fix_windows_cc", "get_repo_name")
+load("//:utils.bzl", "fix_path_for_windows_in_str", "fix_paths_for_windows", "fix_windows_cc", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -431,8 +431,10 @@ CC_ENV_CMD_PS = """[Environment]::SetEnvironmentVariable("CC", $(CC))"""
             "//conditions:default": "",
         }),
         target_compatible_with = [{
-            "arm64": "@platforms//cpu:arm64",
-            "x86_64": "@platforms//cpu:x86_64",
+            "nix_arm64": "@platforms//cpu:arm64",
+            "nix_x86_64": "@platforms//cpu:x86_64",
+            "windows_arm64": "@platforms//cpu:arm64",
+            "windows_x86_64": "@platforms//cpu:x86_64",
         }[k]],
         toolchains = [
             "@bazel_tools//tools/cpp:current_cc_toolchain",
@@ -448,11 +450,10 @@ CC_ENV_CMD_PS = """[Environment]::SetEnvironmentVariable("CC", $(CC))"""
         }),
     )
     for k, v in {
-        # When generating for nix use mac arm and linux x86.
-        # When generating for windows use windows arm and windows x86.
-        # When generating both then just combine and dedupe.
-        "arm64": dedupe(_DARWIN_ARM64_PERLASM_OUTS + fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS)),
-        "x86_64": dedupe(_LINUX_X86_64_PERLASM_OUTS + fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS)),
+        "nix_arm64": _DARWIN_ARM64_PERLASM_OUTS,
+        "nix_x86_64": _LINUX_X86_64_PERLASM_OUTS,
+        "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
+        "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
     }.items()
 ]
 
