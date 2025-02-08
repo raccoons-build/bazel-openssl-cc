@@ -163,7 +163,7 @@ OPENSSL_APP_WINDOWS_COPTS = [
 
 COMMON_OPENSSL_WINDOWS_DEFINES = [
     "_WINSOCKAPI_",
-    "OPENSSL_SYS_WINCE"
+    "OPENSSL_SYS_WINCE",
 ]
 
 COMMON_OPENSSL_DEFINES = select({
@@ -311,8 +311,10 @@ LIBCRYPTO_WINDOWS_INCLUDES = [
     "crypto",
 ]
 
-print(ALL_LIBCRYPTO_HDRS)
-print(ALL_LIBCRYPTO_SRCS)
+# Windows has a quirk where it doesn't recognize that this is defined and
+# tries to include LPdir.h which doesn't exist. So we just define it
+# since o_dir.c defines it as empty.
+LIBCRYPTO_WINDOWS_DEFINES = ["LPDIR_H"]
 
 cc_library(
     name = "crypto",
@@ -345,7 +347,11 @@ cc_library(
         "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_COPTS,
         "//conditions:default": LIBCRYPTO_NIX_COPTS,
     }),
-    defines = COMMON_OPENSSL_DEFINES,
+    defines = COMMON_OPENSSL_DEFINES + select({
+        "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_DEFINES,
+        "//conditions:default": "",
+    }),
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = ["include"] + select({
         "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_INCLUDES,
@@ -418,9 +424,6 @@ PERLASM_TOOLS = glob(
 CC_ENV_CMD = """export CC=$(CC)\n"""
 
 CC_ENV_CMD_PS = """[Environment]::SetEnvironmentVariable("CC", $(CC))"""
-
-print(_WINDOWS_X86_64_PERLASM_OUTS)
-print(_WINDOWS_X86_64_PERLASM_GEN)
 
 # Outs does not support select, so we trick a bit. Each architecture has its own
 # list of files, and we use the architecture as the key.
