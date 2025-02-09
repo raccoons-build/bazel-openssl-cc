@@ -371,9 +371,8 @@ PERLASM_OUTS = {
 
 filegroup(
     name = "perlasm_genfiles",
-    srcs = glob(["*.s"]),
-    data = [
-        "asm_" + k
+    srcs = [
+        ":asm_" + k
         for k, v in PERLASM_OUTS.items()
         if len(v) > 0
     ],
