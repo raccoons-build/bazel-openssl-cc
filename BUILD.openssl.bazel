@@ -320,8 +320,6 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
 PERLASM_OUTS = {
     "nix_arm64": _DARWIN_ARM64_PERLASM_OUTS,
     "nix_x86_64": _LINUX_X86_64_PERLASM_OUTS,
-    "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
-    "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
 }
 
 # Outs does not support select, so we trick a bit. Each architecture has its own
