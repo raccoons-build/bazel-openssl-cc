@@ -1,5 +1,5 @@
-# Generate files with perl. These are assumed to be .pl files as src and .s file as output.
-
+"""Generate files with perl. These are assumed to be .pl files as src and .s file as output.
+"""
 def _perl_genrule_impl(ctx):
     srcs_and_outputs_dict = {}
     for i in range(len(ctx.outs)):
@@ -7,7 +7,7 @@ def _perl_genrule_impl(ctx):
 
     for src, out in srcs_and_outputs_dict.items():
         ctx.actions.run_shell(
-            inputs = atr.srcs,
+            inputs = attr.srcs,
             outputs = attr.outs,
             command = "perl.exe {} nasm {}".foramt(src, out),
             mnemonic = "Generate files with perl",
