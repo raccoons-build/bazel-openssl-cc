@@ -26,7 +26,9 @@ perl_genrule = rule(
     implementation = _perl_genrule_impl,
     doc = "Generate files using perl.",
     attrs = {
-        "outs": attr.output_list(allow_empty = False, doc = "List of output files."),
+        # We allow outs to be empty so when we don't generate anything for nix platforms
+        # we don't get an error.
+        "outs": attr.output_list(allow_empty = True, doc = "List of output files."),
         "srcs": attr.label_list(allow_files = [".pl"], doc = "List of input files"),
     },
 )
