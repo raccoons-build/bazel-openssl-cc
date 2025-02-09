@@ -374,7 +374,7 @@ filegroup(
     srcs = glob(["*.s"]),
     data = [
         "asm_" + k
-        for k, _ in PERLASM_OUTS.items()
+        for k, v in PERLASM_OUTS.items()
         if len(v) > 0
     ],
 )
