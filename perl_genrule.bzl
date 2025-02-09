@@ -1,5 +1,6 @@
 """Generate files with perl. These are assumed to be .pl files as src and .s file as output.
 """
+
 def _perl_genrule_impl(ctx):
     srcs_and_outputs_dict = {}
     for i in range(len(ctx.outs)):
@@ -25,7 +26,7 @@ perl_genrule = rule(
     implementation = _perl_genrule_impl,
     doc = "Generate files using perl.",
     attrs = {
-        "outs": attr.output_list(allow_files = [".s"], doc = "List of output files."),
+        "outs": attr.output_list(allow_empty = False, doc = "List of output files."),
         "srcs": attr.label_list(allow_files = [".pl"], doc = "List of input files"),
     },
 )
