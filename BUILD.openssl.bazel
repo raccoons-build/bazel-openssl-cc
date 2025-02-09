@@ -67,7 +67,7 @@ load(
     _WINDOWS_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _WINDOWS_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _WINDOWS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _WINDOWS_ARM64_PERLASM_GEN = "PERLASM_GEN",
+    _WINDOWS_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
     _WINDOWS_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
 )
 load(
@@ -80,7 +80,7 @@ load(
     _WINDOWS_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _WINDOWS_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _WINDOWS_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _WINDOWS_X86_64_PERLASM_GEN = "PERLASM_GEN",
+    _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
     _WINDOWS_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
@@ -317,8 +317,6 @@ PERLASM_TOOLS = glob(
 
 CC_ENV_CMD = """export CC=$(CC)\n"""
 
-CC_ENV_CMD_PS = """[Environment]::SetEnvironmentVariable("CC", $(CC))"""
-
 PERLASM_OUTS = {
     "nix_arm64": _DARWIN_ARM64_PERLASM_OUTS,
     "nix_x86_64": _LINUX_X86_64_PERLASM_OUTS,
@@ -364,8 +362,8 @@ PERLASM_OUTS = {
 perl_genrule(
     name = "perlasm_genfiles_windows",
     srcs = select({
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_PERLASM_GEN,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_PERLASM_GEN,
+        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_PERLASM_TOOLS,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_PERLASM_TOOLS,
         "//conditions:default": [],
     }),
     outs = select({
