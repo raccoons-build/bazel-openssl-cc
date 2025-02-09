@@ -320,9 +320,16 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
 
 CC_ENV_CMD_PS = """[Environment]::SetEnvironmentVariable("CC", $(CC))"""
 
+PERLASM_OUTS = {
+    "nix_arm64": _DARWIN_ARM64_PERLASM_OUTS,
+    "nix_x86_64": _LINUX_X86_64_PERLASM_OUTS,
+    "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
+    "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
+}
+
 # Outs does not support select, so we trick a bit. Each architecture has its own
 # list of files, and we use the architecture as the key.
-PERLASM_GENRULES = [
+[
     genrule(
         name = "asm_" + k,
         srcs = ["crypto/ec/ecp_nistz256_table.c"],
@@ -358,14 +365,19 @@ PERLASM_GENRULES = [
             "@bazel_tools//src/conditions:windows_x64": depset(direct = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)).to_list(),
         }),
     )
-    for k, v in {
-        "nix_arm64": _DARWIN_ARM64_PERLASM_OUTS,
-        "nix_x86_64": _LINUX_X86_64_PERLASM_OUTS,
-        "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
-        "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
-    }.items()
+    for k, v in PERLASM_OUTS.items()
     if len(v) > 0
 ]
+
+filegroup(
+    name = "perlasm_genfiles",
+    srcs = glob(["*.s"]),
+    data = [
+        "asm_" + k
+        for k, _ in PERLASM_OUTS.items()
+        if len(v) > 0
+    ],
+)
 
 cc_library(
     name = "crypto",
@@ -373,7 +385,10 @@ cc_library(
     # as only some of them are picked up.
     srcs = ALL_LIBCRYPTO_SRCS,
     hdrs = ALL_LIBCRYPTO_HDRS,
-    additional_compiler_inputs = [":generated-headers"] + PERLASM_GENRULES + glob(
+    additional_compiler_inputs = [
+        ":generated-headers",
+        ":perlasm_genfiles",
+    ] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
         ["providers/implementations/**/*.c"],
