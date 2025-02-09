@@ -18,9 +18,9 @@ def _perl_genrule_impl(ctx):
                 "@rules_perl//:current_toolchain",
             ],
         )
-    runfiles = ctx.runfiles(files = attr.outs)
+    runfiles = ctx.runfiles(files = ctx.attr.outs)
 
-    return [DefaultInfo(files = depset(attr.outs), runfiles = runfiles)]
+    return [DefaultInfo(files = depset(ctx.attr.outs), runfiles = runfiles)]
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
