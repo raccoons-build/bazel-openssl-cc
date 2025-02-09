@@ -265,6 +265,8 @@ ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
     "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
 })
 
+print(_WINDOWS_X86_64_LIBCRYPTO_SRCS)
+
 EXISTING_LIBCRYPTO_HDRS = glob(
     [
         "include/openssl/*.h",
