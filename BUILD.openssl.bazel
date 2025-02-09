@@ -69,7 +69,6 @@ load(
     _WINDOWS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
     _WINDOWS_ARM64_PERLASM_GEN = "PERLASM_GEN",
     _WINDOWS_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
-    _WINDOWS_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
     "@openssl-generated-overlay//:constants-VC-WIN64A.bzl",
@@ -83,10 +82,10 @@ load(
     _WINDOWS_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
     _WINDOWS_X86_64_PERLASM_GEN = "PERLASM_GEN",
     _WINDOWS_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
-    _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
+load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "fix_path_for_windows_in_str", "fix_paths_for_windows", "fix_windows_cc", "get_repo_name")
+load("//:utils.bzl", "fix_paths_for_windows", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -341,16 +340,9 @@ PERLASM_OUTS = {
             "@bazel_tools//src/conditions:darwin_x86_64": CC_ENV_CMD + _DARWIN_X86_64_PERLASM_GEN,
             "//conditions:default": "",
         }),
-        cmd_ps = select({
-            "@bazel_tools//src/conditions:windows_arm64": fix_windows_cc(CC_ENV_CMD_PS) + fix_path_for_windows_in_str(_WINDOWS_ARM64_PERLASM_GEN),
-            "@bazel_tools//src/conditions:windows_x64": fix_windows_cc(CC_ENV_CMD_PS) + fix_path_for_windows_in_str(_WINDOWS_X86_64_PERLASM_GEN),
-            "//conditions:default": "",
-        }),
         target_compatible_with = [{
             "nix_arm64": "@platforms//cpu:arm64",
             "nix_x86_64": "@platforms//cpu:x86_64",
-            "windows_arm64": "@platforms//cpu:arm64",
-            "windows_x86_64": "@platforms//cpu:x86_64",
         }[k]],
         toolchains = [
             "@bazel_tools//tools/cpp:current_cc_toolchain",
@@ -361,13 +353,31 @@ PERLASM_OUTS = {
             "@bazel_tools//src/conditions:linux_x86_64": depset(direct = _LINUX_X86_64_PERLASM_TOOLS).to_list(),
             "@bazel_tools//src/conditions:darwin_arm64": depset(direct = _DARWIN_ARM64_PERLASM_TOOLS).to_list(),
             "@bazel_tools//src/conditions:darwin_x86_64": depset(direct = _DARWIN_X86_64_PERLASM_TOOLS).to_list(),
-            "@bazel_tools//src/conditions:windows_arm64": depset(direct = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)).to_list(),
-            "@bazel_tools//src/conditions:windows_x64": depset(direct = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)).to_list(),
         }),
     )
     for k, v in PERLASM_OUTS.items()
     if len(v) > 0
 ]
+
+# On Windows the perlasm genrules don't seem to work so we use a rule that utilizes
+# the rules_perl binary to generate the files.
+perl_genrule(
+    name = "perlasm_genfiles_windows",
+    srcs = select({
+        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_PERLASM_GEN,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_PERLASM_GEN,
+        "//conditions:default": [],
+    }),
+    outs = select({
+        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_PERLASM_OUTS,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_PERLASM_OUTS,
+        "//conditions:default": [],
+    }),
+    target_compatible_with = {
+        "windows_arm64": "@bazel_tools//src/conditions:windows_arm64",
+        "windows_x86_64": "@bazel_tools//src/conditions:windows_x64",
+    },
+)
 
 filegroup(
     name = "perlasm_genfiles",
@@ -387,6 +397,7 @@ cc_library(
     additional_compiler_inputs = [
         ":generated-headers",
         ":perlasm_genfiles",
+        ":perlasm_genfiles_windows",
     ] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available

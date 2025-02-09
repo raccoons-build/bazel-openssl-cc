@@ -253,6 +253,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                              "collate_into_directory.bzl")),
             )
             copy_from_here_to(
+                "perl_genrule.bzl",
+                pathlib.Path(os.path.join(output_tar_dir,
+                             "perl_genrule.bzl")),
+            )
+            copy_from_here_to(
                 "move_file_and_strip_prefix.sh",
                 pathlib.Path(os.path.join(output_tar_dir,
                              "move_file_and_strip_prefix.sh")),

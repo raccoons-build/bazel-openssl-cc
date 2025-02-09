@@ -44,12 +44,3 @@ def fix_path_for_windows_in_str(str):
             The fixed string.
     """
     return str.replace("\\", "/")
-
-def fix_windows_cc(str):
-    """Surround $(CC) with spaces for Windows since the path is invalid otherwise.
-        Args:
-            str: The string to fix.
-        Return:
-            The fixed string.
-    """
-    return str.replace("$(CC)", "\"$(CC)\"")
