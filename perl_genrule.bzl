@@ -7,12 +7,14 @@ def _perl_genrule_impl(ctx):
         srcs_and_outputs_dict.add(ctx.attr.srcs[i], ctx.attr.outs[i])
 
     for src, out in srcs_and_outputs_dict.items():
+        fixed_src = src.replace("\\", "/")
+        fixed_out = out.replace("\\", "/")
         ctx.actions.run_shell(
-            inputs = attr.srcs,
-            outputs = attr.outs,
-            command = "perl.exe {} nasm {}".foramt(src, out),
+            inputs = [fixed_src],
+            outputs = [fixed_out],
+            command = "perl.exe {} nasm {}".foramt(fixed_src, fixed_out),
             mnemonic = "Generate files with perl",
-            progress_message = "Generating file {} with perl from file {}".format(out, src),
+            progress_message = "Generating file {} with perl from file {}".format(fixed_out, fixed_src),
             toolchains = [
                 "@bazel_tools//tools/cpp:current_cc_toolchain",
                 "@rules_perl//:current_toolchain",
