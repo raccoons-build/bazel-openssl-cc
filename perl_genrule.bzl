@@ -3,8 +3,8 @@
 
 def _perl_genrule_impl(ctx):
     srcs_and_outputs_dict = {}
-    for i in range(len(ctx.outs)):
-        srcs_and_outputs_dict.add(ctx.srcs[i], ctx.outs[i])
+    for i in range(len(ctx.attr.outs)):
+        srcs_and_outputs_dict.add(ctx.attr.srcs[i], ctx.attr.outs[i])
 
     for src, out in srcs_and_outputs_dict.items():
         ctx.actions.run_shell(
