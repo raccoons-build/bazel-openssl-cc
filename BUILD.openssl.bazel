@@ -363,14 +363,12 @@ perl_genrule(
     name = "perlasm_genfiles_windows_x86",
     srcs = _WINDOWS_X86_64_PERLASM_TOOLS,
     outs = _WINDOWS_X86_64_PERLASM_OUTS,
-    target_compatible_with = ["@bazel_tools//src/conditions:windows_x64"],
 )
 
 perl_genrule(
     name = "perlasm_genfiles_windows_arm64",
     srcs = _WINDOWS_ARM64_PERLASM_TOOLS,
     outs = _WINDOWS_ARM64_PERLASM_OUTS,
-    target_compatible_with = ["@bazel_tools//src/conditions:windows_arm64"],
 )
 
 filegroup(
