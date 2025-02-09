@@ -265,8 +265,6 @@ ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
     "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
 })
 
-print(_WINDOWS_X86_64_LIBCRYPTO_SRCS)
-
 EXISTING_LIBCRYPTO_HDRS = glob(
     [
         "include/openssl/*.h",
@@ -313,11 +311,6 @@ LIBCRYPTO_WINDOWS_INCLUDES = [
     "crypto",
 ]
 
-# Windows has a quirk where it doesn't recognize that this is defined and
-# tries to include LPdir.h which doesn't exist. So we just define it
-# since o_dir.c defines it as empty.
-LIBCRYPTO_WINDOWS_DEFINES = ["LPDIR_H"]
-
 cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
@@ -349,11 +342,7 @@ cc_library(
         "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_COPTS,
         "//conditions:default": LIBCRYPTO_NIX_COPTS,
     }),
-    defines = COMMON_OPENSSL_DEFINES + select({
-        "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_DEFINES,
-        "//conditions:default": [],
-    }),
+    defines = COMMON_OPENSSL_DEFINES,
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = ["include"] + select({
         "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_INCLUDES,
