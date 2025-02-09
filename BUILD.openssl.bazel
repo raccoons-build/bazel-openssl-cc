@@ -67,8 +67,8 @@ load(
     _WINDOWS_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _WINDOWS_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _WINDOWS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _WINDOWS_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
     _WINDOWS_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
+    _WINDOWS_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
     "@openssl-generated-overlay//:constants-VC-WIN64A.bzl",
@@ -80,8 +80,8 @@ load(
     _WINDOWS_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _WINDOWS_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _WINDOWS_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
     _WINDOWS_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
+    _WINDOWS_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
@@ -360,21 +360,17 @@ PERLASM_OUTS = {
 # On Windows the perlasm genrules don't seem to work so we use a rule that utilizes
 # the rules_perl binary to generate the files.
 perl_genrule(
-    name = "perlasm_genfiles_windows",
-    srcs = select({
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_PERLASM_TOOLS,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_PERLASM_TOOLS,
-        "//conditions:default": [],
-    }),
-    outs = select({
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_PERLASM_OUTS,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_PERLASM_OUTS,
-        "//conditions:default": [],
-    }),
-    target_compatible_with = {
-        "windows_arm64": "@bazel_tools//src/conditions:windows_arm64",
-        "windows_x86_64": "@bazel_tools//src/conditions:windows_x64",
-    },
+    name = "perlasm_genfiles_windows_x86",
+    srcs = _WINDOWS_X86_64_PERLASM_TOOLS,
+    outs = _WINDOWS_X86_64_PERLASM_OUTS,
+    target_compatible_with = ["@bazel_tools//src/conditions:windows_x64"],
+)
+
+perl_genrule(
+    name = "perlasm_genfiles_windows_arm64",
+    srcs = _WINDOWS_ARM64_PERLASM_TOOLS,
+    outs = _WINDOWS_ARM64_PERLASM_OUTS,
+    target_compatible_with = ["@bazel_tools//src/conditions:windows_arm64"],
 )
 
 filegroup(
@@ -394,14 +390,16 @@ cc_library(
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [
         ":generated-headers",
-        ":perlasm_genfiles",
-        ":perlasm_genfiles_windows",
     ] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
         ["providers/implementations/**/*.c"],
         exclude = COMMON_GENERATED_FILES,
-    ),
+    ) + select({
+        "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
+        "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86"],
+        "//conditions:default": [":perlasm_genfiles"],
+    }),
     copts = COMMON_OPENSSL_COPTS + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
