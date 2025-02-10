@@ -27,7 +27,7 @@ def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrid
     # If we dont find it by name  then try the override dict.
     for src in possible_sources_list:
         if src in srcs_to_outs_overrides.keys():
-            return srcs_and_outputs_dict[src]
+            return srcs_to_outs_overrides[src]
 
     return "Could not find source for output for {} from {} options".format(output_file, possible_sources_list)
 
