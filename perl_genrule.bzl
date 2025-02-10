@@ -47,8 +47,8 @@ def _perl_genrule_impl(ctx):
             inputs = [src_as_file],
             outputs = [out_as_file],
             command = "perl.exe {} nasm {}".format(src, out),
-            mnemonic = "Generate files with perl",
-            progress_message = "Generating file {} with perl from file {}".format(out, src),
+            mnemonic = "Generate files from .pl script to .s",
+            progress_message = "Generating file {} from script {}".format(out, src),
             toolchain =
                 "@rules_perl//:current_toolchain",
         )
