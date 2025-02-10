@@ -40,6 +40,7 @@ def _perl_genrule_impl(ctx):
         srcs_and_outputs_dict[src] = out
 
     for src, out in srcs_and_outputs_dict.items():
+        print("Source: {} Output: {}".format(src, out))
         ctx.actions.run_shell(
             inputs = [src],
             outputs = [out],
