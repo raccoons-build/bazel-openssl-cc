@@ -1,14 +1,42 @@
 """Generate files with perl. These are assumed to be .pl files as src and .s file as output.
 """
 
+def remove_path_and_type(file_name):
+    wo_path = file_name.split("/")[-1]
+    return wo_path.split(".")[0]
+
+def find_source_for_out(output_file, possible_sources_list):
+    """Finds the source file for the given output file.
+
+    Args:
+        output_file: The .s file to generate
+        possible_sources_list: All the .pl files we use to generate the .s
+    Returns:
+        The closest match by name of file or an error message
+    """
+    just_output_file = remove_path_and_type(output_file)
+
+    # split on the path delimitter and period and compare the file names.
+    for src in possible_sources_list:
+        just_src_file = remove_path_and_type(src)
+
+        if just_output_file == just_src_file:
+            return just_src_file
+
+    # If we cannot find the src file on first try then we try splitting off the architecture.
+    for src in possible_sources_list:
+        just_src_file = remove_path_and_type(src).split("-")[0]
+        if just_src_file == just_output_file:
+            return just_src_file
+    return "Could not find source for output for {} from {} options".format(output_file, possible_sources_list)
+
 def _perl_genrule_impl(ctx):
     srcs_and_outputs_dict = {}
     for i in range(len(ctx.attr.outs)):
-        # We know the dupes just have a _ and number added. 
-        # So just remove that here.
-        splt_str_lst = ctx.attr.srcs[i].split("_")
-        fixed_src = splt_str_lst[0]
-        srcs_and_outputs_dict.add(fixed_src, ctx.attr.outs[i])
+        out = ctx.attr.outs[i]
+        src = find_source_for_out(out, ctx.attr.srcs)
+
+        srcs_and_outputs_dict.add(src, out)
 
     for src, out in srcs_and_outputs_dict.items():
         ctx.actions.run_shell(

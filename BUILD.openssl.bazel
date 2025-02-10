@@ -85,7 +85,7 @@ load(
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "fix_paths_for_windows", "get_repo_name", "modify_names_for_dupes")
+load("//:utils.bzl", "fix_paths_for_windows", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -364,13 +364,13 @@ PERLASM_OUTS_WINDOWS = {
 # the rules_perl binary to generate the files.
 perl_genrule(
     name = "perlasm_genfiles_windows_x86",
-    srcs = modify_names_for_dupes(fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)),
+    srcs = dedupe(fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
 )
 
 perl_genrule(
     name = "perlasm_genfiles_windows_arm64",
-    srcs = modify_names_for_dupes(fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)),
+    srcs = dedupe(fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
 )
 
