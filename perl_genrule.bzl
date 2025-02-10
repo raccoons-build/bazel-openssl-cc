@@ -37,7 +37,7 @@ def _perl_genrule_impl(ctx):
         out = ctx.attr.outs[i]
         src = find_source_for_out(out, ctx.attr.srcs, ctx.attr.srcs_to_outs_overrides)
 
-        srcs_and_outputs_dict.update((src, out))
+        srcs_and_outputs_dict.update(pairs=[src, out])
 
     for src, out in srcs_and_outputs_dict.items():
         ctx.actions.run_shell(
