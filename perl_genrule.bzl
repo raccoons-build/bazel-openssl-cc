@@ -41,8 +41,8 @@ def _perl_genrule_impl(ctx):
 
     for src, out in srcs_and_outputs_dict.items():
         print("Source: {} Output: {}".format(src, out))
-        src_as_file = ctx.actions.declare_file(src)
-        out_as_file = ctx.actions.declare_file(out)
+        src_as_file = ctx.actions.declare_file(str(src))
+        out_as_file = ctx.actions.declare_file(str(out))
         ctx.actions.run_shell(
             inputs = [src_as_file],
             outputs = [out_as_file],
