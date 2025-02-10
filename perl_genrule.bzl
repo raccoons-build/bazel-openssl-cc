@@ -5,12 +5,13 @@ def remove_path_and_type(file_name):
     wo_path = file_name.split("/")[-1]
     return wo_path.split(".")[0]
 
-def find_source_for_out(output_file, possible_sources_list):
+def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrides):
     """Finds the source file for the given output file.
 
     Args:
         output_file: The .s file to generate
         possible_sources_list: All the .pl files we use to generate the .s
+        srcs_to_outs_overrides: The dict of sources to outputs that are overriden
     Returns:
         The closest match by name of file or an error message
     """
@@ -23,18 +24,18 @@ def find_source_for_out(output_file, possible_sources_list):
         if just_output_file == just_src_file:
             return just_src_file
 
-    # If we cannot find the src file on first try then we try splitting off the architecture.
+    # If we dont find it by name  then try the override dict.
     for src in possible_sources_list:
-        just_src_file = remove_path_and_type(src).split("-")[0]
-        if just_src_file == just_output_file:
-            return just_src_file
+        if src in srcs_to_outs_overrides.keys():
+            return srcs_and_outputs_dict[src]
+
     return "Could not find source for output for {} from {} options".format(output_file, possible_sources_list)
 
 def _perl_genrule_impl(ctx):
     srcs_and_outputs_dict = {}
     for i in range(len(ctx.attr.outs)):
         out = ctx.attr.outs[i]
-        src = find_source_for_out(out, ctx.attr.srcs)
+        src = find_source_for_out(out, ctx.attr.srcs, ctx.attr.srcs_to_outs_overrides)
 
         srcs_and_outputs_dict.add(src, out)
 
@@ -62,5 +63,7 @@ perl_genrule = rule(
         # we don't get an error.
         "outs": attr.output_list(allow_empty = True, doc = "List of output files."),
         "srcs": attr.label_list(allow_files = [".pl"], doc = "List of input files"),
+        # The dicts of srcs to their outs when they don't share a file name.
+        "srcs_to_outs_overrides": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files that need to be explicitly made."),
     },
 )

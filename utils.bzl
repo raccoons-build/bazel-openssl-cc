@@ -9,7 +9,7 @@ def dedupe(lst):
 
     Args:
         lst: A list of things
-    Return:
+    Returns:
         The deuped list.
     """
     final_lst = []

@@ -366,12 +366,18 @@ perl_genrule(
     name = "perlasm_genfiles_windows_x86",
     srcs = dedupe(fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
+    srcs_to_outs_overrides = {
+        "crypto/sha/asm/sha512-x86_64.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha512-x86_64.s".format(_REPO_NAME),
+    },
 )
 
 perl_genrule(
     name = "perlasm_genfiles_windows_arm64",
     srcs = dedupe(fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
+    srcs_to_outs_overrides = {
+        "crypto/sha/asm/sha512-armv8.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha512-armv8.s".format(_REPO_NAME),
+    },
 )
 
 filegroup(
