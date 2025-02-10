@@ -37,10 +37,9 @@ def _perl_genrule_impl(ctx):
         out = ctx.attr.outs[i]
         src = find_source_for_out(out, ctx.attr.srcs, ctx.attr.srcs_to_outs_overrides)
 
-        srcs_and_outputs_dict.update(pairs = [src, out])
+        srcs_and_outputs_dict[src] = out
 
     for src, out in srcs_and_outputs_dict.items():
-        print("Running file generation with src: {} and out: {}".format(src, out))
         ctx.actions.run_shell(
             inputs = [src],
             outputs = [out],
