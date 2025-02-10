@@ -359,14 +359,14 @@ PERLASM_OUTS = {
 # the rules_perl binary to generate the files.
 perl_genrule(
     name = "perlasm_genfiles_windows_x86",
-    srcs = _WINDOWS_X86_64_PERLASM_TOOLS,
-    outs = _WINDOWS_X86_64_PERLASM_OUTS,
+    srcs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS),
+    outs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
 )
 
 perl_genrule(
     name = "perlasm_genfiles_windows_arm64",
-    srcs = _WINDOWS_ARM64_PERLASM_TOOLS,
-    outs = _WINDOWS_ARM64_PERLASM_OUTS,
+    srcs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS),
+    outs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
 )
 
 filegroup(
