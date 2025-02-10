@@ -32,6 +32,8 @@ def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrid
     return "Could not find source for output for {} from {} options".format(output_file, possible_sources_list)
 
 def _perl_genrule_impl(ctx):
+    outdir_name = "{}_out".format(ctx.attr.name)
+    outdir = ctx.actions.declare_directory(outdir_name)
     srcs_and_outputs_dict = {}
     for i in range(len(ctx.attr.outs)):
         out = ctx.attr.outs[i]
@@ -40,7 +42,6 @@ def _perl_genrule_impl(ctx):
         srcs_and_outputs_dict[src] = out
 
     for src, out in srcs_and_outputs_dict.items():
-        print("Source: {} Output: {}".format(src, out))
         src_as_file = ctx.actions.declare_file(str(src))
         out_as_file = ctx.actions.declare_file(str(out))
         ctx.actions.run_shell(
@@ -52,9 +53,9 @@ def _perl_genrule_impl(ctx):
             toolchain =
                 "@rules_perl//:current_toolchain",
         )
-    runfiles = ctx.runfiles(files = ctx.attr.outs)
+    runfiles = ctx.runfiles(files = [outdir])
 
-    return [DefaultInfo(files = depset(ctx.attr.outs), runfiles = runfiles)]
+    return [DefaultInfo(files = depset([outdir]), runfiles = runfiles)]
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
