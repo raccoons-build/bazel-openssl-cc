@@ -46,7 +46,7 @@ def _perl_genrule_impl(ctx):
             command = "perl.exe {} nasm {}".format(src, out),
             mnemonic = "Generate files with perl",
             progress_message = "Generating file {} with perl from file {}".format(out, src),
-            toolchains = [
+            toolchain = [
                 "@bazel_tools//tools/cpp:current_cc_toolchain",
                 "@rules_perl//:current_toolchain",
             ],
