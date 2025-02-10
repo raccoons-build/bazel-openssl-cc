@@ -43,7 +43,7 @@ def _perl_genrule_impl(ctx):
         ctx.actions.run_shell(
             inputs = [src],
             outputs = [out],
-            command = "perl.exe {} nasm {}".foramt(src, out),
+            command = "perl.exe {} nasm {}".format(src, out),
             mnemonic = "Generate files with perl",
             progress_message = "Generating file {} with perl from file {}".format(out, src),
             toolchains = [
