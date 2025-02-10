@@ -22,7 +22,7 @@ def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrid
         just_src_file = remove_path_and_type(src)
 
         if just_output_file == just_src_file:
-            return just_src_file
+            return src
 
     # If we dont find it by name  then try the override dict.
     for src in possible_sources_list:
@@ -41,9 +41,11 @@ def _perl_genrule_impl(ctx):
 
     for src, out in srcs_and_outputs_dict.items():
         print("Source: {} Output: {}".format(src, out))
+        src_as_file = ctx.actions.declare_file(src)
+        out_as_file = ctx.actions.declare_file(out)
         ctx.actions.run_shell(
-            inputs = [src],
-            outputs = [out],
+            inputs = [src_as_file],
+            outputs = [out_as_file],
             command = "perl.exe {} nasm {}".format(src, out),
             mnemonic = "Generate files with perl",
             progress_message = "Generating file {} with perl from file {}".format(out, src),
