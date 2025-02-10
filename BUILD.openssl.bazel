@@ -85,7 +85,7 @@ load(
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "fix_paths_for_windows", "get_repo_name")
+load("//:utils.bzl", "fix_paths_for_windows", "get_repo_name", "modify_names_for_dupes")
 
 _REPO_NAME = get_repo_name()
 
@@ -355,17 +355,22 @@ PERLASM_OUTS = {
     if len(v) > 0
 ]
 
+PERLASM_OUTS_WINDOWS = {
+    "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
+    "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
+}
+
 # On Windows the perlasm genrules don't seem to work so we use a rule that utilizes
 # the rules_perl binary to generate the files.
 perl_genrule(
     name = "perlasm_genfiles_windows_x86",
-    srcs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS),
+    srcs = modify_names_for_dupes(fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
 )
 
 perl_genrule(
     name = "perlasm_genfiles_windows_arm64",
-    srcs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS),
+    srcs = modify_names_for_dupes(fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
 )
 
@@ -374,6 +379,10 @@ filegroup(
     srcs = [
         ":asm_" + k
         for k, v in PERLASM_OUTS.items()
+        if len(v) > 0
+    ] + [
+        ":asm_windows_" + k
+        for k, v in PERLASM_OUTS_WINDOWS.items()
         if len(v) > 0
     ],
 )

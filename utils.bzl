@@ -44,3 +44,24 @@ def fix_path_for_windows_in_str(str):
             The fixed string.
     """
     return str.replace("\\", "/")
+
+def modify_names_for_dupes(path_lst):
+    """Add a number to the end of the path to the path so that we can remove it later.
+
+       This is to keep dupes and trick bazel.
+
+       Args:
+            path_lst: The list of paths to fix
+       Returns:
+            The fixed path list
+    """
+    seen_paths = []
+    i = 0
+    for path in path_lst:
+        if path in seen_paths:
+            seen_paths.append("{}_{}".format(path, i))
+            i += 1
+        else:
+            seen_paths.append(path)
+
+    return seen_paths

@@ -4,7 +4,11 @@
 def _perl_genrule_impl(ctx):
     srcs_and_outputs_dict = {}
     for i in range(len(ctx.attr.outs)):
-        srcs_and_outputs_dict.add(ctx.attr.srcs[i], ctx.attr.outs[i])
+        # We know the dupes just have a _ and number added. 
+        # So just remove that here.
+        splt_str_lst = ctx.attr.srcs[i].split("_")
+        fixed_src = splt_str_lst[0]
+        srcs_and_outputs_dict.add(fixed_src, ctx.attr.outs[i])
 
     for src, out in srcs_and_outputs_dict.items():
         ctx.actions.run_shell(
