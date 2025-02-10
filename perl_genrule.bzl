@@ -2,7 +2,7 @@
 """
 
 def remove_path_and_type(file_name):
-    wo_path = file_name.split("/")[-1]
+    wo_path = str(file_name).split("/")[-1]
     return wo_path.split(".")[0]
 
 def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrides):
