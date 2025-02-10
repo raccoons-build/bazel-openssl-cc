@@ -85,7 +85,7 @@ load(
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "fix_paths_for_windows", "get_repo_name")
+load("//:utils.bzl", "dedupe", "fix_paths_for_windows", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
