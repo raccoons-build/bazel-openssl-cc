@@ -79,7 +79,7 @@ load(
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name", "dedupe")
+load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -340,9 +340,6 @@ WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUP
 
 perl_genrule(
     name = "perlasm_genfiles",
-    # We remove the wrong architecture files in the rule so this is fine.
-    # Deduping the files from different os's while having the same architecture fixes itself too.
-    outs = dedupe(PERLASM_OUTS_NIX[X86_64] + PERLASM_OUTS_NIX[ARM64] + PERLASM_OUTS_WINDOWS[X86_64] + PERLASM_OUTS_WINDOWS[ARM64]),
     is_nix = select({
         "//conditions:default": True,
         "@platforms//os:windows": False,

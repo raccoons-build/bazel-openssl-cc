@@ -58,9 +58,6 @@ perl_genrule = rule(
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         # We need to know what architecture this is running on.
         "is_x86": attr.bool(doc = "Whether this is x86_64 or arm64."),
-        # We allow outs to be empty so when we don't generate anything for nix platforms
-        # we don't get an error.
-        "outs": attr.output_list(allow_empty = True, doc = "List of output files."),
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
