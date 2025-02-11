@@ -27,7 +27,7 @@ def run_generation(ctx, src, out, binary_invocation):
     ctx.actions.run_shell(
         inputs = src.files,
         outputs = [out_as_file],
-        command = "{} {} nasm {}".format(binary_invocation, src, out),
+        command = "{} {} nasm {}".format(binary_invocation, str(src), out),
         mnemonic = "GenerateAssemblyFromPerlScripts",
         progress_message = "Generating file {} from script {}".format(out, src),
         toolchain =
@@ -58,8 +58,6 @@ perl_genrule = rule(
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         # We need to know what architecture this is running on.
         "is_x86": attr.bool(doc = "Whether this is x86_64 or arm64."),
-        # Just any source file we might need to pull in.
-        "srcs": attr.label_list(allow_files = [".pl"], doc = "List of possible source files"),
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
