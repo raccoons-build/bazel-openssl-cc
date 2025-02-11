@@ -7,42 +7,10 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
-def remove_path_and_type(file_name):
-    wo_path = str(file_name).split("/")[-1]
-    return wo_path.split(".")[0]
-
-def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrides):
-    """Finds the source file for the given output file.
-
-    Args:
-        output_file: The .s file to generate
-        possible_sources_list: All the .pl files we use to generate the .s
-        srcs_to_outs_overrides: The dict of sources to outputs that are overriden
-    Returns:
-        The closest match by name of file or an error message
-    """
-    just_output_file = remove_path_and_type(output_file)
-
-    # split on the path delimitter and period and compare the file names.
-    for src in possible_sources_list:
-        just_src_file = remove_path_and_type(src)
-
-        if just_output_file == just_src_file:
-            return src
-
-    # If we dont find it by name  then try the override dict.
-    for src in possible_sources_list:
-        if src in srcs_to_outs_overrides.keys():
-            return srcs_to_outs_overrides[src]
-
-    return "Could not find source for output for {} from {} options".format(output_file, possible_sources_list)
-
 def run_generation(ctx, src, out, binary_invocation):
-    src_as_file = ctx.actions.declare_file(str(src))
-    out_as_file = ctx.actions.declare_file(str(out))
     ctx.actions.run_shell(
-        inputs = [src_as_file],
-        outputs = [out_as_file],
+        inputs = [src],
+        outputs = [out],
         command = "{} {} nasm {}".format(binary_invocation, src, out),
         mnemonic = "GenerateAssemblyFromPerlScripts",
         progress_message = "Generating file {} from script {}".format(out, src),
