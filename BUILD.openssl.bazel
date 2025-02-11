@@ -13,7 +13,6 @@ load(
     _DARWIN_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _DARWIN_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _DARWIN_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _DARWIN_ARM64_PERLASM_GEN = "PERLASM_GEN",
     _DARWIN_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
     _DARWIN_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
@@ -27,7 +26,6 @@ load(
     _DARWIN_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _DARWIN_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _DARWIN_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _DARWIN_X86_64_PERLASM_GEN = "PERLASM_GEN",
     _DARWIN_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
     _DARWIN_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
@@ -41,7 +39,6 @@ load(
     _LINUX_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _LINUX_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _LINUX_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _LINUX_ARM64_PERLASM_GEN = "PERLASM_GEN",
     _LINUX_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
     _LINUX_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
@@ -55,7 +52,6 @@ load(
     _LINUX_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _LINUX_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _LINUX_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _LINUX_X86_64_PERLASM_GEN = "PERLASM_GEN",
     _LINUX_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
     _LINUX_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
@@ -317,29 +313,10 @@ PERLASM_TOOLS = glob(
     exclude = COMMON_GENERATED_FILES,
 )
 
-CC_ENV_CMD = """export CC=$(CC)\n"""
-
-PERLASM_OUTS = {
-    "nix_arm64": _DARWIN_ARM64_PERLASM_OUTS,
-    "nix_x86_64": _LINUX_X86_64_PERLASM_OUTS,
-    "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
-    "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
-}
-
 perl_genrule(
-    name = "perlasm_genfiles_mac_x86",
-    srcs = dedupe(_DARWIN_X86_64_PERLASM_TOOLS),
-    outs = _DARWIN_X86_64_PERLASM_OUTS,
-    is_nix = True,
-    srcs_to_outs_overrides = {
-        "crypto/sha/asm/sha512-x86_64.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-x86_64.s".format(_REPO_NAME),
-    },
-)
-
-perl_genrule(
-    name = "perlasm_genfiles_mac_arm64",
-    srcs = dedupe(_DARWIN_ARM64_PERLASM_TOOLS),
-    outs = _DARWIN_ARM64_PERLASM_OUTS,
+    name = "perlasm_genfiles_nix_arm64",
+    srcs = dedupe(_DARWIN_ARM64_PERLASM_TOOLS + PERLASM_TOOLS + _LINUX_ARM64_PERLASM_TOOLS),
+    outs = dedupe(_DARWIN_ARM64_PERLASM_OUTS + _LINUX_ARM64_PERLASM_OUTS),
     is_nix = True,
     srcs_to_outs_overrides = {
         "crypto/sha/asm/sha512-armv8.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-armv8.s".format(_REPO_NAME),
@@ -347,28 +324,18 @@ perl_genrule(
 )
 
 perl_genrule(
-    name = "perlasm_genfiles_linux_x86",
-    srcs = dedupe(_LINUX_X86_64_PERLASM_TOOLS),
-    outs = _LINUX_X86_64_PERLASM_OUTS,
+    name = "perlasm_genfiles_nix_x86",
+    srcs = dedupe(_LINUX_X86_64_PERLASM_TOOLS + PERLASM_TOOL + _DARWIN_X86_64_PERLASM_TOOLS),
+    outs = dedupe(_LINUX_X86_64_PERLASM_OUTS + _DARWIN_X86_64_PERLASM_OUTS),
     is_nix = True,
     srcs_to_outs_overrides = {
         "crypto/sha/asm/sha512-x86_64.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-x86_64.s".format(_REPO_NAME),
-    },
-)
-
-perl_genrule(
-    name = "perlasm_genfiles_linux_arm64",
-    srcs = dedupe(_LINUX_ARM64_PERLASM_TOOLS),
-    outs = _LINUX_ARM64_PERLASM_OUTS,
-    is_nix = True,
-    srcs_to_outs_overrides = {
-        "crypto/sha/asm/sha512-armv8.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-armv8.s".format(_REPO_NAME),
     },
 )
 
 perl_genrule(
     name = "perlasm_genfiles_windows_x86",
-    srcs = dedupe(fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)),
+    srcs = dedupe(fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS) + PERLASM_TOOLS),
     outs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
     is_nix = False,
     srcs_to_outs_overrides = {
@@ -378,7 +345,7 @@ perl_genrule(
 
 perl_genrule(
     name = "perlasm_genfiles_windows_arm64",
-    srcs = dedupe(fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)),
+    srcs = dedupe(fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS) + PERLASM_TOOLS),
     outs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
     is_nix = False,
     srcs_to_outs_overrides = {
@@ -389,10 +356,10 @@ perl_genrule(
 filegroup(
     name = "perlasm_genfiles",
     srcs = select({
-        "@bazel_tools//src/conditions:linux_aarch64": [":perlasm_genfiles_linux_arm64"],
-        "@bazel_tools//src/conditions:linux_x86_64": [":perlasm_genfiles_linux_x86"],
-        "@bazel_tools//src/conditions:darwin_arm64": [":perlasm_genfiles_mac_arm64"],
-        "@bazel_tools//src/conditions:darwin_x86_64": [":perlasm_genfiles_mac_x86"],
+        "@bazel_tools//src/conditions:linux_aarch64": [":perlasm_genfiles_nix_arm64"],
+        "@bazel_tools//src/conditions:linux_x86_64": [":perlasm_genfiles_nix_x86"],
+        "@bazel_tools//src/conditions:darwin_arm64": [":perlasm_genfiles_nix_arm64"],
+        "@bazel_tools//src/conditions:darwin_x86_64": [":perlasm_genfiles_nix_x86"],
         "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
         "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86"],
     }),
