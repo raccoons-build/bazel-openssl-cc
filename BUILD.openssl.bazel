@@ -13,8 +13,6 @@ load(
     _DARWIN_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _DARWIN_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _DARWIN_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _DARWIN_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
-    _DARWIN_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
     "@openssl-generated-overlay//:constants-darwin64-x86_64-cc.bzl",
@@ -26,8 +24,6 @@ load(
     _DARWIN_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _DARWIN_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _DARWIN_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _DARWIN_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
-    _DARWIN_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
     "@openssl-generated-overlay//:constants-linux-aarch64.bzl",
@@ -39,8 +35,8 @@ load(
     _LINUX_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _LINUX_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _LINUX_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _LINUX_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
-    _LINUX_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
+    _NIX_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
+    _NIX_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
     "@openssl-generated-overlay//:constants-linux-x86_64-clang.bzl",
@@ -52,8 +48,8 @@ load(
     _LINUX_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
     _LINUX_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _LINUX_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _LINUX_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
-    _LINUX_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
+    _NIX_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
+    _NIX_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
     "@openssl-generated-overlay//:constants-VC-WIN64-ARM.bzl",
@@ -84,11 +80,6 @@ load(
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name")
-
-print("LINUX ARM64 {}".format(_LINUX_ARM64_PERLASM_TOOLS))
-print("LINUX x86 {}".format(_LINUX_X86_64_PERLASM_TOOLS))
-print("MAC ARM64 {}".format(_LINUX_ARM64_PERLASM_TOOLS))
-print("MAC x86 {}".format(_LINUX_X86_64_PERLASM_TOOLS))
 
 _REPO_NAME = get_repo_name()
 
@@ -317,63 +308,36 @@ ARM64 = "arm64"
 
 X86_64 = "x86_64"
 
-PERLASM_OUTS_LINUX = {
-    ARM64: _LINUX_ARM64_PERLASM_OUTS,
-    X86_64: _LINUX_X86_64_PERLASM_OUTS,
+PERLASM_OUTS_NIX = {
+    ARM64: _NIX_ARM64_PERLASM_OUTS,
+    X86_64: _NIX_X86_64_PERLASM_OUTS,
 }
 
-LINUX_ARM64_PERLASM_TOOLS_AND_OUTS, LINUX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-     _LINUX_ARM64_PERLASM_TOOLS,
-    PERLASM_OUTS_LINUX[ARM64],
+NIX_ARM64_PERLASM_TOOLS_AND_OUTS, NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
+    _NIX_ARM64_PERLASM_TOOLS,
+    PERLASM_OUTS_NIX[ARM64],
 )
 
-LINUX_X86_64_PERLASM_TOOLS_AND_OUTS, LINUX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    _LINUX_X86_64_PERLASM_TOOLS,
-    PERLASM_OUTS_LINUX[X86_64],
+NIX_X86_64_PERLASM_TOOLS_AND_OUTS, NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
+    _NIX_X86_64_PERLASM_TOOLS,
+    PERLASM_OUTS_NIX[X86_64],
 )
 
+# Linux and Mac currenlty have all the same inputs and outputs on each platform so
+# they share a set of genrules.
 [perl_genrule(
-    name = "perlasm_genfiles_linux_" + k,
+    name = "perlasm_genfiles_nix_" + k,
     outs = v,
     is_nix = True,
     srcs_to_outs = select({
-        "//conditions:default": LINUX_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "@platforms//cpu:x86_64": LINUX_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "//conditions:default": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@platforms//cpu:x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
     }),
     srcs_to_outs_dupes = select({
-        "//conditions:default": LINUX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@platforms//cpu:x86_64": LINUX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "//conditions:default": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@platforms//cpu:x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
     }),
-) for k, v in PERLASM_OUTS_LINUX.items()]
-
-PERLASM_OUTS_DARWIN = {
-    ARM64: _DARWIN_ARM64_PERLASM_OUTS,
-    X86_64: _DARWIN_X86_64_PERLASM_OUTS,
-}
-
-DARWIN_ARM64_PERLASM_TOOLS_AND_OUTS, DARWIN_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-     _DARWIN_ARM64_PERLASM_TOOLS,
-    PERLASM_OUTS_DARWIN[ARM64],
-)
-
-DARWIN_X86_64_PERLASM_TOOLS_AND_OUTS, DARWIN_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    _DARWIN_X86_64_PERLASM_TOOLS,
-    PERLASM_OUTS_DARWIN[X86_64],
-)
-
-[perl_genrule(
-    name = "perlasm_genfiles_mac_" + k,
-    outs = v,
-    is_nix = True,
-    srcs_to_outs = select({
-        "//conditions:default": DARWIN_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "@platforms//cpu:x86_64": DARWIN_X86_64_PERLASM_TOOLS_AND_OUTS,
-    }),
-    srcs_to_outs_dupes = select({
-        "//conditions:default": DARWIN_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@platforms//cpu:x86_64": DARWIN_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-    }),
-) for k, v in PERLASM_OUTS_DARWIN.items()]
+) for k, v in PERLASM_OUTS_NIX.items()]
 
 PERLASM_OUTS_WINDOWS = {
     ARM64: fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
@@ -410,12 +374,14 @@ WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUP
 filegroup(
     name = "perlasm_genfiles",
     srcs = select({
-        "@bazel_tools//src/conditions:linux_aarch64": [":perlasm_genfiles_linux_arm64"],
-        "@bazel_tools//src/conditions:linux_x86_64": [":perlasm_genfiles_linux_x86_64"],
-        "@bazel_tools//src/conditions:darwin_arm64": [":perlasm_genfiles_mac_arm64"],
-        "@bazel_tools//src/conditions:darwin_x86_64": [":perlasm_genfiles_mac_x86_64"],
-        "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
-        "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86_64"],
+        "@platforms//os:windows": [
+            ":perlasm_genfiles_windows_arm64",
+            ":perlasm_genfiles_windows_x86_64",
+        ],
+        "//conditions:default": [
+            ":perlasm_genfiles_nix_arm64",
+            ":perlasm_genfiles_nix_x86_64",
+        ],
     }),
 )
 
