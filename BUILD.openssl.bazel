@@ -374,14 +374,12 @@ WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUP
 filegroup(
     name = "perlasm_genfiles",
     srcs = select({
-        "@platforms//os:windows": [
-            ":perlasm_genfiles_windows_arm64",
-            ":perlasm_genfiles_windows_x86_64",
-        ],
-        "//conditions:default": [
-            ":perlasm_genfiles_nix_arm64",
-            ":perlasm_genfiles_nix_x86_64",
-        ],
+        "@bazel_tools//src/conditions:linux_aarch64": [":perlasm_genfiles_nix_arm64"],
+        "@bazel_tools//src/conditions:linux_x86_64": [":perlasm_genfiles_nix_x86_64"],
+        "@bazel_tools//src/conditions:darwin_arm64": [":perlasm_genfiles_nix_arm64"],
+        "@bazel_tools//src/conditions:darwin_x86_64": [":perlasm_genfiles_nix_x86_64"],
+        "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
+        "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86_64"],
     }),
 )
 
