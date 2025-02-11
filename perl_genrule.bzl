@@ -9,7 +9,7 @@ def get_binary_invocation_based_on_cpu(is_nix):
 
 def run_generation(ctx, src, out, binary_invocation):
     ctx.actions.run_shell(
-        inputs = [src],
+        inputs = src.files,
         outputs = [out],
         command = "{} {} nasm {}".format(binary_invocation, src, out),
         mnemonic = "GenerateAssemblyFromPerlScripts",
@@ -21,9 +21,9 @@ def run_generation(ctx, src, out, binary_invocation):
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
 
-    for src, out in ctx.files.srcs_to_outs.items():
+    for src, out in ctx.attr.srcs_to_outs.items():
         run_generation(ctx, src, out, binary_invocation)
-    for src, out in ctx.files.srcs_to_outs_dupes.items():
+    for src, out in ctx.attr.srcs_to_outs_dupes.items():
         run_generation(ctx, src, out, binary_invocation)
     out_files = [ctx.actions.declare_file(str(out)) for out in ctx.attr.outs]
     runfiles = ctx.runfiles(files = out_files)
