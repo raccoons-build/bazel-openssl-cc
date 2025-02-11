@@ -40,12 +40,18 @@ def _perl_genrule_impl(ctx):
     out_files = []
     for src, out in ctx.attr.srcs_to_outs.items():
         if is_right_architecture(ctx.attr.is_x86, out):
+            print("Outfile is good to go {}".format(out))
             out_as_file = run_generation(ctx, src, out, binary_invocation)
             out_files.append(out_as_file)
+        else:
+            print("Outfile is being ignore {}".format(out))
     for src, out in ctx.attr.srcs_to_outs_dupes.items():
         if is_right_architecture(ctx.attr.is_x86, out):
+            print("Outfile is good to go {}".format(out))
             out_as_file = run_generation(ctx, src, out, binary_invocation)
             out_files.append(out_as_file)
+        else:
+            print("Outfile is being ignore {}".format(out))
     runfiles = ctx.runfiles(files = out_files)
 
     return [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
