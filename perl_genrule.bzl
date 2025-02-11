@@ -8,24 +8,27 @@ def get_binary_invocation_based_on_cpu(is_nix):
         return "perl.exe"
 
 def run_generation(ctx, src, out, binary_invocation):
+    out_as_file = ctx.actions.declare_file(out)
     ctx.actions.run_shell(
         inputs = src.files,
-        outputs = [out],
+        outputs = [out_as_file],
         command = "{} {} nasm {}".format(binary_invocation, src, out),
         mnemonic = "GenerateAssemblyFromPerlScripts",
         progress_message = "Generating file {} from script {}".format(out, src),
         toolchain =
             "@rules_perl//:current_toolchain",
     )
+    return out_as_file
 
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
-
+    out_files = []
     for src, out in ctx.attr.srcs_to_outs.items():
-        run_generation(ctx, src, out, binary_invocation)
+        out_as_file = run_generation(ctx, src, out, binary_invocation)
+        out_files.append(out_as_file)
     for src, out in ctx.attr.srcs_to_outs_dupes.items():
-        run_generation(ctx, src, out, binary_invocation)
-    out_files = [ctx.actions.declare_file(str(out)) for out in ctx.attr.outs]
+        out_as_file = run_generation(ctx, src, out, binary_invocation)
+        out_files.append(out_as_file)
     runfiles = ctx.runfiles(files = out_files)
 
     return [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
