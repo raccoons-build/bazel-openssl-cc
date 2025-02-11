@@ -325,7 +325,7 @@ perl_genrule(
 
 perl_genrule(
     name = "perlasm_genfiles_nix_x86",
-    srcs = dedupe(_LINUX_X86_64_PERLASM_TOOLS + PERLASM_TOOL + _DARWIN_X86_64_PERLASM_TOOLS),
+    srcs = dedupe(_LINUX_X86_64_PERLASM_TOOLS + PERLASM_TOOLS + _DARWIN_X86_64_PERLASM_TOOLS),
     outs = dedupe(_LINUX_X86_64_PERLASM_OUTS + _DARWIN_X86_64_PERLASM_OUTS),
     is_nix = True,
     srcs_to_outs_overrides = {
