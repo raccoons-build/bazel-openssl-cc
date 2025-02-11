@@ -4,6 +4,32 @@
 def get_repo_name():
     return Label("//:BUILD.bazel").workspace_name
 
+def dedupe_and_ret_dicts(lst_one, lst_two):
+    """Dedupe a list and make two dictionaries with that and another list
+
+    Args:
+        lst_one: First list. We dedupe this and use as keys.
+        lst_two: Second list. We don't dedupe this and use as values.
+    Returns:
+        Two dictionaries. The first has the keys and values that are not dupes or the first instances of dupes.
+        The second has the remaining keys and values that are dupes.
+    """
+    dict_one = {}
+    dict_two = {}
+
+    for i in range(len(lst_one)):
+        one_i = lst_one[i]
+        two_i = lst_two[i]
+        if one_i in dict_one.keys():
+            if one_i in dict_two.keys():
+                pass
+            else:
+                dict_two[one_i] = two_i
+        else:
+            dict_one[one_i] = two_i
+
+    return dict_one, dict_two
+
 def dedupe(lst):
     """Dedupe a list
 

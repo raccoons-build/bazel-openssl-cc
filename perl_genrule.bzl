@@ -37,27 +37,26 @@ def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrid
 
     return "Could not find source for output for {} from {} options".format(output_file, possible_sources_list)
 
+def run_generation(src, out, binary_invocation):
+    src_as_file = ctx.actions.declare_file(str(src))
+    out_as_file = ctx.actions.declare_file(str(out))
+    ctx.actions.run_shell(
+        inputs = [src_as_file],
+        outputs = [out_as_file],
+        command = "{} {} nasm {}".format(binary_invocation, src, out),
+        mnemonic = "GenerateAssemblyFromPerlScripts",
+        progress_message = "Generating file {} from script {}".format(out, src),
+        toolchain =
+            "@rules_perl//:current_toolchain",
+    )
+
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
-    srcs_and_outputs_dict = {}
-    for i in range(len(ctx.attr.outs)):
-        out = ctx.attr.outs[i]
-        src = find_source_for_out(out, ctx.attr.srcs, ctx.attr.srcs_to_outs_overrides)
 
-        srcs_and_outputs_dict[src] = out
-
-    for src, out in srcs_and_outputs_dict.items():
-        src_as_file = ctx.actions.declare_file(str(src))
-        out_as_file = ctx.actions.declare_file(str(out))
-        ctx.actions.run_shell(
-            inputs = [src_as_file],
-            outputs = [out_as_file],
-            command = "{} {} nasm {}".format(binary_invocation, src, out),
-            mnemonic = "GenerateAssemblyFromPerlScripts",
-            progress_message = "Generating file {} from script {}".format(out, src),
-            toolchain =
-                "@rules_perl//:current_toolchain",
-        )
+    for src, out in ctx.attr.srcs_to_outs.items():
+        run_generation(src, out, binary_invocation)
+    for src, out in ctx.attr.srcs_to_outs_dupes.items():
+        run_generation(src, out, binary_invocation)
     out_files = [ctx.actions.declare_file(str(out)) for out in ctx.attr.outs]
     runfiles = ctx.runfiles(files = out_files)
 
@@ -72,8 +71,8 @@ perl_genrule = rule(
         # We allow outs to be empty so when we don't generate anything for nix platforms
         # we don't get an error.
         "outs": attr.output_list(allow_empty = True, doc = "List of output files."),
-        "srcs": attr.label_list(allow_files = [".pl"], doc = "List of input files"),
-        # The dicts of srcs to their outs when they don't share a file name.
-        "srcs_to_outs_overrides": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files that need to be explicitly made."),
+        "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
+        # The dicts of srcs to their outs when they are dupes from the first dict.
+        "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
     },
 )
