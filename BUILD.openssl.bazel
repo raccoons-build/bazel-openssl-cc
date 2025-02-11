@@ -323,22 +323,6 @@ NIX_X86_64_PERLASM_TOOLS_AND_OUTS, NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT 
     PERLASM_OUTS_NIX[X86_64],
 )
 
-# Linux and Mac currenlty have all the same inputs and outputs on each platform so
-# they share a set of genrules.
-[perl_genrule(
-    name = "perlasm_genfiles_nix_" + k,
-    outs = v,
-    is_nix = True,
-    srcs_to_outs = select({
-        "//conditions:default": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "@platforms//cpu:x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
-    }),
-    srcs_to_outs_dupes = select({
-        "//conditions:default": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@platforms//cpu:x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-    }),
-) for k, v in PERLASM_OUTS_NIX.items()]
-
 PERLASM_OUTS_WINDOWS = {
     ARM64: fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
     X86_64: fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
@@ -354,32 +338,34 @@ WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUP
     PERLASM_OUTS_WINDOWS[X86_64],
 )
 
-[
-    perl_genrule(
-        name = "perlasm_genfiles_windows_" + k,
-        outs = v,
-        is_nix = False,
-        srcs_to_outs = select({
-            "//conditions:default": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS,
-            "@platforms//cpu:x86_64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS,
-        }),
-        srcs_to_outs_dupes = select({
-            "//conditions:default": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-            "@platforms//cpu:x86_64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        }),
-    )
-    for k, v in PERLASM_OUTS_WINDOWS.items()
-]
-
-filegroup(
+perl_genrule(
     name = "perlasm_genfiles",
-    srcs = select({
-        "@bazel_tools//src/conditions:linux_aarch64": [":perlasm_genfiles_nix_arm64"],
-        "@bazel_tools//src/conditions:linux_x86_64": [":perlasm_genfiles_nix_x86_64"],
-        "@bazel_tools//src/conditions:darwin_arm64": [":perlasm_genfiles_nix_arm64"],
-        "@bazel_tools//src/conditions:darwin_x86_64": [":perlasm_genfiles_nix_x86_64"],
-        "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
-        "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86_64"],
+    # We remove the wrong architecture files in the rule so this is fine.
+    # Deduping the files from different os's while having the same architecture fixes itself too.
+    outs = dedupe(PERLASM_OUTS[X86_64] + PERLASM_OUTS[ARM64] + PERLASM_OUTS_WINDOWS[X86_64] + PERLASM_OUTS[ARM64]),
+    is_nix = select({
+        "//conditions:default": True,
+        "@platforms//os:windows": False,
+    }),
+    is_x86 = select({
+        "//conditions:default": False,
+        "@platforms//cpu:x86_64": True,
+    }),
+    srcs_to_outs = select({
+        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS,
+    }),
+    srcs_to_outs_dupes = select({
+        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
     }),
 )
 
