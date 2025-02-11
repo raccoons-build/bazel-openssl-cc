@@ -326,39 +326,6 @@ PERLASM_OUTS = {
     "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
 }
 
-# Outs does not support select, so we trick a bit. Each architecture has its own
-# list of files, and we use the architecture as the key.
-[
-    genrule(
-        name = "asm_" + k,
-        srcs = ["crypto/ec/ecp_nistz256_table.c"],
-        outs = v,
-        cmd = select({
-            "@bazel_tools//src/conditions:linux_aarch64": CC_ENV_CMD + _LINUX_ARM64_PERLASM_GEN,
-            "@bazel_tools//src/conditions:linux_x86_64": CC_ENV_CMD + _LINUX_X86_64_PERLASM_GEN,
-            "@bazel_tools//src/conditions:darwin_arm64": CC_ENV_CMD + _DARWIN_ARM64_PERLASM_GEN,
-            "@bazel_tools//src/conditions:darwin_x86_64": CC_ENV_CMD + _DARWIN_X86_64_PERLASM_GEN,
-            "//conditions:default": "",
-        }),
-        target_compatible_with = [{
-            "nix_arm64": "@platforms//cpu:arm64",
-            "nix_x86_64": "@platforms//cpu:x86_64",
-        }[k]],
-        toolchains = [
-            "@bazel_tools//tools/cpp:current_cc_toolchain",
-            "@rules_perl//:current_toolchain",
-        ],
-        tools = PERLASM_TOOLS + select({
-            "@bazel_tools//src/conditions:linux_aarch64": depset(direct = _LINUX_ARM64_PERLASM_TOOLS).to_list(),
-            "@bazel_tools//src/conditions:linux_x86_64": depset(direct = _LINUX_X86_64_PERLASM_TOOLS).to_list(),
-            "@bazel_tools//src/conditions:darwin_arm64": depset(direct = _DARWIN_ARM64_PERLASM_TOOLS).to_list(),
-            "@bazel_tools//src/conditions:darwin_x86_64": depset(direct = _DARWIN_X86_64_PERLASM_TOOLS).to_list(),
-        }),
-    )
-    for k, v in PERLASM_OUTS.items()
-    if len(v) > 0
-]
-
 perl_genrule(
     name = "perlasm_genfiles_mac_x86",
     srcs = dedupe(_DARWIN_X86_64_PERLASM_TOOLS),
