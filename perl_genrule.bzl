@@ -39,9 +39,6 @@ def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrid
 
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
-
-    outdir_name = "{}_out".format(ctx.attr.name)
-    outdir = ctx.actions.declare_directory(outdir_name)
     srcs_and_outputs_dict = {}
     for i in range(len(ctx.attr.outs)):
         out = ctx.attr.outs[i]
@@ -61,9 +58,10 @@ def _perl_genrule_impl(ctx):
             toolchain =
                 "@rules_perl//:current_toolchain",
         )
-    runfiles = ctx.runfiles(files = [outdir])
+    out_files = [ctx.actions.declare_file(str(out)) for out in ctx.attr.outs]
+    runfiles = ctx.runfiles(files = out_files)
 
-    return [DefaultInfo(files = depset([outdir]), runfiles = runfiles)]
+    return [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
