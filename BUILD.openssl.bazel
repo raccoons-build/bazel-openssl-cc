@@ -85,6 +85,11 @@ load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name")
 
+print("LINUX ARM64 {}".format(_LINUX_ARM64_PERLASM_TOOLS))
+print("LINUX x86 {}".format(_LINUX_X86_64_PERLASM_TOOLS))
+print("MAC ARM64 {}".format(_LINUX_ARM64_PERLASM_TOOLS))
+print("MAC x86 {}".format(_LINUX_X86_64_PERLASM_TOOLS))
+
 _REPO_NAME = get_repo_name()
 
 cc_library(
@@ -318,7 +323,7 @@ PERLASM_OUTS_LINUX = {
 }
 
 LINUX_ARM64_PERLASM_TOOLS_AND_OUTS, LINUX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    _LINUX_ARM64_PERLASM_TOOLS,
+     _LINUX_ARM64_PERLASM_TOOLS,
     PERLASM_OUTS_LINUX[ARM64],
 )
 
@@ -347,7 +352,7 @@ PERLASM_OUTS_DARWIN = {
 }
 
 DARWIN_ARM64_PERLASM_TOOLS_AND_OUTS, DARWIN_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    _DARWIN_ARM64_PERLASM_TOOLS,
+     _DARWIN_ARM64_PERLASM_TOOLS,
     PERLASM_OUTS_DARWIN[ARM64],
 )
 
