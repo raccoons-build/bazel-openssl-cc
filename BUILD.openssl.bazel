@@ -28,6 +28,7 @@ load(
     _DARWIN_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _DARWIN_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
     _DARWIN_X86_64_PERLASM_GEN = "PERLASM_GEN",
+    _DARWIN_X86_64_PERLASM_OUTS = "PERLASM_OUTS",
     _DARWIN_X86_64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
@@ -41,6 +42,7 @@ load(
     _LINUX_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
     _LINUX_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
     _LINUX_ARM64_PERLASM_GEN = "PERLASM_GEN",
+    _LINUX_ARM64_PERLASM_OUTS = "PERLASM_OUTS",
     _LINUX_ARM64_PERLASM_TOOLS = "PERLASM_TOOLS",
 )
 load(
@@ -426,7 +428,7 @@ filegroup(
         "@bazel_tools//src/conditions:darwin_x86_64": [":perlasm_genfiles_mac_x86"],
         "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
         "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86"],
-    })
+    }),
 )
 
 cc_library(
