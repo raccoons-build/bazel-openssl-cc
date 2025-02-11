@@ -320,6 +320,8 @@ CC_ENV_CMD = """export CC=$(CC)\n"""
 PERLASM_OUTS = {
     "nix_arm64": _DARWIN_ARM64_PERLASM_OUTS,
     "nix_x86_64": _LINUX_X86_64_PERLASM_OUTS,
+    "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
+    "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
 }
 
 # Outs does not support select, so we trick a bit. Each architecture has its own
@@ -355,19 +357,53 @@ PERLASM_OUTS = {
     if len(v) > 0
 ]
 
-PERLASM_OUTS_WINDOWS = {
-    "windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
-    "windows_x86_64": fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
-}
+perl_genrule(
+    name = "perlasm_genfiles_mac_x86",
+    srcs = dedupe(_DARWIN_X86_64_PERLASM_TOOLS),
+    outs = _DARWIN_X86_64_PERLASM_OUTS,
+    is_nix = True,
+    srcs_to_outs_overrides = {
+        "crypto/sha/asm/sha512-x86_64.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-x86_64.s".format(_REPO_NAME),
+    },
+)
 
-# On Windows the perlasm genrules don't seem to work so we use a rule that utilizes
-# the rules_perl binary to generate the files.
+perl_genrule(
+    name = "perlasm_genfiles_mac_arm64",
+    srcs = dedupe(_DARWIN_ARM64_PERLASM_TOOLS),
+    outs = _DARWIN_ARM64_PERLASM_OUTS,
+    is_nix = True,
+    srcs_to_outs_overrides = {
+        "crypto/sha/asm/sha512-armv8.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-armv8.s".format(_REPO_NAME),
+    },
+)
+
+perl_genrule(
+    name = "perlasm_genfiles_linux_x86",
+    srcs = dedupe(_LINUX_X86_64_PERLASM_TOOLS),
+    outs = _LINUX_X86_64_PERLASM_OUTS,
+    is_nix = True,
+    srcs_to_outs_overrides = {
+        "crypto/sha/asm/sha512-x86_64.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-x86_64.s".format(_REPO_NAME),
+    },
+)
+
+perl_genrule(
+    name = "perlasm_genfiles_linux_arm64",
+    srcs = dedupe(_LINUX_ARM64_PERLASM_TOOLS),
+    outs = _LINUX_ARM64_PERLASM_OUTS,
+    is_nix = True,
+    srcs_to_outs_overrides = {
+        "crypto/sha/asm/sha512-armv8.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-armv8.s".format(_REPO_NAME),
+    },
+)
+
 perl_genrule(
     name = "perlasm_genfiles_windows_x86",
     srcs = dedupe(fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
+    is_nix = False,
     srcs_to_outs_overrides = {
-        "crypto/sha/asm/sha512-x86_64.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha512-x86_64.s".format(_REPO_NAME),
+        "crypto/sha/asm/sha512-x86_64.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-x86_64.s".format(_REPO_NAME),
     },
 )
 
@@ -375,22 +411,22 @@ perl_genrule(
     name = "perlasm_genfiles_windows_arm64",
     srcs = dedupe(fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS)),
     outs = fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
+    is_nix = False,
     srcs_to_outs_overrides = {
-        "crypto/sha/asm/sha512-armv8.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha512-armv8.s".format(_REPO_NAME),
+        "crypto/sha/asm/sha512-armv8.pl": "$(BINDIR)/external/{}/crypto/sha/asm/sha256-armv8.s".format(_REPO_NAME),
     },
 )
 
 filegroup(
     name = "perlasm_genfiles",
-    srcs = [
-        ":asm_" + k
-        for k, v in PERLASM_OUTS.items()
-        if len(v) > 0
-    ] + [
-        ":asm_windows_" + k
-        for k, v in PERLASM_OUTS_WINDOWS.items()
-        if len(v) > 0
-    ],
+    srcs = select({
+        "@bazel_tools//src/conditions:linux_aarch64": [":perlasm_genfiles_linux_arm64"],
+        "@bazel_tools//src/conditions:linux_x86_64": [":perlasm_genfiles_linux_x86"],
+        "@bazel_tools//src/conditions:darwin_arm64": [":perlasm_genfiles_mac_arm64"],
+        "@bazel_tools//src/conditions:darwin_x86_64": [":perlasm_genfiles_mac_x86"],
+        "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
+        "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86"],
+    })
 )
 
 cc_library(
@@ -401,16 +437,13 @@ cc_library(
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [
         ":generated-headers",
+        ":perlasm_genfiles",
     ] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
         ["providers/implementations/**/*.c"],
         exclude = COMMON_GENERATED_FILES,
-    ) + select({
-        "@bazel_tools//src/conditions:windows_arm64": [":perlasm_genfiles_windows_arm64"],
-        "@bazel_tools//src/conditions:windows_x64": [":perlasm_genfiles_windows_x86"],
-        "//conditions:default": [":perlasm_genfiles"],
-    }),
+    ),
     copts = COMMON_OPENSSL_COPTS + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,

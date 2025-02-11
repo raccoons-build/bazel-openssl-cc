@@ -1,6 +1,12 @@
 """Generate files with perl. These are assumed to be .pl files as src and .s file as output.
 """
 
+def get_binary_invocation_based_on_cpu(is_nix):
+    if is_nix:
+        return "perl"
+    else:
+        return "perl.exe"
+
 def remove_path_and_type(file_name):
     wo_path = str(file_name).split("/")[-1]
     return wo_path.split(".")[0]
@@ -32,6 +38,8 @@ def find_source_for_out(output_file, possible_sources_list, srcs_to_outs_overrid
     return "Could not find source for output for {} from {} options".format(output_file, possible_sources_list)
 
 def _perl_genrule_impl(ctx):
+    binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
+
     outdir_name = "{}_out".format(ctx.attr.name)
     outdir = ctx.actions.declare_directory(outdir_name)
     srcs_and_outputs_dict = {}
@@ -47,7 +55,7 @@ def _perl_genrule_impl(ctx):
         ctx.actions.run_shell(
             inputs = [src_as_file],
             outputs = [out_as_file],
-            command = "perl.exe {} nasm {}".format(src, out),
+            command = "{} {} nasm {}".format(binary_invocation, src, out),
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating file {} from script {}".format(out, src),
             toolchain =
@@ -61,6 +69,8 @@ perl_genrule = rule(
     implementation = _perl_genrule_impl,
     doc = "Generate files using perl.",
     attrs = {
+        # We need to know what architecture this is running on.
+        "is_nix": attr.bool(doc = "Whether this is nix or not."),
         # We allow outs to be empty so when we don't generate anything for nix platforms
         # we don't get an error.
         "outs": attr.output_list(allow_empty = True, doc = "List of output files."),
