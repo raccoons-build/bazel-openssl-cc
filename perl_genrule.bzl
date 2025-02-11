@@ -27,7 +27,7 @@ def run_generation(ctx, src, out, binary_invocation):
     ctx.actions.run_shell(
         inputs = src.files,
         outputs = [out_as_file],
-        command = "{} $(location {}) nasm ${location {}}".format(binary_invocation, src.label, Label(out)),
+        command = "{} $(location {}) nasm $(location {})".format(binary_invocation, src.label, Label(out)),
         mnemonic = "GenerateAssemblyFromPerlScripts",
         progress_message = "Generating file {} from script {}".format(out, src.label),
         toolchain =
