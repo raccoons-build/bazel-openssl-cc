@@ -99,7 +99,7 @@ jobs:
           name: bcr.nix.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.nix.tar.gz)
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.nix.wip")' > MODULE.bazel && bazel query --registry="file:///tmp/bazel-central-registry" --output=package @openssl//:perlasm_genfiles | grep ".s" && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
+      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.nix.wip")' > MODULE.bazel && bazel query --registry="file:///tmp/bazel-central-registry" 'kind("generated file", @openssl//:perlasm_genfiles)' && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
   pr-test-windows:
     strategy:
       matrix:
