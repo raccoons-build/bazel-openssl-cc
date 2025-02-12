@@ -60,7 +60,9 @@ def _perl_genrule_impl(ctx):
     cc_info = CcInfo(
         compilation_context = cc_common.create_compilation_context(headers = depset(out_files)),
     )
-    return [DefaultInfo(files = depset(out_files)), cc_info]
+    ret = [DefaultInfo(files = depset(out_files)), cc_info]
+    print("katsonandrew: {}".format(ret))
+    return ret
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
