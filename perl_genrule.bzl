@@ -69,7 +69,7 @@ def _perl_genrule_impl(ctx):
             prefix_to_strip = ctx.genfiles_dir.path,
         )
 
-        final_out_file = ctx.declare_file("{}/{}".format(output_prefix, out_file))
+        final_out_file = ctx.actions.declare_file("{}/{}".format(output_prefix, out_file))
 
         ctx.actions.run_shell(
             inputs = [out_file],
