@@ -13,24 +13,23 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
-def is_right_architecture(is_x86, out_file, src_target):
+def is_right_architecture(is_x86, out_file, src_file):
     """ Determine whether this file belongs to the current architecture.
 
     Args:
         is_x86: Whether this is x86 or arm64
         out_file: The name of the output file
-        src_target: The name of the source target.
+        src_file: The name of the source file.
     Returns:
         Whether this file matches the architecture
     """
 
-    for src_file in src_target.files.to_list():
-        if is_x86 and "x86" in out_file and "x86" in src_file:
-            print("Is x86 with out: {} and src: {}".format(out_file, src_file))
-            return True
-        if not is_x86 and "arm" in out_file and "arm" in src_file:
-            print("Is arm64 with out: {} and src: {}".format(out_file, src_file))
-            return True
+    if is_x86 and "x86" in out_file and "x86" in src_file:
+        print("Is x86 with out: {} and src: {}".format(out_file, src_file))
+        return True
+    if not is_x86 and "arm" in out_file and "arm" in src_file:
+        print("Is arm64 with out: {} and src: {}".format(out_file, src_file))
+        return True
     if is_x86:
         print("Is x86 with arm64 out: {} and src: {}".format(out_file, src_file))
     else:
