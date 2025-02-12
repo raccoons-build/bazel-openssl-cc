@@ -1,6 +1,12 @@
 """Generate files with perl. These are assumed to be .pl files as src and .s file as output.
 """
 
+def combine_list_of_lists(list_of_lists):
+    final_list = []
+    for lst in list_of_lists:
+        final_list = final_list + lst
+    return final_list
+
 def get_binary_invocation_based_on_cpu(is_nix):
     if is_nix:
         return "perl"
@@ -51,7 +57,8 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
     out_files = []
-    additional_srcs = [src_from_list for src_from_list in src.files.to_list() for src in ctx.attr.additional_srcs]
+    additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
+
     for src, out in ctx.attr.srcs_to_outs.items():
         if is_right_architecture(ctx.attr.is_x86, out):
             out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
