@@ -54,7 +54,11 @@ def _perl_genrule_impl(ctx):
             out_files.append(out_as_file)
     runfiles = ctx.runfiles(files = out_files)
 
-    return [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
+    cc_info = CCInfo(
+        files = depset(out_files),
+        include_dirs = depset([ctx.path("external/{}".format(ctx.attr.repo_name))]),
+    )
+    return [DefaultInfo(files = depset(out_files), runfiles = runfiles), cc_info]
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
@@ -66,6 +70,7 @@ perl_genrule = rule(
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         # We need to know what architecture we are running on.
         "is_x86": attr.bool(doc = "Whether this is on arm64 or x86_64."),
+        "repo_name": attr.string(),
         # The dict of srcs to their outs.
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
