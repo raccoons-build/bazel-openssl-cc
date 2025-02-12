@@ -279,7 +279,6 @@ perl_genrule(
         "//conditions:default": False,
         "@platforms//cpu:x86_64": True,
     }),
-    repo_name = _REPO_NAME,
     srcs_to_outs = select({
         "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
         "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
