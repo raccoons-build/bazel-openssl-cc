@@ -39,7 +39,7 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating file {} from script {}".format(out_as_file.path, src_as_file.path),
             toolchain =
-                "@rules_python//:current_toolchain",
+                "@rules_perl//:current_toolchain",
         )
     return out_as_file
 
