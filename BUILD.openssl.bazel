@@ -224,6 +224,88 @@ COMMON_OPENSSL_COPTS = [
     ],
 })
 
+ARM64 = "arm64"
+
+X86_64 = "x86_64"
+
+PERLASM_OUTS_NIX = {
+    ARM64: _NIX_ARM64_PERLASM_OUTS,
+    X86_64: _NIX_X86_64_PERLASM_OUTS,
+}
+
+NIX_ARM64_PERLASM_TOOLS_AND_OUTS, NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
+    _NIX_ARM64_PERLASM_TOOLS,
+    PERLASM_OUTS_NIX[ARM64],
+)
+
+NIX_X86_64_PERLASM_TOOLS_AND_OUTS, NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
+    _NIX_X86_64_PERLASM_TOOLS,
+    PERLASM_OUTS_NIX[X86_64],
+)
+
+PERLASM_OUTS_WINDOWS = {
+    ARM64: fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
+    X86_64: fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
+}
+
+WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS, WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
+    fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS),
+    PERLASM_OUTS_WINDOWS[ARM64],
+)
+
+WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
+    fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS),
+    PERLASM_OUTS_WINDOWS[X86_64],
+)
+
+PERLASM_TOOLS = glob(
+    ["crypto/perlasm/*.pl"],
+    exclude = COMMON_GENERATED_FILES,
+)
+
+# These are erroneously includede with arm64 when they are exclusively x86_64.
+NIX_ARM64_EXCLUDES = {
+    "crypto/modes/asm/aes-gcm-armv8-unroll8_64.pl": "crypto/modes/aes-gcm-armv8-unroll8_64.S",
+}
+
+perl_genrule(
+    name = "perlasm_genfiles",
+    additional_srcs = PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
+    is_nix = select({
+        "//conditions:default": True,
+        "@platforms//os:windows": False,
+    }),
+    is_x86 = select({
+        "//conditions:default": False,
+        "@platforms//cpu:x86_64": True,
+    }),
+    repo_name = _REPO_NAME,
+    srcs_to_outs = select({
+        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS,
+    }),
+    srcs_to_outs_dupes = select({
+        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+    }),
+    srcs_to_outs_exclude = select({
+        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_EXCLUDES,
+        "@bazel_tools//src/conditions:linux_x86_64": {},
+        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_EXCLUDES,
+        "@bazel_tools//src/conditions:darwin_x86_64": {},
+        "@bazel_tools//src/conditions:windows_arm64": {},
+        "@bazel_tools//src/conditions:windows_x64": {},
+    }),
+)
+
 COMMON_LIBCRYPTO_SRCS = glob(
     [
         "crypto/**/*.h",
@@ -249,13 +331,15 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "crypto/LPdir_wince.c",
 ]
 
+# We need to remove the generated files from the sources list so that we can 
+# locate them in their proper locations.
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
-    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:linux_aarch64": [src for src in _LINUX_ARM64_LIBCRYPTO_SRCS if src not in _NIX_ARM64_PERLASM_OUTS],
+    "@bazel_tools//src/conditions:linux_x86_64": [src for src in _LINUX_X86_64_LIBCRYPTO_SRCS if src not in _NIX_X86_64_PERLASM_OUTS],
+    "@bazel_tools//src/conditions:darwin_arm64": [src for src in _DARWIN_ARM64_LIBCRYPTO_SRCS if src not in _NIX_ARM64_PERLASM_OUTS],
+    "@bazel_tools//src/conditions:darwin_x86_64": [src for src in _DARWIN_X86_64_LIBCRYPTO_SRCS if src not in _NIX_X86_64_PERLASM_OUTS],
+    "@bazel_tools//src/conditions:windows_arm64": [src for src in fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS) if src not in _WINDOWS_ARM64_PERLASM_OUTS] + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": [src for src in fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS) if src not in _WINDOWS_X86_64_PERLASM_OUTS] + OTHER_LIBCRYPTO_WINDOWS_SRCS,
 })
 
 EXISTING_LIBCRYPTO_HDRS = glob(
@@ -303,90 +387,6 @@ LIBCRYPTO_WINDOWS_INCLUDES = [
     "crypto/bn",
     "crypto",
 ]
-
-ARM64 = "arm64"
-
-X86_64 = "x86_64"
-
-PERLASM_OUTS_NIX = {
-    ARM64: _NIX_ARM64_PERLASM_OUTS,
-    X86_64: _NIX_X86_64_PERLASM_OUTS,
-}
-
-NIX_ARM64_PERLASM_TOOLS_AND_OUTS, NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    _NIX_ARM64_PERLASM_TOOLS,
-    PERLASM_OUTS_NIX[ARM64],
-)
-
-NIX_X86_64_PERLASM_TOOLS_AND_OUTS, NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    _NIX_X86_64_PERLASM_TOOLS,
-    PERLASM_OUTS_NIX[X86_64],
-)
-
-PERLASM_OUTS_WINDOWS = {
-    ARM64: fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_OUTS),
-    X86_64: fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_OUTS),
-}
-
-WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS, WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    fix_paths_for_windows(_WINDOWS_ARM64_PERLASM_TOOLS),
-    PERLASM_OUTS_WINDOWS[ARM64],
-)
-
-WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = dedupe_and_ret_dicts(
-    fix_paths_for_windows(_WINDOWS_X86_64_PERLASM_TOOLS),
-    PERLASM_OUTS_WINDOWS[X86_64],
-)
-
-PERLASM_TOOLS = glob(
-    ["crypto/perlasm/*.pl"],
-    exclude = COMMON_GENERATED_FILES,
-)
-
-NIX_ARM64_EXCLUDES = {
-    "crypto/modes/asm/aes-gcm-armv8-unroll8_64.pl": "crypto/modes/aes-gcm-armv8-unroll8_64.S",
-}
-
-perl_genrule(
-    name = "perlasm_genfiles",
-    additional_srcs = PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
-    is_nix = select({
-        "//conditions:default": True,
-        "@platforms//os:windows": False,
-    }),
-    is_x86 = select({
-        "//conditions:default": False,
-        "@platforms//cpu:x86_64": True,
-    }),
-    repo_name = _REPO_NAME,
-    srcs_to_outs = select({
-        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
-        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
-        "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS,
-    }),
-    srcs_to_outs_dupes = select({
-        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-    }),
-    srcs_to_outs_exclude = select({
-        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_EXCLUDES,
-        "@bazel_tools//src/conditions:linux_x86_64": {},
-        "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_EXCLUDES,
-        "@bazel_tools//src/conditions:darwin_x86_64": {},
-        "@bazel_tools//src/conditions:windows_arm64": {},
-        "@bazel_tools//src/conditions:windows_x64": {},
-    }),
-)
-
-print(ALL_LIBCRYPTO_HDRS)
-print(ALL_LIBCRYPTO_SRCS)
 
 cc_library(
     name = "crypto",
