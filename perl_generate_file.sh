@@ -12,7 +12,7 @@ src_file="$2"
 out_file="$3"
 assembly_generator_invocation="$4"
 
-{binary_invocation} ${src_file} ${assembly_generator_invocation} ${out_file}
+${binary_invocation} ${src_file} ${assembly_generator_invocation} ${out_file}
 if test -f ${out_file}; then
   echo "${out_file} exists"
 else
