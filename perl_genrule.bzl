@@ -29,16 +29,18 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
     """
     out_as_file = ctx.actions.declare_file(out)
     src_files = src.files
+    perl_generate_file = ctx.file._perl_generate_file
     for src_as_file in src_files.to_list():
-        ctx.actions.run_shell(
+        ctx.actions.run(
             inputs = [src_as_file] + additional_srcs,
             outputs = [out_as_file],
             command = "{} {} nasm {}".format(binary_invocation, src_as_file.path, out_as_file.path),
+            executable = perl_generate_file,
+            arguments = [binary_invocation, src_as_file.path, out_as_file.path],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating file {} from script {}".format(out_as_file.path, src_as_file.path),
             toolchain =
                 "@rules_perl//:current_toolchain",
-            use_default_shell_env = True,
         )
     return out_as_file
 
@@ -77,5 +79,12 @@ perl_genrule = rule(
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
         # The dict of srcs to their outs when they are known to be problematic for some reason. And can be safely excluded.
         "srcs_to_outs_exclude": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files that need to be excluded."),
+        # Script that handles the file generation and existence check.
+        "_perl_generate_file": attr.label(
+            allow_single_file = True,
+            executable = True,
+            cfg = "exec",
+            default = "@openssl-generated-overlay//:perl_generate_file.sh",
+        ),
     },
 )
