@@ -442,7 +442,8 @@ OPENSSL_VERSION = "{openssl_version}"
 {perl_output}
 
 GEN_FILES = {json_dump}
-"""
+""" 
+    print(f"PERL OUTPUT {perl_output}")
     path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
     with open(pathlib.Path(path), "w") as f:
         f.write(out)
