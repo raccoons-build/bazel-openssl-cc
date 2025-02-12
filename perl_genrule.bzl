@@ -61,7 +61,6 @@ def _perl_genrule_impl(ctx):
         compilation_context = cc_common.create_compilation_context(headers = depset(out_files)),
     )
     ret = [DefaultInfo(files = depset(out_files)), cc_info]
-    print("katsonandrew: {}".format(ret))
     return ret
 
 perl_genrule = rule(
@@ -87,7 +86,7 @@ perl_genrule = rule(
             allow_single_file = True,
             executable = True,
             cfg = "exec",
-            default = "@openssl-generated-overlay//:perl_generate_file.sh",
+            default = "@openssl-generated-overlay//:perl_generate_file.py",
         ),
     },
 )

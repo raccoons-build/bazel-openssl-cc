@@ -264,9 +264,9 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 executable=True,
             )
             copy_from_here_to(
-                "perl_generate_file.sh",
+                "perl_generate_file.py",
                 pathlib.Path(os.path.join(output_tar_dir,
-                             "perl_generate_file.sh")),
+                             "perl_generate_file.py")),
                 executable=True,
             )
             with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
