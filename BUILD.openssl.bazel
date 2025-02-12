@@ -376,11 +376,11 @@ perl_genrule(
     }),
     srcs_to_outs_exclude = select({
         "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_EXCLUDES,
-        "@bazel_tools//src/conditions:linux_x86_64": [],
+        "@bazel_tools//src/conditions:linux_x86_64": {},
         "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_EXCLUDES,
-        "@bazel_tools//src/conditions:darwin_x86_64": [],
-        "@bazel_tools//src/conditions:windows_arm64": [],
-        "@bazel_tools//src/conditions:windows_x64": [],
+        "@bazel_tools//src/conditions:darwin_x86_64": {},
+        "@bazel_tools//src/conditions:windows_arm64": {},
+        "@bazel_tools//src/conditions:windows_x64": {},
     }),
 )
 
