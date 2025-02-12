@@ -22,14 +22,15 @@ def is_right_architecture(is_x86, out_file):
         return True
     return False
 
-def run_generation(ctx, src, out, binary_invocation):
+def run_generation(ctx, src, out, binary_invocation, additional_srcs):
     """Run the generation command.
 
     Args:
         ctx: The context object from bazel.
-        src: The source target
-        out: The output target
+        src: The source target.
+        out: The output target.
         binary_invocation: The binary to run to do generation.
+        additional_srcs: The other perl scripts needed in generation.
     Returns:
         The output target as a file. Should only be one.
     """
@@ -37,7 +38,7 @@ def run_generation(ctx, src, out, binary_invocation):
     src_files = src.files
     for src_as_file in src_files.to_list():
         ctx.actions.run_shell(
-            inputs = [src_as_file],
+            inputs = [src_as_file] + additional_srcs,
             outputs = [out_as_file],
             command = "{} {} nasm {}".format(binary_invocation, src_as_file.path, out_as_file.path),
             mnemonic = "GenerateAssemblyFromPerlScripts",
@@ -50,13 +51,14 @@ def run_generation(ctx, src, out, binary_invocation):
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
     out_files = []
+    additional_srcs = [src_from_list for src_from_list in src.files.to_list() for src in ctx.attr.additional_srcs]
     for src, out in ctx.attr.srcs_to_outs.items():
         if is_right_architecture(ctx.attr.is_x86, out):
-            out_as_file = run_generation(ctx, src, out, binary_invocation)
+            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
             out_files.append(out_as_file)
     for src, out in ctx.attr.srcs_to_outs_dupes.items():
         if is_right_architecture(ctx.attr.is_x86, out):
-            out_as_file = run_generation(ctx, src, out, binary_invocation)
+            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
             out_files.append(out_as_file)
     runfiles = ctx.runfiles(files = out_files)
 
