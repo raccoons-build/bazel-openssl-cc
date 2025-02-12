@@ -29,7 +29,7 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
     """
     out_as_file = ctx.actions.declare_file(out)
     src_files = src.files
-    perl_generate_file = ctx.file._perl_generate_file
+    perl_generate_file = ctx.file.perl_generate_file
     for src_as_file in src_files.to_list():
         ctx.actions.run(
             inputs = [src_as_file] + additional_srcs,
@@ -82,11 +82,10 @@ perl_genrule = rule(
         # The dict of srcs to their outs when they are known to be problematic for some reason. And can be safely excluded.
         "srcs_to_outs_exclude": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files that need to be excluded."),
         # Script that handles the file generation and existence check.
-        "_perl_generate_file": attr.label(
+        "perl_generate_file": attr.label(
             allow_single_file = True,
             executable = True,
-            cfg = "exec",
-            default = "@openssl-generated-overlay//:perl_generate_file.sh",
+            cfg = "exec"
         ),
     },
 )

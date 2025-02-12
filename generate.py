@@ -269,6 +269,12 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                              "perl_generate_file.sh")),
                 executable=True,
             )
+            copy_from_here_to(
+                "perl_generate_file.ps1",
+                pathlib.Path(os.path.join(output_tar_dir,
+                             "perl_generate_file.ps1")),
+                executable=True,
+            )
             with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
                 f.write(
                     f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n"

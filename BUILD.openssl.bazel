@@ -311,6 +311,10 @@ perl_genrule(
         "@bazel_tools//src/conditions:windows_arm64": "unused",
         "@bazel_tools//src/conditions:windows_x64": "nasm",
     }),
+    perl_generate_file = select({
+        "//conditions:default": "@openssl-generated-overlay//:perl_generate_file.sh",
+        "@platforms//os:windows": "@openssl-generated-overlay//:perl_generate_file.ps1",
+    }),
 )
 
 COMMON_LIBCRYPTO_SRCS = glob(
