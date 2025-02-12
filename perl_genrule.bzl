@@ -60,7 +60,7 @@ def _perl_genrule_impl(ctx):
     cp_file = ctx.file._copy_file_script
     copy_file_format = """{script_path} {outdir} {file} {prefix_to_strip}"""
 
-    output_prefix = "external/{}".format(_REPO_NAME)
+    output_prefix = "external/{}".format(ctx.attr.repo_name)
     for out_file in out_files:
         copy_file_format.format(
             script_path = cp_file.path,
@@ -69,7 +69,7 @@ def _perl_genrule_impl(ctx):
             prefix_to_strip = ctx.genfiles_dir.path,
         )
 
-        final_out_file = "{}/{}".format(outdir, out_file)
+        final_out_file = "{}/{}".format(output_prefix, out_file)
 
         ctx.actions.run_shell(
             inputs = [out_file],
@@ -98,6 +98,7 @@ perl_genrule = rule(
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         # We need to know what architecture we are running on.
         "is_x86": attr.bool(doc = "Whether this is on arm64 or x86_64."),
+        # The name of the repo to output to.
         "repo_name": attr.string(),
         # The dict of srcs to their outs.
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
