@@ -24,12 +24,15 @@ def is_right_architecture(is_x86, out_file):
 
 def run_generation(ctx, src, out, binary_invocation):
     out_as_file = ctx.actions.declare_file(out)
+
+    # Should only be one source file.
+    src_as_file = src.files[0]
     ctx.actions.run_shell(
         inputs = src.files,
         outputs = [out_as_file],
-        command = "{} $(location {}) nasm $(location {})".format(binary_invocation, src.label, Label(out)),
+        command = "{} $(location {}) nasm $(location {})".format(binary_invocation, src_as_file.path, out_as_file.path),
         mnemonic = "GenerateAssemblyFromPerlScripts",
-        progress_message = "Generating file {} from script {}".format(out, src.label),
+        progress_message = "Generating file {} from script {}".format(out.path, src),
         toolchain =
             "@rules_perl//:current_toolchain",
     )
