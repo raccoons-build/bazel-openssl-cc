@@ -15,8 +15,9 @@ def dedupe_and_ret_dicts(lst_one, lst_two):
         The second has the remaining keys and values that are dupes.
     """
     if len(lst_one) != len(lst_two):
-        print("Lists are not the same length: {} with len {} and {} with len {}".format(lst_one, len(lst_one), lst_two, len(lst_two)))
-
+        fail("Lists are not the same length: {} with len {} and {} with len {}".format(lst_one, len(lst_one), lst_two, len(lst_two)))
+    print(lst_one)
+    print(lst_two)
     dict_one = {}
     dict_two = {}
 
