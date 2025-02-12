@@ -62,6 +62,8 @@ perl_genrule = rule(
         "additional_srcs": attr.label_list(allow_files = True, doc = "List of other input files used by the main input files."),
         # We need to know what os this is running on.
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
+        # We need to know what architecture we are running on.
+        "is_x86": attr.bool(doc = "Whether this is on arm64 or x86_64."),
         # The dict of srcs to their outs.
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
