@@ -16,8 +16,8 @@ def dedupe_and_ret_dicts(lst_one, lst_two):
     """
     if len(lst_one) != len(lst_two):
         fail("Lists are not the same length: {} with len {} and {} with len {}".format(lst_one, len(lst_one), lst_two, len(lst_two)))
-    print(lst_one)
-    print(lst_two)
+    print("katsonandrew one: {}".foramt(lst_one))
+    print("katsonandrew two: {}".format(lst_two))
     dict_one = {}
     dict_two = {}
 
