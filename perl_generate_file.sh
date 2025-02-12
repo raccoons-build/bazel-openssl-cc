@@ -2,16 +2,17 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 3 ]]; then
-  echo "Need three params"
+if [[ "$#" -ne 4 ]]; then
+  echo "Need four params"
   exit 1
 fi
 
 binary_invocation="$1"
 src_file="$2"
 out_file="$3"
+assembly_generator_invocation="$4"
 
-echo ${binary_invocation} ${src_file} nasm ${out_file}
+echo ${binary_invocation} ${src_file} ${assembly_generator_invocation} ${out_file}
 if test -f ${out_file}; then
   echo "${out_file} exists"
 else
