@@ -45,11 +45,13 @@ def _perl_genrule_impl(ctx):
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     for src, out in ctx.attr.srcs_to_outs.items():
-        out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
-        out_files.append(out_as_file)
+        if not src in ctx.attr.srcs_to_outs_exclude.keys():
+            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
+            out_files.append(out_as_file)
     for src, out in ctx.attr.srcs_to_outs_dupes.items():
-        out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
-        out_files.append(out_as_file)
+        if not src in ctx.attr.srcs_to_outs_exclude.keys():
+            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
+            out_files.append(out_as_file)
     runfiles = ctx.runfiles(files = out_files)
 
     return [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
@@ -68,5 +70,7 @@ perl_genrule = rule(
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
+        # The dict of srcs to their outs when they are known to be problematic for some reason. And can be safely excluded.
+        "srcs_to_outs_exclude": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files that need to be excluded.")
     },
 )
