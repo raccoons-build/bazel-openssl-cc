@@ -38,6 +38,7 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
             progress_message = "Generating file {} from script {}".format(out_as_file.path, src_as_file.path),
             toolchain =
                 "@rules_perl//:current_toolchain",
+            use_default_shell_env = True,
         )
     return out_as_file
 
@@ -54,7 +55,6 @@ def _perl_genrule_impl(ctx):
         if not src in ctx.attr.srcs_to_outs_exclude.keys():
             out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
             out_files.append(out_as_file)
-
 
     cc_info = CcInfo(
         compilation_context = cc_common.create_compilation_context(headers = depset(out_files)),
