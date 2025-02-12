@@ -55,7 +55,7 @@ def _perl_genrule_impl(ctx):
             out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
             out_files.append(out_as_file)
 
-    all_out_files = out_files
+    all_out_files = []
 
     cp_file = ctx.file._copy_file_script
     copy_file_format = """{script_path} {outdir} {file} {prefix_to_strip}"""
@@ -80,6 +80,8 @@ def _perl_genrule_impl(ctx):
         )
 
         all_out_files.append(final_out_file)
+
+    all_out_files = all_out_files + out_files
 
     runfiles = ctx.runfiles(files = all_out_files)
 
