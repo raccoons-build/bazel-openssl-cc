@@ -15,9 +15,6 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
-def strip_prefix_from_out_file(prefix, out_file):
-    return out_file.split(prefix)[-1]
-
 def run_generation(ctx, src, out, binary_invocation, additional_srcs):
     """Run the generation command.
 
@@ -58,30 +55,11 @@ def _perl_genrule_impl(ctx):
             out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
             out_files.append(out_as_file)
 
-    all_out_files = []
-
-    for out_file in out_files:
-        stripped_prefix_out_file = strip_prefix_from_out_file("{}/".format(ctx.genfiles_dir.path), out_file.path)
-        final_out_file = ctx.actions.declare_file(stripped_prefix_out_file)
-
-        ctx.actions.run_shell(
-            inputs = [out_file],
-            outputs = [final_out_file],
-            command = "cp -RL {} {}".format(out_file.path, final_out_file.path),
-            mnemonic = "CopyFilesToDirFromPerlGenrule",
-            progress_message = "Copying files to directory from perl genrule",
-        )
-
-        all_out_files.append(final_out_file)
-
-    all_out_files = all_out_files + out_files
-
-    runfiles = ctx.runfiles(files = all_out_files)
 
     cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(headers = depset(all_out_files)),
+        compilation_context = cc_common.create_compilation_context(headers = depset(out_files)),
     )
-    return [DefaultInfo(files = depset(all_out_files), runfiles = runfiles), cc_info]
+    return [DefaultInfo(files = depset(out_files)), cc_info]
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
