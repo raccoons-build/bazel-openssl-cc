@@ -385,6 +385,9 @@ perl_genrule(
     }),
 )
 
+print(ALL_LIBCRYPTO_HDRS)
+print(ALL_LIBCRYPTO_SRCS)
+
 cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
