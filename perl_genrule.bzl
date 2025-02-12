@@ -54,7 +54,9 @@ def _perl_genrule_impl(ctx):
             out_files.append(out_as_file)
     runfiles = ctx.runfiles(files = out_files)
 
-    return [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
+    list_of_info = [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
+    print("List of info: {}".format(list_of_info))
+    return list_of_info
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
