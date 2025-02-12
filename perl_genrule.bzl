@@ -23,19 +23,28 @@ def is_right_architecture(is_x86, out_file):
     return False
 
 def run_generation(ctx, src, out, binary_invocation):
-    out_as_file = ctx.actions.declare_file(out)
+    """Run the generation command.
 
-    # Should only be one source file.
-    src_as_file = src.files[0]
-    ctx.actions.run_shell(
-        inputs = src.files,
-        outputs = [out_as_file],
-        command = "{} $(location {}) nasm $(location {})".format(binary_invocation, src_as_file.path, out_as_file.path),
-        mnemonic = "GenerateAssemblyFromPerlScripts",
-        progress_message = "Generating file {} from script {}".format(out.path, src),
-        toolchain =
-            "@rules_perl//:current_toolchain",
-    )
+    Args:
+        ctx: The context object from bazel.
+        src: The source target
+        out: The output target
+        binary_invocation: The binary to run to do generation.
+    Returns:
+        The output target as a file. Should only be one.
+    """
+    out_as_file = ctx.actions.declare_file(out)
+    src_files = src.files
+    for src_as_file in src_files:
+        ctx.actions.run_shell(
+            inputs = [src_as_file],
+            outputs = [out_as_file],
+            command = "{} $(location {}) nasm $(location {})".format(binary_invocation, src_as_file.path, out_as_file.path),
+            mnemonic = "GenerateAssemblyFromPerlScripts",
+            progress_message = "Generating file {} from script {}".format(out.path, src),
+            toolchain =
+                "@rules_perl//:current_toolchain",
+        )
     return out_as_file
 
 def _perl_genrule_impl(ctx):
