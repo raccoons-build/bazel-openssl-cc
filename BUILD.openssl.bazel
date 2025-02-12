@@ -79,7 +79,7 @@ load(
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name", "dedupe")
+load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name")
 
 _REPO_NAME = get_repo_name()
 
@@ -338,8 +338,14 @@ WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUP
     PERLASM_OUTS_WINDOWS[X86_64],
 )
 
+PERLASM_TOOLS = glob(
+    ["crypto/perlasm/*.pl"],
+    exclude = COMMON_GENERATED_FILES,
+)
+
 perl_genrule(
     name = "perlasm_genfiles",
+    additional_srcs = PERLASM_TOOLS,
     is_nix = select({
         "//conditions:default": True,
         "@platforms//os:windows": False,

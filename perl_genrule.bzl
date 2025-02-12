@@ -66,10 +66,13 @@ perl_genrule = rule(
     implementation = _perl_genrule_impl,
     doc = "Generate files using perl.",
     attrs = {
+        # Additional sources needed by the generation scripts.
+        "additional_srcs": attr.label_list(allow_files = [".pl"], doc = "List of other input files used by the main input files."),
         # We need to know what os this is running on.
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         # We need to know what architecture this is running on.
         "is_x86": attr.bool(doc = "Whether this is x86_64 or arm64."),
+        # The dict of srcs to their outs.
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
