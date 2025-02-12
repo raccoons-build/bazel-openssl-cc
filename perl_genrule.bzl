@@ -88,6 +88,6 @@ perl_genrule = rule(
             cfg = "exec",
             default = "@openssl-generated-overlay//:perl_generate_file.py",
         ),
-        "_python_bin": attr.label(default = Label("@bazel_tools//tools/python:python3"), executable = True, cfg = "exec")
+        "_python_bin": attr.label(default = Label("@rules_python:python3"), executable = True, cfg = "exec")
     },
 )
