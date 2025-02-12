@@ -58,23 +58,17 @@ def _perl_genrule_impl(ctx):
     all_out_files = []
 
     cp_file = ctx.file._copy_file_script
-    copy_file_format = """{script_path} {outdir} {file} {prefix_to_strip}"""
 
     output_prefix = "external/{}".format(ctx.attr.repo_name)
     for out_file in out_files:
-        copy_file_format.format(
-            script_path = cp_file.path,
-            outdir = output_prefix,
-            file = out_file.path,
-            prefix_to_strip = ctx.genfiles_dir.path,
-        )
+        copy_file_command = "{} {} {} {}".format(cp_file.path, output_prefix, out_file.path, ctx.genfiles_dir.path)
 
         final_out_file = ctx.actions.declare_file("{}/{}".format(output_prefix, out_file))
 
         ctx.actions.run_shell(
             inputs = [out_file],
             outputs = [final_out_file],
-            command = copy_file_format,
+            command = copy_file_command,
             mnemonic = "CopyFilesToDirFromPerlGenrule",
             progress_message = "Copying files to directory from perl genrule",
         )
