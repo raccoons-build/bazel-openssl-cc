@@ -54,7 +54,7 @@ def _perl_genrule_impl(ctx):
             out_files.append(out_as_file)
     runfiles = ctx.runfiles(files = out_files)
 
-    cc_info = CCInfo(
+    cc_info = CcInfo(
         files = depset(out_files),
         include_dirs = depset([ctx.path("external/{}".format(ctx.attr.repo_name))]),
     )
