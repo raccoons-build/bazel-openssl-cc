@@ -393,6 +393,7 @@ cc_library(
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [
         ":generated-headers",
+        ":perlasm_genfiles",
     ] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
