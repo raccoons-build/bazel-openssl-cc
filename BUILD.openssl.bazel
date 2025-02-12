@@ -345,7 +345,7 @@ PERLASM_TOOLS = glob(
 
 perl_genrule(
     name = "perlasm_genfiles",
-    additional_srcs = PERLASM_TOOLS,
+    additional_srcs = PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
     is_nix = select({
         "//conditions:default": True,
         "@platforms//os:windows": False,
