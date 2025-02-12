@@ -12,9 +12,9 @@ src_file="$2"
 out_file="$3"
 assembly_generator_invocation="$4"
 
-echo ${src_file}
-echo ${assembly_generator_invocation}
-echo ${out_file}
+echo "katsonandrew ${src_file}"
+echo "katsonandrew ${assembly_generator_invocation}"
+echo "katsonandrew ${out_file}"
 
 echo ${binary_invocation} ${src_file} ${assembly_generator_invocation} ${out_file}
 if test -f ${out_file}; then
