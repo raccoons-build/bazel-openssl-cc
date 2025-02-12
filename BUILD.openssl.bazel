@@ -417,6 +417,7 @@ cc_library(
         "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_COPTS,
         "//conditions:default": LIBCRYPTO_NIX_COPTS,
     }),
+    data = [":perlasm_genfiles"],
     defines = COMMON_OPENSSL_DEFINES,
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = [
@@ -433,7 +434,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":crypto-textual-hdrs",
-        ":perlasm_genfiles",
     ],
 )
 
