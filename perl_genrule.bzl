@@ -35,7 +35,7 @@ def run_generation(ctx, src, out, binary_invocation):
     """
     out_as_file = ctx.actions.declare_file(out)
     src_files = src.files
-    for src_as_file in src_files:
+    for src_as_file in src_files.to_list():
         ctx.actions.run_shell(
             inputs = [src_as_file],
             outputs = [out_as_file],
