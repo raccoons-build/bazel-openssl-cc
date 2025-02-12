@@ -34,8 +34,8 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
         ctx.actions.run(
             inputs = [src_as_file] + additional_srcs,
             outputs = [out_as_file],
-            executable = ctx.file._python_bin,
-            arguments = [perl_generate_file.path, binary_invocation, src_as_file.path, out_as_file.path, ctx.attr.assembly_flavor],
+            executable = perl_generate_file,
+            arguments = [binary_invocation, src_as_file.path, out_as_file.path, ctx.attr.assembly_flavor],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating file {} from script {}".format(out_as_file.path, src_as_file.path),
             toolchain =
@@ -86,8 +86,7 @@ perl_genrule = rule(
             allow_single_file = True,
             executable = True,
             cfg = "exec",
-            default = "@openssl-generated-overlay//:perl_generate_file.py",
+            default = "@openssl-generated-overlay//:perl_generate_file.sh",
         ),
-        "_python_bin": attr.label(default = Label("@rules_python:python3"), executable = True, cfg = "exec")
     },
 )
