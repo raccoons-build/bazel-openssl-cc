@@ -58,7 +58,7 @@ def _perl_genrule_impl(ctx):
             out_files.append(out_as_file)
 
     cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(direct_headers = depset(out_files)),
+        compilation_context = cc_common.create_compilation_context(srcs = depset(out_files)),
     )
     ret = [DefaultInfo(files = depset(out_files)), cc_info]
     return ret
