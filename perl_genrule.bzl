@@ -24,10 +24,10 @@ def is_right_architecture(is_x86, out_file, src_file):
         Whether this file matches the architecture
     """
 
-    if is_x86 and "x86" in out_file and "x86" in src_file:
+    if is_x86 and "x86" in out_file and "x86" in src_file.label.name:
         print("Is x86 with out: {} and src: {}".format(out_file, src_file))
         return True
-    if not is_x86 and "arm" in out_file and "arm" in src_file:
+    if not is_x86 and "arm" in out_file and "arm" in src_file.label.name:
         print("Is arm64 with out: {} and src: {}".format(out_file, src_file))
         return True
     if is_x86:
