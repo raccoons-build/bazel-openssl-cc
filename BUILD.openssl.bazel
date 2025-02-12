@@ -303,7 +303,7 @@ perl_genrule(
         "@bazel_tools//src/conditions:windows_arm64": {},
         "@bazel_tools//src/conditions:windows_x64": {},
     }),
-    assembly_generation_invocation = select({
+    assembly_flavor = select({
         "@bazel_tools//src/conditions:linux_aarch64": "linux64",
         "@bazel_tools//src/conditions:linux_x86_64": "elf",
         "@bazel_tools//src/conditions:darwin_arm64": "ios64",

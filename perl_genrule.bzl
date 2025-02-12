@@ -35,7 +35,7 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
             inputs = [src_as_file] + additional_srcs,
             outputs = [out_as_file],
             executable = perl_generate_file,
-            arguments = [binary_invocation, src_as_file.path, out_as_file.path, ctx.attr.assembly_generation_invocation],
+            arguments = [binary_invocation, src_as_file.path, out_as_file.path, ctx.attr.assembly_flavor],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating file {} from script {}".format(out_as_file.path, src_as_file.path),
             toolchain =
@@ -70,8 +70,8 @@ perl_genrule = rule(
     attrs = {
         # Additional sources needed by the generation scripts.
         "additional_srcs": attr.label_list(allow_files = True, doc = "List of other input files used by the main input files."),
-        # We specify what assembler to use based on os and architecture. 
-        "assembly_generation_invocation": attr.string(doc = "What binary to use for assembly generation."),
+        # We specify what assemby flavor to use based on os and architecture. 
+        "assembly_flavor": attr.string(doc = "What flavor to use for assembly generation."),
         # We need to know what os this is running on.
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         # We need to know what architecture we are running on.
