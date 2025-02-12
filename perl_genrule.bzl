@@ -13,29 +13,6 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
-def is_right_architecture(is_x86, out_file, src_file):
-    """ Determine whether this file belongs to the current architecture.
-
-    Args:
-        is_x86: Whether this is x86 or arm64
-        out_file: The name of the output file
-        src_file: The name of the source file.
-    Returns:
-        Whether this file matches the architecture
-    """
-
-    if is_x86 and "x86" in out_file and "x86" in src_file.label.name:
-        print("Is x86 with out: {} and src: {}".format(out_file, src_file))
-        return True
-    if not is_x86 and "arm" in out_file and "arm" in src_file.label.name:
-        print("Is arm64 with out: {} and src: {}".format(out_file, src_file))
-        return True
-    if is_x86:
-        print("Is x86 with arm64 out: {} and src: {}".format(out_file, src_file))
-    else:
-        print("Is arm64 with x86 out: {} and src: {}".format(out_file, src_file))
-    return False
-
 def run_generation(ctx, src, out, binary_invocation, additional_srcs):
     """Run the generation command.
 
@@ -68,13 +45,11 @@ def _perl_genrule_impl(ctx):
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     for src, out in ctx.attr.srcs_to_outs.items():
-        if is_right_architecture(ctx.attr.is_x86, out, src):
-            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
-            out_files.append(out_as_file)
+        out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
+        out_files.append(out_as_file)
     for src, out in ctx.attr.srcs_to_outs_dupes.items():
-        if is_right_architecture(ctx.attr.is_x86, out, src):
-            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
-            out_files.append(out_as_file)
+        out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
+        out_files.append(out_as_file)
     runfiles = ctx.runfiles(files = out_files)
 
     return [DefaultInfo(files = depset(out_files), runfiles = runfiles)]
@@ -87,8 +62,6 @@ perl_genrule = rule(
         "additional_srcs": attr.label_list(allow_files = True, doc = "List of other input files used by the main input files."),
         # We need to know what os this is running on.
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
-        # We need to know what architecture this is running on.
-        "is_x86": attr.bool(doc = "Whether this is x86_64 or arm64."),
         # The dict of srcs to their outs.
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
