@@ -65,10 +65,11 @@ def _perl_genrule_impl(ctx):
 
         final_out_file = ctx.actions.declare_file("{}/{}".format(output_prefix, out_file))
 
-        ctx.actions.run_shell(
+        ctx.actions.run(
             inputs = [out_file],
             outputs = [final_out_file],
-            command = copy_file_command,
+            executable = cp_file,
+            arguments = [output_prefix, out_file.path, ctx.genfiles_dir.path],
             mnemonic = "CopyFilesToDirFromPerlGenrule",
             progress_message = "Copying files to directory from perl genrule",
         )
