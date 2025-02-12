@@ -57,7 +57,6 @@ def _perl_genrule_impl(ctx):
 
     cc_info = CcInfo(
         compilation_context = cc_common.create_compilation_context(headers = depset(out_files)), 
-        linking_context = cc_common.create_linking_context(linker_inputs = depset(out_files))
     )
     return [DefaultInfo(files = depset(out_files), runfiles = runfiles), cc_info]
 
