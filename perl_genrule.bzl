@@ -16,7 +16,7 @@ def get_binary_invocation_based_on_cpu(is_nix):
         return "perl.exe"
 
 def strip_prefix_from_out_file(prefix, out_file):
-    return out_file.split(prefix)
+    return out_file.split(prefix)[-1]
 
 def run_generation(ctx, src, out, binary_invocation, additional_srcs):
     """Run the generation command.
