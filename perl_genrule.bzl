@@ -34,7 +34,6 @@ def run_generation(ctx, src, out, binary_invocation, additional_srcs):
         ctx.actions.run(
             inputs = [src_as_file] + additional_srcs,
             outputs = [out_as_file],
-            command = "{} {} nasm {}".format(binary_invocation, src_as_file.path, out_as_file.path),
             executable = perl_generate_file,
             arguments = [binary_invocation, src_as_file.path, out_as_file.path],
             mnemonic = "GenerateAssemblyFromPerlScripts",
