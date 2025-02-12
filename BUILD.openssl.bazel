@@ -434,7 +434,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":crypto-textual-hdrs",
-        ":perlasm_genfiles",
     ],
 )
 
