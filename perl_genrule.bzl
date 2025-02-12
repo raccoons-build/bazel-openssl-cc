@@ -76,7 +76,7 @@ perl_genrule = rule(
     doc = "Generate files using perl.",
     attrs = {
         # Additional sources needed by the generation scripts.
-        "additional_srcs": attr.label_list(allow_files = [".pl"], doc = "List of other input files used by the main input files."),
+        "additional_srcs": attr.label_list(allow_files = True, doc = "List of other input files used by the main input files."),
         # We need to know what os this is running on.
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         # We need to know what architecture this is running on.
