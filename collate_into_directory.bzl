@@ -1,3 +1,6 @@
+"""Move files from one path to an output directory specified through a series of dicts
+"""
+
 def _collate_into_directory_impl(ctx):
     out = "{}_out".format(ctx.attr.name)
     outdir = ctx.actions.declare_directory(out)

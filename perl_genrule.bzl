@@ -1,5 +1,6 @@
 """Generate files with perl. These are assumed to be .pl files as src and .s file as output.
 """
+
 load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
 
 def combine_list_of_lists(list_of_lists):
@@ -53,12 +54,39 @@ def _perl_genrule_impl(ctx):
         if not src in ctx.attr.srcs_to_outs_exclude.keys():
             out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
             out_files.append(out_as_file)
-    runfiles = ctx.runfiles(files = out_files)
+
+    all_out_files = out_files
+
+    cp_file = ctx.file._copy_file_script
+    copy_file_format = """{script_path} {outdir} {file} {prefix_to_strip}"""
+
+    output_prefix = "external/{}".format(_REPO_NAME)
+    for out_file in out_files:
+        copy_file_format.format(
+            script_path = cp_file.path,
+            outdir = output_prefix,
+            file = out_file.path,
+            prefix_to_strip = ctx.genfiles_dir.path,
+        )
+
+        final_out_file = "{}/{}".format(outdir, out_file)
+
+        ctx.actions.run_shell(
+            inputs = [out_file],
+            outputs = [final_out_file],
+            command = copy_file_format,
+            mnemonic = "CopyFilesToDirFromPerlGenrule",
+            progress_message = "Copying files to directory from perl genrule",
+        )
+
+        all_out_files.append(final_out_file)
+
+    runfiles = ctx.runfiles(files = all_out_files)
 
     cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(headers = depset(out_files)), 
+        compilation_context = cc_common.create_compilation_context(headers = depset(all_out_files)),
     )
-    return [DefaultInfo(files = depset(out_files), runfiles = runfiles), cc_info]
+    return [DefaultInfo(files = depset(all_out_files), runfiles = runfiles), cc_info]
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
@@ -77,5 +105,13 @@ perl_genrule = rule(
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
         # The dict of srcs to their outs when they are known to be problematic for some reason. And can be safely excluded.
         "srcs_to_outs_exclude": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files that need to be excluded."),
+        # We want to copy the files to an accessible place so they can be used in other rules.
+        # The script is erroneously named because it actually copies.
+        "_copy_file_script": attr.label(
+            allow_single_file = True,
+            executable = True,
+            cfg = "exec",
+            default = "@openssl-generated-overlay//:move_file_and_strip_prefix.sh",
+        ),
     },
 )
