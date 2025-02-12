@@ -15,6 +15,9 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
+def strip_prefix_from_out_file(prefix, out_file):
+    return out_file.split(prefix)[-1]
+
 def run_generation(ctx, src, out, binary_invocation, additional_srcs):
     """Run the generation command.
 
@@ -59,11 +62,10 @@ def _perl_genrule_impl(ctx):
 
     cp_file = ctx.file._copy_file_script
 
-    output_prefix = "external/{}".format(ctx.attr.repo_name)
+    output_prefix = ""
     for out_file in out_files:
-        copy_file_command = "{} {} {} {}".format(cp_file.path, output_prefix, out_file.path, ctx.genfiles_dir.path)
-
-        final_out_file = ctx.actions.declare_file("{}/{}".format(output_prefix, out_file))
+        stripped_prefix_out_file = strip_prefix_from_out_file(ctx.genfiles_dir.path, out_file.path)
+        final_out_file = ctx.actions.declare_file(stripped_prefix_out_file)
 
         ctx.actions.run(
             inputs = [out_file],
