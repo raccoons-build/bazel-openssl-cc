@@ -384,6 +384,13 @@ perl_genrule(
     }),
 )
 
+collate_into_directory(
+    name = "perlasm_genfiles_collated",
+    srcs_prefix_map = {
+        ":perlasm_genfiles": "external/{}".format(_REPO_NAME),
+    },
+)
+
 cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
@@ -392,7 +399,7 @@ cc_library(
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [
         ":generated-headers",
-        ":perlasm_genfiles",
+        ":perlasm_genfiles_collated",
     ] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
@@ -422,7 +429,7 @@ cc_library(
     # To make sure downstream targets add the right copts to be able to include the headers.
     includes = [
         "include",
-        "$(BINDIR)/external/{}/crypto".format(_REPO_NAME),
+        "external/{}".format(_REPO_NAME),
     ] + select({
         "@bazel_tools//src/conditions:windows_arm64": LIBCRYPTO_WINDOWS_INCLUDES,
         "@bazel_tools//src/conditions:windows_x64": LIBCRYPTO_WINDOWS_INCLUDES,
