@@ -1,5 +1,6 @@
 """Generate files with perl. These are assumed to be .pl files as src and .s file as output.
 """
+load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
 
 def combine_list_of_lists(list_of_lists):
     final_list = []
@@ -55,8 +56,8 @@ def _perl_genrule_impl(ctx):
     runfiles = ctx.runfiles(files = out_files)
 
     cc_info = CcInfo(
-        compilation_context = CompilationContext(headers = depset(out_files)), 
-        linking_context = LinkingContext(linker_inputs = depset(out_files)),
+        compilation_context = cc_common.create_compilation_context(headers = depset(out_files)), 
+        linking_context = cc_common.create_linker_context()
     )
     return [DefaultInfo(files = depset(out_files), runfiles = runfiles), cc_info]
 
