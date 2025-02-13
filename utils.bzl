@@ -72,3 +72,29 @@ def fix_path_for_windows_in_str(str):
             The fixed string.
     """
     return str.replace("\\", "/")
+
+def fix_module_name_in_paths(old_module_name, new_module_name, paths, suffix = ""):
+    """Fix the paths to use the new module name to refer to it. 
+
+       Some paths look like @@openssl+/:some/path/to/foo.txt.
+       When they really are genfiles from the root of the new module in bazel-out.
+       Like :some/path/to/foot.txt.
+
+    Args:
+        old_module_name: The old module name to replace.
+        new_module_name: The new module name to replace with.
+        paths: The paths to modify.
+        suffix: The suffix of the files to replace. Default is replace all (empty string).
+    Returns:
+        The fixed paths.
+    """
+    new_paths = []
+    for old_path in paths:
+        if suffix and suffix in path:
+            if old_module_name in path:
+                new_paths.append(path.replace(old_module_name, new_module_name))
+            else:
+                new_paths.append(old_path)
+        else:
+            new_paths.append(old_path)
+    return new_paths
