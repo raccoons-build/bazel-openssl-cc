@@ -72,38 +72,3 @@ def fix_path_for_windows_in_str(str):
             The fixed string.
     """
     return str.replace("\\", "/")
-
-def fix_module_name_in_paths(new_module_name, paths, suffix = "", old_module_name= ""):
-    """Fix the paths to use the new module name to refer to it. 
-
-       Some paths look like @@openssl+/:some/path/to/foo.txt.
-       When they really are genfiles from the root of the new module in bazel-out.
-       Like :some/path/to/foot.txt.
-
-    Args:
-        new_module_name: The new module name to replace with.
-        paths: The paths to modify.
-        suffix: The suffix of the files to replace. Default is replace all (empty string).
-        old_module_name: The old module name to replace. Default is no module name (empty string).
-    Returns:
-        The fixed paths.
-    """
-    new_paths = []
-    changed_paths = []
-    for old_path in paths:
-        if suffix and suffix in old_path:
-            if old_module_name and old_module_name in old_path:
-                print("katsonandrew old module name {} and suffix {} found in {}".format(old_module_name, suffix, old_path))
-                new_path = old_path.replace(old_module_name, new_module_name)
-                new_paths.append(new_path)
-                changed_paths.append(new_path)
-            else:
-                print("katsonandrew old module name {} not found and suffix {} found in {}".format(old_module_name, suffix, old_path))
-                new_path = "{}//:{}".format(new_module_name, old_path)
-                new_paths.append(new_path)
-                changed_paths.append(new_path)
-        else:
-            print("katsonandrew old module name {} and suffix {} not found in {}".format(old_module_name, suffix, old_path))
-            new_paths.append(old_path)
-    print("Changed paths: {}".format(changed_paths))
-    return new_paths
