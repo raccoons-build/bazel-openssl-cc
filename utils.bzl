@@ -90,9 +90,9 @@ def fix_module_name_in_paths(old_module_name, new_module_name, paths, suffix = "
     """
     new_paths = []
     for old_path in paths:
-        if suffix and suffix in path:
-            if old_module_name in path:
-                new_paths.append(path.replace(old_module_name, new_module_name))
+        if suffix and suffix in old_path:
+            if old_module_name in old_path:
+                new_paths.append(old_path.replace(old_module_name, new_module_name))
             else:
                 new_paths.append(old_path)
         else:
