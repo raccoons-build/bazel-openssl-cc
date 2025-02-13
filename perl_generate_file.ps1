@@ -2,7 +2,7 @@ param(
     [string]$binary_invocation,
     [string]$src_file,
     [string]$out_file,
-    [string]$assembly_generator_invocation
+    [string]$assembly_flavor
 )
 
 # Ensure four parameters are passed
@@ -12,7 +12,7 @@ if ($args.Count -ne 4) {
 }
 
 # Run the binary invocation
-& $binary_invocation $src_file $assembly_generator_invocation $out_file
+& $binary_invocation $src_file $assembly_flavor $out_file
 
 # Check if the output file exists
 if (Test-Path $out_file) {
