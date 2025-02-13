@@ -73,7 +73,7 @@ def fix_path_for_windows_in_str(str):
     """
     return str.replace("\\", "/")
 
-def fix_module_name_in_paths(old_module_name, new_module_name, paths, suffix = ""):
+def fix_module_name_in_paths(new_module_name, paths, suffix = "", old_module_name= ""):
     """Fix the paths to use the new module name to refer to it. 
 
        Some paths look like @@openssl+/:some/path/to/foo.txt.
@@ -81,26 +81,20 @@ def fix_module_name_in_paths(old_module_name, new_module_name, paths, suffix = "
        Like :some/path/to/foot.txt.
 
     Args:
-        old_module_name: The old module name to replace.
         new_module_name: The new module name to replace with.
         paths: The paths to modify.
         suffix: The suffix of the files to replace. Default is replace all (empty string).
+        old_module_name: The old module name to replace. Default is no module name (empty string).
     Returns:
         The fixed paths.
     """
-    print("Old paths {}".format(paths))
     new_paths = []
     for old_path in paths:
         if suffix and suffix in old_path:
-            print("Suffix {} found in {}".format(suffix, old_path))
             if old_module_name in old_path:
-                print("Old module name {} found in {}".format(old_module_name, old_path))
                 new_paths.append(old_path.replace(old_module_name, new_module_name))
             else:
-                print("Old module name {} not found in {}".format(old_module_name, old_path))
-                new_paths.append(old_path)
+                new_paths.append("{}//:{}".format(new_module_name, old_path))
         else:
-            print("Suffix {} not found in {}".format(suffix, old_path))
             new_paths.append(old_path)
-    print("New paths {}".format(new_paths))
     return new_paths

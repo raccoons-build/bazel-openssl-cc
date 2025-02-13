@@ -343,18 +343,16 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": fix_module_name_in_paths("@@openssl+", "", _LINUX_ARM64_LIBCRYPTO_SRCS, ".s"),
-    "@bazel_tools//src/conditions:linux_x86_64": fix_module_name_in_paths("@@openssl+", "", _LINUX_X86_64_LIBCRYPTO_SRCS, ".s"),
-    "@bazel_tools//src/conditions:darwin_arm64": fix_module_name_in_paths("@@openssl+", "", _DARWIN_ARM64_LIBCRYPTO_SRCS, ".S"),
-    "@bazel_tools//src/conditions:darwin_x86_64": fix_module_name_in_paths("@@openssl+", "", _DARWIN_X86_64_LIBCRYPTO_SRCS, ".S"),
+    "@bazel_tools//src/conditions:linux_aarch64": fix_module_name_in_paths("", _LINUX_ARM64_LIBCRYPTO_SRCS, ".s"),
+    "@bazel_tools//src/conditions:linux_x86_64": fix_module_name_in_paths("", _LINUX_X86_64_LIBCRYPTO_SRCS, ".s"),
+    "@bazel_tools//src/conditions:darwin_arm64": fix_module_name_in_paths("", _DARWIN_ARM64_LIBCRYPTO_SRCS, ".S"),
+    "@bazel_tools//src/conditions:darwin_x86_64": fix_module_name_in_paths("", _DARWIN_X86_64_LIBCRYPTO_SRCS, ".S"),
     "@bazel_tools//src/conditions:windows_arm64": fix_module_name_in_paths(
-        "@@openssl+",
         "",
         fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS),
         ".s",
     ) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
     "@bazel_tools//src/conditions:windows_x64": fix_module_name_in_paths(
-        "@@openssl+",
         "",
         fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS),
         ".s",
