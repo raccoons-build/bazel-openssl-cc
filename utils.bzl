@@ -90,11 +90,14 @@ def fix_module_name_in_paths(new_module_name, paths, suffix = "", old_module_nam
     """
     new_paths = []
     for old_path in paths:
-        if suffix and suffix in old_path:
+        if suffix in old_path:
             if old_module_name in old_path:
+                print("katsonandrew old module name {} and suffix {} found in {}".format(old_module_name, suffix, old_path))
                 new_paths.append(old_path.replace(old_module_name, new_module_name))
             else:
+                print("katsonandrew old module name {} not found and suffix {} found in {}".format(old_module_name, suffix, old_path))
                 new_paths.append("{}//:{}".format(new_module_name, old_path))
         else:
+            print("katsonandrew old module name {} and suffix {} not found in {}".format(old_module_name, suffix, old_path))
             new_paths.append(old_path)
     return new_paths
