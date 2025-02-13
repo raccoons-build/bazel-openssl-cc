@@ -89,15 +89,21 @@ def fix_module_name_in_paths(new_module_name, paths, suffix = "", old_module_nam
         The fixed paths.
     """
     new_paths = []
+    changed_paths = []
     for old_path in paths:
-        if suffix in old_path:
-            if old_module_name in old_path:
+        if suffix and suffix in old_path:
+            if old_module_name and old_module_name in old_path:
                 print("katsonandrew old module name {} and suffix {} found in {}".format(old_module_name, suffix, old_path))
-                new_paths.append(old_path.replace(old_module_name, new_module_name))
+                new_path = old_path.replace(old_module_name, new_module_name)
+                new_paths.append(new_path)
+                changed_paths.append(new_path)
             else:
                 print("katsonandrew old module name {} not found and suffix {} found in {}".format(old_module_name, suffix, old_path))
-                new_paths.append("{}//:{}".format(new_module_name, old_path))
+                new_path = "{}//:{}".format(new_module_name, old_path)
+                new_paths.append(new_path)
+                changed_paths.append(new_path)
         else:
             print("katsonandrew old module name {} and suffix {} not found in {}".format(old_module_name, suffix, old_path))
             new_paths.append(old_path)
+    print("Changed paths: {}".format(changed_paths))
     return new_paths
