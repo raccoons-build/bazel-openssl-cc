@@ -58,7 +58,7 @@ def _perl_genrule_impl(ctx):
             out_files.append(out_as_file)
 
     cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(direct_private_headers = out_files, includes = depset(out_files)),
+        compilation_context = cc_common.create_compilation_context(direct_private_headers = out_files, includes = depset(ctx.attr.srcs_to_outs.values())),
     )
     ret = [DefaultInfo(files = depset(out_files)), cc_info]
     return ret
@@ -69,7 +69,7 @@ perl_genrule = rule(
     attrs = {
         # Additional sources needed by the generation scripts.
         "additional_srcs": attr.label_list(allow_files = True, doc = "List of other input files used by the main input files."),
-        # We specify what assemby flavor to use based on os and architecture. 
+        # We specify what assemby flavor to use based on os and architecture.
         "assembly_flavor": attr.string(doc = "What flavor to use for assembly generation."),
         # We need to know what os this is running on.
         "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
@@ -85,7 +85,7 @@ perl_genrule = rule(
         "perl_generate_file": attr.label(
             allow_single_file = True,
             executable = True,
-            cfg = "exec"
+            cfg = "exec",
         ),
     },
 )
