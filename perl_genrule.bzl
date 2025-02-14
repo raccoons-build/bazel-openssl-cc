@@ -15,52 +15,61 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
-def run_generation(ctx, src, out, binary_invocation, additional_srcs):
-    """Run the generation command.
+def find_srcs_outs_and_commands(binary, assembly_flavor, src, out, excludes, ctx):
+    out_files = []
+    src_files = []
+    commands = []
+    if src not in srcs_to_outs_exclude.keys():
+        out_file = ctx.actions.declare_file(out)
+        src_files = src.files.to_list()
 
-    Args:
-        ctx: The context object from bazel.
-        src: The source target.
-        out: The output target.
-        binary_invocation: The binary to run to do generation.
-        additional_srcs: The other perl scripts needed in generation.
-    Returns:
-        The output target as a file. Should only be one.
-    """
-    out_as_file = ctx.actions.declare_file(out)
-    src_files = src.files
-    perl_generate_file = ctx.file.perl_generate_file
-    for src_as_file in src_files.to_list():
-        ctx.actions.run(
-            inputs = [src_as_file] + additional_srcs,
-            outputs = [out_as_file],
-            executable = perl_generate_file,
-            arguments = [binary_invocation, src_as_file.path, out_as_file.path, ctx.attr.assembly_flavor],
-            mnemonic = "GenerateAssemblyFromPerlScripts",
-            progress_message = "Generating file {} from script {}".format(out_as_file.path, src_as_file.path),
-            toolchain =
-                "@rules_perl//:current_toolchain",
-        )
-    return out_as_file
+        for src_file in src_files:
+            command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
+            commands.append(command)
+            src_files.append(src_file)
+        out_files.append(out_file)
+    return commands, src_files, out_files
+
+def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes, srcs_to_outs_exclude, ctx):
+    
+    commands = []
+    out_files = []
+    src_files = []
+    for src, out in srcs_to_outs.items():
+        intermediate_commands, intermediate_out_files, intermediate_src_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        commands = intermediate_commands
+        out_files = intermediate_out_files
+        src_files = intermediate_src_files
+    for src, out in srcs_to_outs_dupes.items() 
+        intermediate_commands, intermediate_out_files, intermediate_src_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        commands = commands + intermediate_commands
+        out_files = out_files + intermediate_out_files
+        src_files = src_files + intermediate_src_files
+
+    return commands.join(","), src_files, out_files
 
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
-    out_files = []
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
-    for src, out in ctx.attr.srcs_to_outs.items():
-        if not src in ctx.attr.srcs_to_outs_exclude.keys():
-            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
-            out_files.append(out_as_file)
-    for src, out in ctx.attr.srcs_to_outs_dupes.items():
-        if not src in ctx.attr.srcs_to_outs_exclude.keys():
-            out_as_file = run_generation(ctx, src, out, binary_invocation, additional_srcs)
-            out_files.append(out_as_file)
+    commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx.attr.srcs_to_outs_exclude, ctx)
+
+    perl_generate_file = ctx.file.perl_generate_file
+    ctx.actions.run(
+            inputs = srcs_as_files + additional_srcs,
+            outputs = outs_as_files,
+            executable = perl_generate_file,
+            arguments = [commands_joined],
+            mnemonic = "GenerateAssemblyFromPerlScripts",
+            progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
+            toolchain =
+                "@rules_perl//:current_toolchain",
+    )
 
     cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(direct_private_headers = out_files, includes = depset(ctx.attr.srcs_to_outs.values())),
+        compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files, includes = depset(ctx.attr.srcs_to_outs.values())),
     )
-    ret = [DefaultInfo(files = depset(out_files)), cc_info]
+    ret = [DefaultInfo(files = depset(outs_as_files)), cc_info]
     return ret
 
 perl_genrule = rule(

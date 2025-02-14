@@ -2,25 +2,30 @@
 
 set -euo pipefail
 
-if [[ "$#" -ne 4 ]]; then
-  echo "Need four params"
+if [[ "$#" -ne 1 ]]; then
+  echo "Need a param"
   exit 1
 fi
 
-binary_invocation="$1"
-src_file="$2"
-out_file="$3"
-assembly_flavor="$4"
+commands="$1"
 
-${binary_invocation} ${src_file} ${assembly_flavor} ${out_file}
+# Iterate over each command separated by comma
+IFS=',' read -ra commands_arr <<< "$commands"
+for command in "${commands_arr[@]}"; do
+    $command
+
+    # Get the last element of the command, the out file
+    # and check for existence.
+    IFS=' ' read -ra split_command_arr <<< "$command"
+    out_file="$command[-1]"
+    if test -f ${out_file}; then
+      echo "${out_file} exists"
+    else
+      echo "${out_file} does not exist failing"
+      exit 1
+    fi
+done
 
 tree bazel-out/k8-fastbuild/bin/external/openssl+
-
-if test -f ${out_file}; then
-  echo "${out_file} exists"
-else
-  echo "${out_file} does not exist failing"
-  exit 1
-fi
 
 exit 0

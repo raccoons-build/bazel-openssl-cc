@@ -1,26 +1,36 @@
-param(
-    [string]$binary_invocation,
-    [string]$src_file,
-    [string]$out_file,
-    [string]$assembly_flavor
-)
+# Set strict error handling similar to Bash's 'set -euo pipefail'
+$ErrorActionPreference = "Stop"
 
-# Ensure four parameters are passed
-if ($args.Count -ne 4) {
-    Write-Host "Need four params"
+# Check if exactly one argument is passed
+if ($args.Length -ne 1) {
+    Write-Host "Need a param"
     exit 1
 }
 
-# Run the binary invocation
-& $binary_invocation $src_file $assembly_flavor $out_file
+$commands = $args[0]
 
-# Check if the output file exists
-if (Test-Path $out_file) {
-    Write-Host "$out_file exists"
-} else {
-    Write-Host "$out_file does not exist, failing"
-    exit 1
+# Split the string by commas into an array
+$commands_arr = $commands -split ','
+
+foreach ($command in $commands_arr) {
+    # Execute the command
+    Invoke-Expression $command
+
+    # Split the command by spaces (to access the last word)
+    $split_command_arr = $command -split ' '
+    $out_file = $split_command_arr[-1]
+
+    # Check if the output file exists
+    if (Test-Path $out_file) {
+        Write-Host "$out_file exists"
+    } else {
+        Write-Host "$out_file does not exist, failing"
+        exit 1
+    }
 }
 
-# Exit with success
+# Run the tree command (This needs to be converted to an equivalent PowerShell command)
+$path = "bazel-out/k8-fastbuild/bin/external/openssl+"
+Get-ChildItem $path -Recurse | Format-Table Name, FullName
+
 exit 0
