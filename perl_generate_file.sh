@@ -13,6 +13,9 @@ out_file="$3"
 assembly_flavor="$4"
 
 ${binary_invocation} ${src_file} ${assembly_flavor} ${out_file}
+
+tree bazel-out/k8-fastbuild/bin/external/openssl+
+
 if test -f ${out_file}; then
   echo "${out_file} exists"
 else
