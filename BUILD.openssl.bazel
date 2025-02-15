@@ -401,7 +401,7 @@ cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
     # as only some of them are picked up.
-    srcs = ALL_LIBCRYPTO_SRCS + [":perlasm_genfiles"],
+    srcs = ALL_LIBCRYPTO_SRCS,
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [
         ":generated-headers",
@@ -446,6 +446,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":crypto-textual-hdrs",
+        ":perlasm_genfiles"
     ],
 )
 
