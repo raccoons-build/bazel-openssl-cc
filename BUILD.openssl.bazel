@@ -165,26 +165,6 @@ COMMON_OPENSSL_DEFINES = select({
     "//conditions:default": [],
 })
 
-cc_binary(
-    name = "openssl",
-    srcs = ALL_OPENSSL_APP_SRCS,
-    copts = select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
-    }) + select({
-        "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
-        "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
-        "//conditions:default": OPENSSL_APP_NIX_COPTS,
-    }),
-    defines = COMMON_OPENSSL_DEFINES,
-    visibility = ["//visibility:public"],
-    deps = [":ssl"],
-)
-
 COMMON_OPENSSL_COPTS = [
     # If someone wants to link with -fPIC, the objects they're linking need to have been built with it.
     # Add this flag so that people can choose to link that way if they want to.
@@ -304,6 +284,26 @@ perl_genrule(
     }),
 )
 
+cc_binary(
+    name = "openssl",
+    srcs = ALL_OPENSSL_APP_SRCS + [":perlasm_genfiles"],
+    copts = COMMON_OPENSSL_COPTS + select({
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
+    }) + select({
+        "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
+        "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
+        "//conditions:default": OPENSSL_APP_NIX_COPTS,
+    }),
+    defines = COMMON_OPENSSL_DEFINES,
+    visibility = ["//visibility:public"],
+    deps = [":ssl"],
+)
+
 COMMON_LIBCRYPTO_SRCS = glob(
     [
         "crypto/**/*.h",
@@ -398,6 +398,7 @@ cc_library(
         ["providers/implementations/**/*.c"],
         exclude = COMMON_GENERATED_FILES,
     ),
+    # To make sure downstream targets add the right copts to be able to include the headers.
     copts = COMMON_OPENSSL_COPTS + select({
         "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
@@ -418,7 +419,6 @@ cc_library(
         "//conditions:default": LIBCRYPTO_NIX_COPTS,
     }),
     defines = COMMON_OPENSSL_DEFINES,
-    # To make sure downstream targets add the right copts to be able to include the headers.
     includes = [
         "include",
     ] + select({
