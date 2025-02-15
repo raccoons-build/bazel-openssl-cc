@@ -74,6 +74,7 @@ def _perl_genrule_impl(ctx):
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
+    print("katsonandrew {}".format(outs_as_files))
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file.perl_generate_file
