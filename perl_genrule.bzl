@@ -60,12 +60,12 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
     out_files = []
     src_files = []
     for src, out in srcs_to_outs.items():
-        intermediate_commands, intermediate_out_files, intermediate_src_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        intermediate_commands, intermediate_src_files, intermediate_out_files  = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
         commands = intermediate_commands
         out_files = intermediate_out_files
         src_files = intermediate_src_files
     for src, out in srcs_to_outs_dupes.items():
-        intermediate_commands, intermediate_out_files, intermediate_src_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        intermediate_commands, intermediate_src_files, intermediate_out_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
