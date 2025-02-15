@@ -79,7 +79,7 @@ load(
 )
 load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name")
+load("//:utils.bzl", "dedupe_and_ret_dicts", "fix_paths_for_windows", "get_repo_name", "remove_dupes")
 
 _REPO_NAME = get_repo_name()
 
@@ -343,12 +343,12 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_SRCS,
-    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
-    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:linux_aarch64": remove_dupes(_LINUX_ARM64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[ARM64]),
+    "@bazel_tools//src/conditions:linux_x86_64": remove_dupes(_LINUX_X86_64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[X86_64]),
+    "@bazel_tools//src/conditions:darwin_arm64": remove_dupes(_DARWIN_ARM64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[ARM64]),
+    "@bazel_tools//src/conditions:darwin_x86_64": remove_dupes(_DARWIN_X86_64_LIBCRYPTO_SRCS, PERLASM_OUTS[X86_64]),
+    "@bazel_tools//src/conditions:windows_arm64": remove_dupes(fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS), PERLASM_OUTS_WINDOWS[ARM64]) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": remove_dupes(fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS), PERLASM_OUTS_WINDOWS[X86_64]) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
 })
 
 EXISTING_LIBCRYPTO_HDRS = glob(
@@ -401,7 +401,7 @@ cc_library(
     name = "crypto",
     # Some of the srcs are duplicated because we have to glob over the directories with missing files
     # as only some of them are picked up.
-    srcs = ALL_LIBCRYPTO_SRCS,
+    srcs = ALL_LIBCRYPTO_SRCS + [":perlasm_genfiles"],
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [
         ":generated-headers",
@@ -446,7 +446,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":crypto-textual-hdrs",
-        ":perlasm_genfiles"
     ],
 )
 

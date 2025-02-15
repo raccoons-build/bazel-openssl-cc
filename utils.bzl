@@ -72,3 +72,14 @@ def fix_path_for_windows_in_str(str):
             The fixed string.
     """
     return str.replace("\\", "/")
+
+def remove_dupes(lst_one, lst_two):
+    """Remove dupes from list one that exist in list two
+    
+    Args: 
+        lst_one: The first list
+        lst_two: The second list
+    Returns: 
+        list one without dupes
+    """
+    return [item for item in lst_one if item not in lst_two]

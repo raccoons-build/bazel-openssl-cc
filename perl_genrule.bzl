@@ -64,13 +64,11 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-    print("Commands: {} srcs: {} outs: {}".format(commands, src_files, out_files))
     for src, out in srcs_to_outs_dupes.items():
         intermediate_commands, intermediate_src_files, intermediate_out_files = generate_single_command(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-    print("Commands: {} srcs: {} outs: {}".format(commands, src_files, out_files))
     return ','.join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
@@ -93,7 +91,7 @@ def _perl_genrule_impl(ctx):
     )
 
     cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files, includes = depset(ctx.attr.srcs_to_outs.values())),
+        compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files)),
     )
     ret = [DefaultInfo(files = depset(outs_as_files)), cc_info]
     return ret
