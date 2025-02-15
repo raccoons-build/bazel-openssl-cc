@@ -13,8 +13,7 @@ def parse_perlasm_gen(perlasm_gen):
         Two dictionaries. The first has the keys and values that are not dupes or the first instances of dupes.
         The second has the remaining keys and values that are dupes. Keys are tools and values are outs.
     """
-    if not perlasm_gen: 
-        return {}, {}
+    print("katsonandrew {}".format(perlasm_gen))
     perlasm_outs = []
     perlasm_tools = []
 
