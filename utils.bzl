@@ -61,8 +61,6 @@ def dedupe_and_ret_dicts(lst_one, lst_two):
                 dict_two[one_i] = two_i
         else:
             dict_one[one_i] = two_i
-    print("katsonandrew {}".format(dict_one))
-    print("katsonandrew {}".format(dict_two))
     return dict_one, dict_two
 
 def dedupe(lst):

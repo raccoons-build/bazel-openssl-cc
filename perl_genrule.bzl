@@ -77,6 +77,7 @@ def _perl_genrule_impl(ctx):
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file.perl_generate_file
+    print("Commands {}".format(commands_joined))
     ctx.actions.run(
         inputs = srcs_as_files + additional_srcs,
         outputs = outs_as_files,
