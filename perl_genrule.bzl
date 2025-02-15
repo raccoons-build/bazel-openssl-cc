@@ -77,16 +77,28 @@ def _perl_genrule_impl(ctx):
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file.perl_generate_file
-    ctx.actions.run(
-        inputs = srcs_as_files + additional_srcs,
-        outputs = outs_as_files,
-        executable = perl_generate_file,
-        arguments = [commands_joined],
-        mnemonic = "GenerateAssemblyFromPerlScripts",
-        progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-        toolchain =
-            "@rules_perl//:current_toolchain",
-    )
+    if ctx.attr.is_nix:
+        ctx.actions.run(
+            inputs = srcs_as_files + additional_srcs,
+            outputs = outs_as_files,
+            executable = perl_generate_file,
+            arguments = [commands_joined],
+            mnemonic = "GenerateAssemblyFromPerlScripts",
+            progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
+            toolchain =
+                "@rules_perl//:current_toolchain",
+        )
+    else: 
+        ctx.actions.run(
+            inputs = srcs_as_files + additional_srcs + [perl_generate_file],
+            outputs = outs_as_files,
+            executable = "powershell.exe",
+            arguments = ["-ExecutionPolicy", "Bypass", "-File", perl_generate_file.path, commands_joined],
+            mnemonic = "GenerateAssemblyFromPerlScriptsOnWindwos",
+            progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
+            toolchain =
+                "@rules_perl//:current_toolchain",
+        )
 
     cc_info = CcInfo(
         compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files),
