@@ -22,10 +22,11 @@ def parse_perlasm_gen(perlasm_gen):
     perlasm_gen_split_by_line = perlasm_gen.split("\n")
     for line in perlasm_gen_split_by_line:
         split_by_space = line.split(" ")
+
         # When you split by new line you get an empty string at points.
         if not split_by_space:
             continue
-        elif not split_by_space[0]: 
+        elif not split_by_space[0]:
             continue
         elif len(split_by_space) != 6:
             fail("Line {} not six parts".format(line))
@@ -113,7 +114,4 @@ def remove_dupes(lst_one, lst_two):
     Returns:
         list one without dupes
     """
-    final_list = [item for item in lst_one if item not in lst_two]
-    for thing in final_list:
-        print(thing)
-    return final_list
+    return [item for item in lst_one if item not in lst_two]
