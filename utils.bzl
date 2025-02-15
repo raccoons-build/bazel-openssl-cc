@@ -20,10 +20,8 @@ def parse_perlasm_gen(perlasm_gen):
     perlasm_tools = []
 
     perlasm_gen_split_by_line = perlasm_gen.split("\n")
-    print("First split {}".format(perlasm_gen_split_by_line))
     for line in perlasm_gen_split_by_line:
         split_by_space = line.split(" ")
-        print("Second split {}".format(split_by_space))
         # When you split by new line you get an empty string at points.
         if not split_by_space:
             continue
@@ -34,8 +32,8 @@ def parse_perlasm_gen(perlasm_gen):
             continue
         elif len(split_by_space) != 6:
             fail("Line {} not six parts".format(line))
-        tool = remove_extra_chars(split_by_space[2])
-        out = remove_extra_chars(split_by_space[5])
+        tool = fix_path_for_windows_in_str(remove_extra_chars(split_by_space[2]))
+        out = fix_path_for_windows_in_str(remove_extra_chars(split_by_space[5]))
         perlasm_tools.append(tool)
         perlasm_outs.append(out)
 
