@@ -21,7 +21,10 @@ def parse_perlasm_gen(perlasm_gen):
     for line in perlasm_gen_split_by_line:
         split_by_space = line.split(" ")
         print("Second split {}".format(split_by_space))
-        if len(split_by_space) != 6:
+        # When you split by new line you get an empty string at points.
+        if not split_by_space:
+            continue
+        elif len(split_by_space) != 6:
             fail("Line {} not six parts".format(line))
         tool = split_by_space[1]
         out = split_by_space[3]
