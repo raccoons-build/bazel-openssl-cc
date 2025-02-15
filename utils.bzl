@@ -7,9 +7,9 @@ def get_repo_name():
 def parse_perlasm_gen(perlasm_gen):
     """Take a perlasm gen string and parse it.
 
-    Args: 
+    Args:
         perlasm_gen: The perlasm generation string
-    Returns: 
+    Returns:
         Two dictionaries. The first has the keys and values that are not dupes or the first instances of dupes.
         The second has the remaining keys and values that are dupes. Keys are tools and values are outs.
     """
@@ -102,11 +102,11 @@ def fix_path_for_windows_in_str(str):
 
 def remove_dupes(lst_one, lst_two):
     """Remove dupes from list one that exist in list two
-    
-    Args: 
+
+    Args:
         lst_one: The first list
         lst_two: The second list
-    Returns: 
+    Returns:
         list one without dupes
     """
     return [item for item in lst_one if item not in lst_two]

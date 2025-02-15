@@ -18,13 +18,13 @@ def get_binary_invocation_based_on_cpu(is_nix):
 def generate_single_command(binary, assembly_flavor, src, out, ctx):
     """Find the sources and outs and the command for a single src and out.
 
-    Args: 
+    Args:
         binary: The binary to run
         assembly_flavor: The assembly flavor to produce
         src: The source to use
         out: The output to produce
         ctx: The bazel rule context
-    Returns: 
+    Returns:
         A list with the command to run, The source files and the out files.
     """
     out_files = []
@@ -43,14 +43,14 @@ def generate_single_command(binary, assembly_flavor, src, out, ctx):
 
 def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes, ctx):
     """Generate commands needed to produces outs from sources. 
-    
-    Args: 
+
+    Args:
         binary: The binary to run
         assembly_flavor: The type of assembly to produce
         srcs_to_outs: The main sources to outputs dict
         srcs_to_outs_dupes: The secondary sources to outputs dict
         ctx: The bazel rule context
-    Returns: 
+    Returns:
         The commands joined on comma, the source files and the output files
     """
 
