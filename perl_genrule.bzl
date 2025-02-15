@@ -70,7 +70,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
 
-    return commands.join(","), src_files, out_files
+    return ','.join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
