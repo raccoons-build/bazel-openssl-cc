@@ -29,8 +29,9 @@ def parse_perlasm_gen(perlasm_gen):
             continue
         elif len(split_by_space) != 6:
             fail("Line {} not six parts".format(line))
-        tool = remove_extra_chars(split_by_space[1])
-        out = remove_extra_chars(split_by_space[3])
+        tool = remove_extra_chars(split_by_space[2])
+        out = remove_extra_chars(split_by_space[5])
+        print("Tool {} and out {}".format(tool, out))
         perlasm_tools.append(tool)
         perlasm_outs.append(out)
 
