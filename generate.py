@@ -12,7 +12,12 @@ import subprocess
 import sys
 import tempfile
 import pathlib
+import platform
 from typing import Dict
+
+if platform.system() == "Windows":
+    import win32security
+    import ntsecuritycon as con
 
 openssl_version = "3.3.1"
 
@@ -460,7 +465,22 @@ def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
     shutil.copyfile(pathlib.Path(os.path.join(
         os.path.dirname(__file__), local_path)), dst)
     if executable:
-        os.chmod(dst, 0o755)
+        if platform.system == "Windows":
+            make_file_executable_on_windows(dst)
+        else:
+            os.chmod(dst, 0o755)
+
+def make_file_executable_on_windows(path: str):
+
+    everyone, _, _ = win32security.LookupAccountName ("", "Everyone")
+
+    sd = win32security.GetFileSecurity(path, win32security.DACL_SECURITY_INFORMATION)
+    dacl = sd.GetSecurityDescriptorDacl()   # instead of dacl = win32security.ACL()
+
+    dacl.AddAccessAllowedAce(win32security.ACL_REVISION, con.FILE_ALL_ACCESS, everyone)
+
+    sd.SetSecurityDescriptorDacl(1, dacl, 0)   # may not be necessary
+    win32security.SetFileSecurity(path, win32security.DACL_SECURITY_INFORMATION, sd)
 
 
 def add_to_metadata(openssl_module_dir, tag):
