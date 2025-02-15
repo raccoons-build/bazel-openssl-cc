@@ -29,8 +29,4 @@ foreach ($command in $commands_arr) {
     }
 }
 
-# Run the tree command (This needs to be converted to an equivalent PowerShell command)
-$path = "bazel-out/k8-fastbuild/bin/external/openssl+"
-Get-ChildItem $path -Recurse | Format-Table Name, FullName
-
 exit 0
