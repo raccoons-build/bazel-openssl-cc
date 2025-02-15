@@ -16,17 +16,29 @@ def get_binary_invocation_based_on_cpu(is_nix):
         return "perl.exe"
 
 def find_srcs_outs_and_commands(binary, assembly_flavor, src, out, excludes, ctx):
+    """Find the sources and outs and the command for a single src and out.
+
+    Args: 
+        binary: The binary to run
+        assembly_flavor: The assembly flavor to produce
+        src: The source to use
+        out: The output to produce
+        excludes: The dict of srcs to outs that should not be produced
+        ctx: The bazel rule context
+    Returns: 
+        A list with the command to run, The source files and the out files.
+    """
     out_files = []
     src_files = []
     commands = []
-    if src not in srcs_to_outs_exclude.keys():
+    if src not in excludes.keys():
         out_file = ctx.actions.declare_file(out)
         src_files = src.files.to_list()
-
-        for src_file in src_files:
-            command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
-            commands.append(command)
-            src_files.append(src_file)
+        # We only care about the first source since there should only be
+        src_file = src_files[0]
+        command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
+        commands.append(command)
+        src_files.append(src_file)
         out_files.append(out_file)
     return commands, src_files, out_files
 
@@ -65,7 +77,8 @@ def _perl_genrule_impl(ctx):
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx.attr.srcs_to_outs_exclude, ctx)
-
+    outs_as_files_paths = [out.path for out in outs_as_files]
+    srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file.perl_generate_file
     ctx.actions.run(
             inputs = srcs_as_files + additional_srcs,
