@@ -15,7 +15,7 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
-def generate_single_command(binary, assembly_flavor, src, out, excludes, ctx):
+def generate_single_command(binary, assembly_flavor, src, out, ctx):
     """Find the sources and outs and the command for a single src and out.
 
     Args: 
@@ -23,7 +23,6 @@ def generate_single_command(binary, assembly_flavor, src, out, excludes, ctx):
         assembly_flavor: The assembly flavor to produce
         src: The source to use
         out: The output to produce
-        excludes: The dict of srcs to outs that should not be produced
         ctx: The bazel rule context
     Returns: 
         A list with the command to run, The source files and the out files.
@@ -31,18 +30,17 @@ def generate_single_command(binary, assembly_flavor, src, out, excludes, ctx):
     out_files = []
     src_files = []
     commands = []
-    if src not in excludes.keys():
-        out_file = ctx.actions.declare_file(out)
-        src_files = src.files.to_list()
-        # We only care about the first source since there should only be
-        src_file = src_files[0]
-        command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
-        commands.append(command)
-        src_files.append(src_file)
-        out_files.append(out_file)
+    out_file = ctx.actions.declare_file(out)
+    src_files = src.files.to_list()
+    # We only care about the first source since there should only be
+    src_file = src_files[0]
+    command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
+    commands.append(command)
+    src_files.append(src_file)
+    out_files.append(out_file)
     return commands, src_files, out_files
 
-def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes, srcs_to_outs_exclude, ctx):
+def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes, ctx):
     """Generate commands needed to produces outs from sources. 
     
     Args: 
@@ -50,7 +48,6 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         assembly_flavor: The type of assembly to produce
         srcs_to_outs: The main sources to outputs dict
         srcs_to_outs_dupes: The secondary sources to outputs dict
-        srcs_to_outs_exclude: The sources to outputs to not generate
         ctx: The bazel rule context
     Returns: 
         The commands joined on comma, the source files and the output files
@@ -60,12 +57,12 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
     out_files = []
     src_files = []
     for src, out in srcs_to_outs.items():
-        intermediate_commands, intermediate_src_files, intermediate_out_files = generate_single_command(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        intermediate_commands, intermediate_src_files, intermediate_out_files = generate_single_command(binary, assembly_flavor, src, out, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
     for src, out in srcs_to_outs_dupes.items():
-        intermediate_commands, intermediate_src_files, intermediate_out_files = generate_single_command(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        intermediate_commands, intermediate_src_files, intermediate_out_files = generate_single_command(binary, assembly_flavor, src, out, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
@@ -75,7 +72,7 @@ def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
-    commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx.attr.srcs_to_outs_exclude, ctx)
+    commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file.perl_generate_file
@@ -112,8 +109,6 @@ perl_genrule = rule(
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
-        # The dict of srcs to their outs when they are known to be problematic for some reason. And can be safely excluded.
-        "srcs_to_outs_exclude": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files that need to be excluded."),
         # Script that handles the file generation and existence check.
         "perl_generate_file": attr.label(
             allow_single_file = True,
