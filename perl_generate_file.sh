@@ -8,7 +8,7 @@ if [[ "$#" -ne 1 ]]; then
 fi
 
 commands="$1"
-
+echo "Running $commands"
 # Iterate over each command separated by comma
 IFS=',' read -ra commands_arr <<< "$commands"
 for command in "${commands_arr[@]}"; do

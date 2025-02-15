@@ -8,7 +8,7 @@ if ($args.Length -ne 1) {
 }
 
 $commands = $args[0]
-
+Write-Host "Running $commands"
 # Split the string by commas into an array
 $commands_arr = $commands -split ','
 
