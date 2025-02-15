@@ -15,7 +15,7 @@ def get_binary_invocation_based_on_cpu(is_nix):
     else:
         return "perl.exe"
 
-def find_srcs_outs_and_commands(binary, assembly_flavor, src, out, excludes, ctx):
+def generate_single_command(binary, assembly_flavor, src, out, excludes, ctx):
     """Find the sources and outs and the command for a single src and out.
 
     Args: 
@@ -60,13 +60,13 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
     out_files = []
     src_files = []
     for src, out in srcs_to_outs.items():
-        intermediate_commands, intermediate_src_files, intermediate_out_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        intermediate_commands, intermediate_src_files, intermediate_out_files = generate_single_command(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
     print("Commands: {} srcs: {} outs: {}".format(commands, src_files, out_files))
     for src, out in srcs_to_outs_dupes.items():
-        intermediate_commands, intermediate_src_files, intermediate_out_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        intermediate_commands, intermediate_src_files, intermediate_out_files = generate_single_command(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
