@@ -204,6 +204,33 @@ COMMON_OPENSSL_COPTS = [
     ],
 })
 
+cc_binary(
+    name = "openssl",
+    srcs = ALL_OPENSSL_APP_SRCS + [":perlasm_genfiles"],
+    copts = COMMON_OPENSSL_COPTS + select({
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
+    }) + select({
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_DEFINES,
+    }) + select({
+        "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
+        "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
+        "//conditions:default": OPENSSL_APP_NIX_COPTS,
+    }),
+    defines = COMMON_OPENSSL_DEFINES,
+    visibility = ["//visibility:public"],
+    deps = [":ssl"],
+)
+
 ARM64 = "arm64"
 
 X86_64 = "x86_64"
@@ -284,26 +311,6 @@ perl_genrule(
     }),
 )
 
-cc_binary(
-    name = "openssl",
-    srcs = ALL_OPENSSL_APP_SRCS + [":perlasm_genfiles"],
-    copts = COMMON_OPENSSL_COPTS + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
-    }) + select({
-        "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
-        "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
-        "//conditions:default": OPENSSL_APP_NIX_COPTS,
-    }),
-    defines = COMMON_OPENSSL_DEFINES,
-    visibility = ["//visibility:public"],
-    deps = [":ssl"],
-)
-
 COMMON_LIBCRYPTO_SRCS = glob(
     [
         "crypto/**/*.h",
@@ -330,12 +337,30 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": remove_dupes(_LINUX_ARM64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[ARM64]),
-    "@bazel_tools//src/conditions:linux_x86_64": remove_dupes(_LINUX_X86_64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[X86_64]),
-    "@bazel_tools//src/conditions:darwin_arm64": remove_dupes(_DARWIN_ARM64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[ARM64]),
-    "@bazel_tools//src/conditions:darwin_x86_64": remove_dupes(_DARWIN_X86_64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[X86_64]),
-    "@bazel_tools//src/conditions:windows_arm64": remove_dupes(fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS), PERLASM_OUTS_WINDOWS[ARM64]) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
-    "@bazel_tools//src/conditions:windows_x64": remove_dupes(fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS), PERLASM_OUTS_WINDOWS[X86_64]) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:linux_aarch64": remove_dupes(
+        _LINUX_ARM64_LIBCRYPTO_SRCS,
+        PERLASM_OUTS_NIX[ARM64],
+    ),
+    "@bazel_tools//src/conditions:linux_x86_64": remove_dupes(
+        _LINUX_X86_64_LIBCRYPTO_SRCS,
+        PERLASM_OUTS_NIX[X86_64],
+    ),
+    "@bazel_tools//src/conditions:darwin_arm64": remove_dupes(
+        _DARWIN_ARM64_LIBCRYPTO_SRCS,
+        PERLASM_OUTS_NIX[ARM64],
+    ),
+    "@bazel_tools//src/conditions:darwin_x86_64": remove_dupes(
+        _DARWIN_X86_64_LIBCRYPTO_SRCS,
+        PERLASM_OUTS_NIX[X86_64],
+    ),
+    "@bazel_tools//src/conditions:windows_arm64": remove_dupes(
+        fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS),
+        PERLASM_OUTS_WINDOWS[ARM64],
+    ) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": remove_dupes(
+        fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS),
+        PERLASM_OUTS_WINDOWS[X86_64],
+    ) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
 })
 
 EXISTING_LIBCRYPTO_HDRS = glob(

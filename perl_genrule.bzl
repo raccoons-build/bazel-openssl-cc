@@ -32,6 +32,7 @@ def generate_single_command(binary, assembly_flavor, src, out, ctx):
     commands = []
     out_file = ctx.actions.declare_file(out)
     src_files = src.files.to_list()
+
     # We only care about the first source since there should only be
     src_file = src_files[0]
     command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
@@ -52,7 +53,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
     Returns: 
         The commands joined on comma, the source files and the output files
     """
-    
+
     commands = []
     out_files = []
     src_files = []
@@ -66,7 +67,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-    return ','.join(commands), src_files, out_files
+    return ",".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
     binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
@@ -77,14 +78,14 @@ def _perl_genrule_impl(ctx):
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file.perl_generate_file
     ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs,
-            outputs = outs_as_files,
-            executable = perl_generate_file,
-            arguments = [commands_joined],
-            mnemonic = "GenerateAssemblyFromPerlScripts",
-            progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain =
-                "@rules_perl//:current_toolchain",
+        inputs = srcs_as_files + additional_srcs,
+        outputs = outs_as_files,
+        executable = perl_generate_file,
+        arguments = [commands_joined],
+        mnemonic = "GenerateAssemblyFromPerlScripts",
+        progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
+        toolchain =
+            "@rules_perl//:current_toolchain",
     )
 
     cc_info = CcInfo(
