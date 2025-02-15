@@ -31,11 +31,11 @@ def find_srcs_outs_and_commands(binary, assembly_flavor, src, out, excludes, ctx
     out_files = []
     src_files = []
     commands = []
+    out_file = ctx.actions.declare_file(out)
+    src_files = src.files.to_list()
+    # We only care about the first source since there should only be
+    src_file = src_files[0]
     if src not in excludes.keys():
-        out_file = ctx.actions.declare_file(out)
-        src_files = src.files.to_list()
-        # We only care about the first source since there should only be
-        src_file = src_files[0]
         command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
         commands.append(command)
         src_files.append(src_file)
@@ -60,16 +60,17 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
     out_files = []
     src_files = []
     for src, out in srcs_to_outs.items():
-        intermediate_commands, intermediate_src_files, intermediate_out_files  = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
-        commands = intermediate_commands
-        out_files = intermediate_out_files
-        src_files = intermediate_src_files
+        intermediate_commands, intermediate_src_files, intermediate_out_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
+        commands = commands + intermediate_commands
+        out_files = out_files + intermediate_out_files
+        src_files = src_files + intermediate_src_files
+    print("Commands: {} srcs: {} outs: {}".format(commands, src_files, out_files))
     for src, out in srcs_to_outs_dupes.items():
         intermediate_commands, intermediate_src_files, intermediate_out_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-
+    print("Commands: {} srcs: {} outs: {}".format(commands, src_files, out_files))
     return ','.join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
@@ -80,7 +81,6 @@ def _perl_genrule_impl(ctx):
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file.perl_generate_file
-    print("Commands: {} srcs: {} outs: {}".format(commands_joined, srcs_as_files, outs_as_files))
     ctx.actions.run(
             inputs = srcs_as_files + additional_srcs,
             outputs = outs_as_files,
