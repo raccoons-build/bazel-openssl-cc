@@ -31,7 +31,6 @@ def parse_perlasm_gen(perlasm_gen):
             fail("Line {} not six parts".format(line))
         tool = remove_extra_chars(split_by_space[2])
         out = remove_extra_chars(split_by_space[5])
-        print("Tool {} and out {}".format(tool, out))
         perlasm_tools.append(tool)
         perlasm_outs.append(out)
 
@@ -62,7 +61,8 @@ def dedupe_and_ret_dicts(lst_one, lst_two):
                 dict_two[one_i] = two_i
         else:
             dict_one[one_i] = two_i
-
+    print("katsonandrew {}".format(dict_one)
+    print("katsonandrew {}".format(dict_two))
     return dict_one, dict_two
 
 def dedupe(lst):
