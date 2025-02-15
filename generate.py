@@ -24,7 +24,7 @@ nix_platforms = [
 ]
 
 windows_platforms = ["VC-WIN64A",
-                     "VC-WIN64-ARM"]
+                     "VC-WIN64-CLANGASM-ARM"]
 
 all_platforms = nix_platforms + windows_platforms
 
