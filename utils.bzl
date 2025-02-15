@@ -17,11 +17,12 @@ def parse_perlasm_gen(perlasm_gen):
     perlasm_tools = []
 
     perlasm_gen_split_by_line = perlasm_gen.split("\n")
+    print("Split {}".format(perlasm_gen_split_by_line))
     for line in perlasm_gen_split_by_line:
         split_by_space = line.split(" ")
-
+        print("Second split {}".format(split_by_space))
         if len(split_by_space) != 6:
-            fail("Line {} not four parts".format(line))
+            fail("Line {} not six parts".format(line))
         tool = split_by_space[1]
         out = split_by_space[3]
         print("Tool {}".format(tool))
