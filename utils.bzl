@@ -113,4 +113,6 @@ def remove_dupes(lst_one, lst_two):
     Returns:
         list one without dupes
     """
-    return [item for item in lst_one if item not in lst_two]
+    final_list = [item for item in lst_one if item not in lst_two]
+    print("{} {} {}".format(lst_one, lst_two, final_list))
+    return final_list

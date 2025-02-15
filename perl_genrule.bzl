@@ -67,7 +67,6 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-    print("Commands {}".format(commands))
     return ",".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):

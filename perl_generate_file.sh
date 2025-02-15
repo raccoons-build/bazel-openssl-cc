@@ -26,6 +26,4 @@ for command in "${commands_arr[@]}"; do
     fi
 done
 
-tree bazel-out/k8-fastbuild/bin/external/openssl+
-
 exit 0
