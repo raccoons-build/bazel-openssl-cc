@@ -17,7 +17,7 @@ for command in "${commands_arr[@]}"; do
     # Get the last element of the command, the out file
     # and check for existence.
     IFS=' ' read -ra split_command_arr <<< "${command}"
-    out_file="${command[3]}"
+    out_file="${split_command_arr[3]}"
     if test -f ${out_file}; then
       echo "${out_file} exists"
     else
