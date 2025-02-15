@@ -50,7 +50,7 @@ load(
     _NIX_X86_64_PERLASM_GEN = "PERLASM_GEN",
 )
 load(
-    "@openssl-generated-overlay//:constants-VC-WIN64-ARM.bzl",
+    "@openssl-generated-overlay//:constants-VC-WIN64-CLANGASM-ARM.bzl",
     _WINDOWS_ARM64_GEN_FILES = "GEN_FILES",
     _WINDOWS_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
     _WINDOWS_ARM64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
