@@ -4,6 +4,33 @@
 def get_repo_name():
     return Label("//:BUILD.bazel").workspace_name
 
+def parse_perlasm_gen(perlasm_gen):
+    """Take a perlasm gen string and parse it.
+
+    Args: 
+        perlasm_gen: The perlasm generation string
+    Returns: 
+        Two dictionaries. The first has the keys and values that are not dupes or the first instances of dupes.
+        The second has the remaining keys and values that are dupes. Keys are tools and values are outs.
+    """
+
+    perlasm_outs = []
+    perlasm_tools = []
+
+    perlasm_gen_split_by_line = perlasm_gen.split("\n")
+    for line in perlasm_gen_split_by_line:
+        split_by_space = line.split(" ")
+
+        if len(split_by_space) != 4:
+            fail("Line {} not four parts".format(line))
+        tool = split_by_space[1]
+        out = split_by_space[3]
+
+        perlasm_tools.append(tool)
+        perlasm_outs.append(out)
+
+    return dedupe_and_ret_dicts(perlasm_tools, perlasm_outs)
+
 def dedupe_and_ret_dicts(lst_one, lst_two):
     """Dedupe a list and make two dictionaries with that and another list
 
