@@ -26,10 +26,4 @@ for command in "${commands_arr[@]}"; do
     fi
 done
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  ls bazel-out/darwin_arm64-fastbuild/bin/external/openssl+/crypto/sha
-else
-  tree bazel-out/k8-fastbuild/bin/external/openssl+
-fi
-
 exit 0
