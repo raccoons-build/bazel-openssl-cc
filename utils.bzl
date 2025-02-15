@@ -5,7 +5,7 @@ def get_repo_name():
     return Label("//:BUILD.bazel").workspace_name
 
 def remove_extra_chars(str):
-    return str.replace(")", "").replace(";", "")
+    return str.replace(")", "").replace(";", "").replace("\r", "")
 
 def parse_perlasm_gen(perlasm_gen):
     """Take a perlasm gen string and parse it.
@@ -28,6 +28,9 @@ def parse_perlasm_gen(perlasm_gen):
         if not split_by_space:
             continue
         elif not split_by_space[0]:
+            continue
+        # On arm we get carriage returns
+        elif split_by_space[0] == "\r\r":
             continue
         elif len(split_by_space) != 6:
             fail("Line {} not six parts".format(line))

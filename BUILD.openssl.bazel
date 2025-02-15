@@ -241,7 +241,7 @@ perl_genrule(
         "@bazel_tools//src/conditions:linux_x86_64": "elf",
         "@bazel_tools//src/conditions:darwin_arm64": "ios64",
         "@bazel_tools//src/conditions:darwin_x86_64": "macosx",
-        "@bazel_tools//src/conditions:windows_arm64": "unused",
+        "@bazel_tools//src/conditions:windows_arm64": "win64",
         "@bazel_tools//src/conditions:windows_x64": "nasm",
     }),
     is_nix = select({
