@@ -4,6 +4,9 @@
 def get_repo_name():
     return Label("//:BUILD.bazel").workspace_name
 
+def remove_extra_chars(str):
+    return str.replace(")", "").replace(";", "")
+
 def parse_perlasm_gen(perlasm_gen):
     """Take a perlasm gen string and parse it.
 
@@ -17,10 +20,8 @@ def parse_perlasm_gen(perlasm_gen):
     perlasm_tools = []
 
     perlasm_gen_split_by_line = perlasm_gen.split("\n")
-    print("Split {}".format(perlasm_gen_split_by_line))
     for line in perlasm_gen_split_by_line:
         split_by_space = line.split(" ")
-        print("Second split {}".format(split_by_space))
         # When you split by new line you get an empty string at points.
         if not split_by_space:
             continue
@@ -28,10 +29,8 @@ def parse_perlasm_gen(perlasm_gen):
             continue
         elif len(split_by_space) != 6:
             fail("Line {} not six parts".format(line))
-        tool = split_by_space[1]
-        out = split_by_space[3]
-        print("Tool {}".format(tool))
-        print("Out {}".format(out))
+        tool = remove_extra_chars(split_by_space[1])
+        out = remove_extra_chars(split_by_space[3])
         perlasm_tools.append(tool)
         perlasm_outs.append(out)
 
