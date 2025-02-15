@@ -91,7 +91,7 @@ def _perl_genrule_impl(ctx):
     )
 
     cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files)),
+        compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files),
     )
     ret = [DefaultInfo(files = depset(outs_as_files)), cc_info]
     return ret
