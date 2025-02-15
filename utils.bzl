@@ -20,9 +20,10 @@ def parse_perlasm_gen(perlasm_gen):
     perlasm_tools = []
 
     perlasm_gen_split_by_line = perlasm_gen.split("\n")
+    print("First split {}".format(perlasm_gen_split_by_line))
     for line in perlasm_gen_split_by_line:
         split_by_space = line.split(" ")
-
+        print("Second split {}".format(split_by_space))
         # When you split by new line you get an empty string at points.
         if not split_by_space:
             continue
