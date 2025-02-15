@@ -215,13 +215,6 @@ cc_binary(
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
     }) + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_DEFINES,
-        "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_DEFINES,
-        "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_DEFINES,
-        "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
-        "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_DEFINES,
-    }) + select({
         "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
         "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
         "//conditions:default": OPENSSL_APP_NIX_COPTS,
@@ -337,30 +330,12 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": remove_dupes(
-        _LINUX_ARM64_LIBCRYPTO_SRCS,
-        PERLASM_OUTS_NIX[ARM64],
-    ),
-    "@bazel_tools//src/conditions:linux_x86_64": remove_dupes(
-        _LINUX_X86_64_LIBCRYPTO_SRCS,
-        PERLASM_OUTS_NIX[X86_64],
-    ),
-    "@bazel_tools//src/conditions:darwin_arm64": remove_dupes(
-        _DARWIN_ARM64_LIBCRYPTO_SRCS,
-        PERLASM_OUTS_NIX[ARM64],
-    ),
-    "@bazel_tools//src/conditions:darwin_x86_64": remove_dupes(
-        _DARWIN_X86_64_LIBCRYPTO_SRCS,
-        PERLASM_OUTS_NIX[X86_64],
-    ),
-    "@bazel_tools//src/conditions:windows_arm64": remove_dupes(
-        fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS),
-        PERLASM_OUTS_WINDOWS[ARM64],
-    ) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
-    "@bazel_tools//src/conditions:windows_x64": remove_dupes(
-        fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS),
-        PERLASM_OUTS_WINDOWS[X86_64],
-    ) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:linux_aarch64": remove_dupes(_LINUX_ARM64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[ARM64]),
+    "@bazel_tools//src/conditions:linux_x86_64": remove_dupes(_LINUX_X86_64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[X86_64]),
+    "@bazel_tools//src/conditions:darwin_arm64": remove_dupes(_DARWIN_ARM64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[ARM64]),
+    "@bazel_tools//src/conditions:darwin_x86_64": remove_dupes(_DARWIN_X86_64_LIBCRYPTO_SRCS, PERLASM_OUTS_NIX[X86_64]),
+    "@bazel_tools//src/conditions:windows_arm64": remove_dupes(fix_paths_for_windows(_WINDOWS_ARM64_LIBCRYPTO_SRCS), PERLASM_OUTS_WINDOWS[ARM64]) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": remove_dupes(fix_paths_for_windows(_WINDOWS_X86_64_LIBCRYPTO_SRCS), PERLASM_OUTS_WINDOWS[X86_64]) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
 })
 
 EXISTING_LIBCRYPTO_HDRS = glob(
@@ -417,6 +392,7 @@ cc_library(
     hdrs = ALL_LIBCRYPTO_HDRS,
     additional_compiler_inputs = [
         ":generated-headers",
+        ":perlasm_genfiles"
     ] + glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
