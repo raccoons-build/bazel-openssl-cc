@@ -31,6 +31,18 @@ def find_srcs_outs_and_commands(binary, assembly_flavor, src, out, excludes, ctx
     return commands, src_files, out_files
 
 def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes, srcs_to_outs_exclude, ctx):
+    """Generate commands needed to produces outs from sources. 
+    
+    Args: 
+        binary: The binary to run
+        assembly_flavor: The type of assembly to produce
+        srcs_to_outs: The main sources to outputs dict
+        srcs_to_outs_dupes: The secondary sources to outputs dict
+        srcs_to_outs_exclude: The sources to outputs to not generate
+        ctx: The bazel rule context
+    Returns: 
+        The commands joined on comma, the source files and the output files
+    """
     
     commands = []
     out_files = []
@@ -40,7 +52,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         commands = intermediate_commands
         out_files = intermediate_out_files
         src_files = intermediate_src_files
-    for src, out in srcs_to_outs_dupes.items() 
+    for src, out in srcs_to_outs_dupes.items():
         intermediate_commands, intermediate_out_files, intermediate_src_files = find_srcs_outs_and_commands(binary, assembly_flavor, src, out, srcs_to_outs_exclude, ctx)
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
