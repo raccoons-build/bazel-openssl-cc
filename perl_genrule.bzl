@@ -31,11 +31,11 @@ def generate_single_command(binary, assembly_flavor, src, out, excludes, ctx):
     out_files = []
     src_files = []
     commands = []
-    out_file = ctx.actions.declare_file(out)
-    src_files = src.files.to_list()
-    # We only care about the first source since there should only be
-    src_file = src_files[0]
     if src not in excludes.keys():
+        out_file = ctx.actions.declare_file(out)
+        src_files = src.files.to_list()
+        # We only care about the first source since there should only be
+        src_file = src_files[0]
         command = "{} {} {} {}".format(binary, src_file.path, assembly_flavor, out_file.path)
         commands.append(command)
         src_files.append(src_file)
