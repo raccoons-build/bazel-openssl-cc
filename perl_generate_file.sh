@@ -27,8 +27,9 @@ for command in "${commands_arr[@]}"; do
 done
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  brew install tree
+  ls bazel-out/darwin_arm64-fastbuild/bin/external/openssl+/crypto/sha
+else
+  tree bazel-out/k8-fastbuild/bin/external/openssl+
 fi
-tree bazel-out/k8-fastbuild/bin/external/openssl+
 
 exit 0
