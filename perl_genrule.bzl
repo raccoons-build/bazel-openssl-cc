@@ -89,7 +89,7 @@ def _perl_genrule_impl(ctx):
         ctx.actions.run_shell(
             inputs = srcs_as_files + additional_srcs,
             outputs = outs_as_files,
-            cmd = commands_joined,
+            command = commands_joined,
             mnemonic = "GenerateAssemblyFromPerlScriptsOnWindwos",
             progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
         )
