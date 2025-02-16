@@ -85,16 +85,6 @@ def _perl_genrule_impl(ctx):
             toolchain = "@rules_perl//:current_toolchain",
         )
     else:
-    """
-        ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs + [perl_generate_file],
-            outputs = outs_as_files,
-            executable = "powershell.exe",
-            arguments = ["-ExecutionPolicy", "Bypass", "-File", perl_generate_file.path, commands_joined],
-            mnemonic = "GenerateAssemblyFromPerlScriptsOnWindwos",
-            progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
-        )
-    """
         print("katsonandrew: {}".format(commands_joined))
         ctx.actions.run_shell(
             inputs = srcs_as_files + additional_srcs,
