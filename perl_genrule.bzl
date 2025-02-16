@@ -9,12 +9,6 @@ def combine_list_of_lists(list_of_lists):
         final_list = final_list + lst
     return final_list
 
-def get_binary_invocation_based_on_cpu(is_nix):
-    if is_nix:
-        return "perl"
-    else:
-        return "perl.exe"
-
 def generate_single_command(binary, assembly_flavor, src, out, ctx):
     """Find the sources and outs and the command for a single src and out.
 
@@ -70,7 +64,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
     return ",".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
-    binary_invocation = get_binary_invocation_based_on_cpu(ctx.attr.is_nix)
+    binary_invocation = "perl"
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
