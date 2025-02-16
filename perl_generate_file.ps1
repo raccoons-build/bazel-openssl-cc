@@ -7,8 +7,8 @@ if ($args.Length -ne 1) {
     exit 1
 }
 
-echo "katsonandrew"
-echo $env:PATH
+# Because of bazel sandboxing we need to tell Windows where to find perl.
+[System.Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;", [System.EnvironmentVariableTarget]::User)
 
 $commands = $args[0]
 Write-Host "Running $commands"
