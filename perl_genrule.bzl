@@ -89,7 +89,6 @@ def _perl_genrule_impl(ctx):
             arguments = ["-ExecutionPolicy", "Bypass", "-File", perl_generate_file.path, commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScriptsOnWindwos",
             progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain = "@rules_perl//:current_toolchain",
         )
 
     cc_info = CcInfo(
@@ -121,5 +120,4 @@ perl_genrule = rule(
             cfg = "exec",
         ),
     },
-    toolchains = ["@rules_perl//:current_toolchain"]
 )
