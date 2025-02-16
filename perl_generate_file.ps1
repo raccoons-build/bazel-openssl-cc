@@ -7,6 +7,7 @@ if ($args.Length -ne 1) {
     exit 1
 }
 
+echo "katsonandrew"
 echo $env:PATH
 
 $commands = $args[0]
