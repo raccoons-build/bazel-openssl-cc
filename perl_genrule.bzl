@@ -82,7 +82,7 @@ def _perl_genrule_impl(ctx):
             toolchain =
                 "@rules_perl//:current_toolchain",
         )
-    else: 
+    else:
         ctx.actions.run(
             inputs = srcs_as_files + additional_srcs + [perl_generate_file],
             outputs = outs_as_files,
