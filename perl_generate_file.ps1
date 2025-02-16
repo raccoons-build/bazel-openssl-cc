@@ -7,8 +7,6 @@ if ($args.Length -ne 1) {
     exit 1
 }
 
-Get-ChildItem env
-
 $commands = $args[0]
 Write-Host "Running $commands"
 # Split the string by commas into an array
