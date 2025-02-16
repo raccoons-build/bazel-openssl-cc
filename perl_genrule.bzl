@@ -79,7 +79,7 @@ def _perl_genrule_impl(ctx):
             arguments = [commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain = ctx.attr._perl_toolchain,
+            toolchain = "@rules_perl//:current_toolchain",
         )
     else:
         ctx.actions.run(
@@ -89,7 +89,7 @@ def _perl_genrule_impl(ctx):
             arguments = ["-ExecutionPolicy", "Bypass", "-File", perl_generate_file.path, commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScriptsOnWindwos",
             progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain = ctx.attr._perl_toolchain,
+            toolchain = "@rules_perl//:current_toolchain"n,
         )
 
     cc_info = CcInfo(
@@ -120,9 +120,6 @@ perl_genrule = rule(
             executable = True,
             cfg = "exec",
         ),
-        # The perl toolchain used to run the perl command.
-        "_perl_toolchain": attr.label(
-            default = Label("@rules_perl//:current_toolchain"),
-        ),
     },
+    toolchains = ["@rules_perl//:current_toolchain"]
 )
