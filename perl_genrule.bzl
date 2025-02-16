@@ -122,8 +122,6 @@ perl_genrule = rule(
         ),
         # The perl toolchain used to run the perl command.
         "_perl_toolchain": attr.label(
-            executable = True,
-            cfg = "exec",
             default = "@rules_perl//:current_toolchain",
         ),
     },
