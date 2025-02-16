@@ -83,7 +83,7 @@ def _perl_genrule_impl(ctx):
         )
     else:
         ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs + [perl_generate_file],
+            inputs = srcs_as_files + additional_srcs + [perl_generate_file, "perl.exe"],
             outputs = outs_as_files,
             executable = "powershell.exe",
             arguments = ["-ExecutionPolicy", "Bypass", "-File", perl_generate_file.path, commands_joined],
