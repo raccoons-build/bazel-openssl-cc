@@ -272,6 +272,7 @@ perl_genrule(
         "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
     }),
+    tools = ["@rules_perl//:current_toolchain"]
 )
 
 COMMON_LIBCRYPTO_SRCS = glob(
