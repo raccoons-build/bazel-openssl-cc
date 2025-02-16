@@ -92,7 +92,6 @@ def _perl_genrule_impl(ctx):
             mnemonic = "GenerateAssemblyFromPerlScriptsOnWindwos",
             progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
             use_default_shell_env = True,
-            toolchain = "@llvm_toolchain//:wasm64",
         )
 
     cc_info = CcInfo(
