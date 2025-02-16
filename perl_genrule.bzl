@@ -122,7 +122,9 @@ perl_genrule = rule(
         ),
         # The perl toolchain used to run the perl command.
         "_perl_toolchain": attr.label(
-            default = "@rules_perl//:current_toolchain",
+            executable = True,
+            cfg = "exec",
+            default = Label("@rules_perl//:current_toolchain"),
         ),
     },
 )
