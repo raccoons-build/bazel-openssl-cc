@@ -184,10 +184,12 @@ COMMON_OPENSSL_COPTS = [
     "@bazel_tools//src/conditions:windows_arm64": [
         "/Iexternal/{}/include".format(_REPO_NAME),
         "/VERBOSE",
+        "-DLPDIR_H=0"
     ],
     "@bazel_tools//src/conditions:windows_x64": [
         "/Iexternal/{}/include".format(_REPO_NAME),
         "/VERBOSE",
+        "-DLPDIR_H=0"
     ],
     "//conditions:default": [
         # As described in https://github.com/openssl/openssl/issues/4575, OpenSSL doesn't mark its
