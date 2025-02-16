@@ -109,6 +109,12 @@ jobs:
       - pr-generate-windows
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: "5.32"
+          distribution: strawberry
+      - run: cpanm --installdeps .
+      - run: prove -lv t
       - name: Download overlay
         uses: actions/download-artifact@v4
         with:
