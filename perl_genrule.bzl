@@ -85,7 +85,7 @@ def _perl_genrule_impl(ctx):
             toolchain = "@rules_perl//:current_toolchain",
         )
     else:
-        ctx.actions.run(
+        ctx.actions.run_shell(
             inputs = srcs_as_files + additional_srcs,
             outputs = outs_as_files,
             command = commands_joined,
