@@ -45,7 +45,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         srcs_to_outs_dupes: The secondary sources to outputs dict
         ctx: The bazel rule context
     Returns:
-        The commands joined on comma on nix and ; on Windows, the source files and the output files
+        The commands joined on comma, the source files and the output files
     """
 
     commands = []
@@ -61,10 +61,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-    if ctx.attr.is_nix:
-        return ",".join(commands), src_files, out_files
-    else: 
-        return ";".join(commands), src_files, out_files
+    return ",".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
     binary_invocation = "perl"
@@ -85,13 +82,14 @@ def _perl_genrule_impl(ctx):
             toolchain = "@rules_perl//:current_toolchain",
         )
     else:
-        print("katsonandrew: {}".format(commands_joined))
-        ctx.actions.run_shell(
-            inputs = srcs_as_files + additional_srcs,
+        ctx.actions.run(
+            inputs = srcs_as_files + additional_srcs + [perl_generate_file],
             outputs = outs_as_files,
-            command = commands_joined,
+            executable = "powershell.exe",
+            arguments = ["-ExecutionPolicy", "Bypass", "-File", perl_generate_file.path, commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScriptsOnWindwos",
             progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
+            use_default_shell_env = True,
         )
 
     cc_info = CcInfo(
