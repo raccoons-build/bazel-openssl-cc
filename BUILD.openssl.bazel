@@ -83,8 +83,14 @@ cc_library(
     name = "crypto-textual-hdrs",
     textual_hdrs = [
         "crypto/des/ncbc_enc.c",
-        "crypto/LPdir_unix.c",
-    ],
+    ] + select({
+        "//conditions:default": ["crypto/LPdir_unix.c"],
+        "@platforms//os:windows": [
+            "crypto/LPdir_win32.c",
+            "crypto/LPdir_win.c",
+            "crypto/LPdir_wince.c",
+        ],
+    }),
 )
 
 COMMON_OPENSSL_APP_SRCS = glob(
@@ -294,9 +300,6 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
     "ms/applink.c",
     "engines/e_capi_err.h",
     "engines/e_capi_err.c",
-    "crypto/LPdir_win32.c",
-    "crypto/LPdir_win.c",
-    "crypto/LPdir_wince.c",
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
