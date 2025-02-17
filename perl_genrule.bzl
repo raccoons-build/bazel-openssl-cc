@@ -63,7 +63,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         src_files = src_files + intermediate_src_files
     if ctx.attr.is_nix:
         return ",".join(commands), src_files, out_files
-    else: 
+    else:
         return ";".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
