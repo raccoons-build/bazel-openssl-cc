@@ -109,6 +109,8 @@ jobs:
       - pr-generate-windows
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Download msys tools
+        uses: msys2/setup-msys2@v2
       - name: Download overlay
         uses: actions/download-artifact@v4
         with:
