@@ -99,7 +99,7 @@ def get_platforms(os: str):
 
 def get_start_configure_list(os: str):
     if os == WINDOWS:
-        return ["perl", "Configure", "mingw64"]
+        return ["perl", "Configure"]
     elif os == NIX:
         return ["./Configure"]
     elif os == ALL:
