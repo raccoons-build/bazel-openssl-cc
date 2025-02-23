@@ -97,7 +97,7 @@ def get_platforms(os: str):
         raise ValueError(f'Unknown os: {os}')
 
 
-def get_start_configure_list(os: str, arch: str):
+def get_start_configure_list(os: str):
     if os == WINDOWS:
         return ["perl", "Configure", "mingw64"]
     elif os == NIX:
