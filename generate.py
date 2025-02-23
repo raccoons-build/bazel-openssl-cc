@@ -104,9 +104,9 @@ def get_platforms(os: str):
 def get_start_configure_list(os: str, arch: str):
     if os == WINDOWS:
         if arch == X86_64:
-            return ["perl", "Configure", "mingw"]
-        elif arch == ARM64:
             return ["perl", "Configure", "mingw64"]
+        elif arch == ARM64:
+            return ["perl", "Configure"]
         else: 
             raise ValueError(f"Unknown architecture {arch}")
     elif os == NIX:
