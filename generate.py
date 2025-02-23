@@ -259,11 +259,6 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                              "perl_genrule.bzl")),
             )
             copy_from_here_to(
-                ".bazelrc",
-                pathlib.Path(os.path.join(output_tar_dir,
-                             ".bazelrc")),
-            )
-            copy_from_here_to(
                 "move_file_and_strip_prefix.sh",
                 pathlib.Path(os.path.join(output_tar_dir,
                              "move_file_and_strip_prefix.sh")),
@@ -273,12 +268,6 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 "perl_generate_file.sh",
                 pathlib.Path(os.path.join(output_tar_dir,
                              "perl_generate_file.sh")),
-                executable=True,
-            )
-            copy_from_here_to(
-                "perl_generate_file.ps1",
-                pathlib.Path(os.path.join(output_tar_dir,
-                             "perl_generate_file.ps1")),
                 executable=True,
             )
             with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
