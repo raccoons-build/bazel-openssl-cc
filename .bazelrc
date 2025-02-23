@@ -1,1 +1,2 @@
 build:windows --compiler=msys-gcc
+build:windows --host_compiler=msys-gcc
