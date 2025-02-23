@@ -73,7 +73,7 @@ def _perl_genrule_impl(ctx):
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
-    perl_generate_file = ctx.file.perl_generate_file
+    perl_generate_file = ctx.file._perl_generate_file
     if ctx.attr.is_nix:
         ctx.actions.run(
             inputs = srcs_as_files + additional_srcs,
@@ -116,11 +116,12 @@ perl_genrule = rule(
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
-        # Script that handles the file generation and existence check.
-        "perl_generate_file": attr.label(
+        # Script that handles the file generation and existence check. Only used on nix.
+        "_perl_generate_file": attr.label(
             allow_single_file = True,
             executable = True,
             cfg = "exec",
+            default = "@openssl-generated-overlay//:perl_generate_file.sh"
         ),
     },
 )
