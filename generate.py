@@ -86,10 +86,6 @@ NIX = "nix"
 # Used for release flow.
 ALL = "all"
 
-# Used for generatiion on x86 and arm64
-X86_64 = "x86_64"
-ARM64 = "amd64"
-
 def get_platforms(os: str):
     if os == WINDOWS:
         return windows_platforms
@@ -103,12 +99,7 @@ def get_platforms(os: str):
 
 def get_start_configure_list(os: str, arch: str):
     if os == WINDOWS:
-        if arch == X86_64:
-            return ["perl", "Configure", "mingw64"]
-        elif arch == ARM64:
-            return ["perl", "Configure"]
-        else: 
-            raise ValueError(f"Unknown architecture {arch}")
+        return ["perl", "Configure", "mingw64"]
     elif os == NIX:
         return ["./Configure"]
     elif os == ALL:
@@ -156,7 +147,7 @@ def replace_backslashes_in_paths(string):
     return re.sub(pattern, replace_match, string)
 
 
-def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str, arch: str):
+def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str):
     openssl_module_dir = pathlib.Path(
         os.path.join(bcr_dir, "modules", "openssl"))
     out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
@@ -172,7 +163,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
-            start_configure_list = get_start_configure_list(operating_system, arch)
+            start_configure_list = get_start_configure_list(operating_system)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
                 start_configure_list +
@@ -520,7 +511,6 @@ def dedupe_content_with_symlinks(previous_tag_dir, out_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("bazel-openssl-cc")
     parser.add_argument("--os", required=True)
-    parser.add_argument("--arch", required=False)
     parser.add_argument("--bcr_dir", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--overlay_tar_path", required=True)
@@ -530,8 +520,5 @@ if __name__ == "__main__":
     )
     parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
-    arch = platform.machine().lower()
-    if args.arch:
-        arch = args.arch
     main(args.bcr_dir, args.overlay_tar_path, args.tag,
-         args.buildifier, args.release_tar_url_template, args.os, arch)
+         args.buildifier, args.release_tar_url_template, args.os)
