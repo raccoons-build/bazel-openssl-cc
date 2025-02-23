@@ -88,7 +88,7 @@ ALL = "all"
 
 # Used for generatiion on x86 and arm64
 X86_64 = "x86_64"
-ARM64 = "arm64"
+ARM64 = "amd64"
 
 def get_platforms(os: str):
     if os == WINDOWS:
