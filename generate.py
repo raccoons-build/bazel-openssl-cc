@@ -99,7 +99,11 @@ def get_platforms(os: str):
 
 def get_start_configure_list(os: str):
     if os == WINDOWS:
-        return ["perl", "Configure"]
+        # Unset Microsoft Assembler (MASM) flags set by built-in MSVC toolchain,
+        # as NASM is unsed to build OpenSSL rather than MASM.
+        # From https://github.com/bazel-contrib/rules_foreign_cc/blob/main/examples/third_party/openssl/BUILD.openssl.bazel
+        "ASFLAGS=\" \"",
+        return ["perl", "Configure", "ASFLAGS=\" \""]
     elif os == NIX:
         return ["./Configure"]
     elif os == ALL:
