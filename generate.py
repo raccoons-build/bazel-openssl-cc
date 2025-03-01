@@ -99,10 +99,11 @@ def get_platforms(os: str):
 
 def get_start_configure_list(os: str):
     if os == WINDOWS:
-        # Unset Microsoft Assembler (MASM) flags set by built-in MSVC toolchain,
-        # as NASM is unsed to build OpenSSL rather than MASM.
-        # From https://github.com/bazel-contrib/rules_foreign_cc/blob/main/examples/third_party/openssl/BUILD.openssl.bazel
-        return ["perl", "Configure", "ASFLAGS=\" \""]
+        # On Windows we don't  use any assembly because the assembler is mismatched 
+        # between MSVC with Bazel and MSVC with OpenSSL.
+        # See https://github.com/rustls/boringssl/blob/018edfaaaeea43bf35a16e9f7ba24510c0c003bb/util/util.bzl#L149
+        # for the inspiration.
+        return ["perl", "Configure", "no-asm"]
     elif os == NIX:
         return ["./Configure"]
     elif os == ALL:
@@ -446,6 +447,7 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """ 
+    print(out)
     path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
     with open(pathlib.Path(path), "w") as f:
         f.write(out)
