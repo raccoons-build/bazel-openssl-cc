@@ -23,7 +23,7 @@ jobs:
         path: bazel-central-registry
         ref: refs/heads/main
     - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-    - run: python3 generate.py --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=$(pwd)/bazel-openssl-cc-${{github.ref_name}}.tar.gz --tag=${{github.ref_name}}
+    - run: python3 generate.py --os=ALL --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=$(pwd)/bazel-openssl-cc-${{github.ref_name}}.tar.gz --tag=${{github.ref_name}}
     - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
       env:
         GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
