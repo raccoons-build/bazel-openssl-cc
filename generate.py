@@ -24,7 +24,7 @@ nix_platforms = [
     "linux-aarch64",
 ]
 
-windows_platforms = ["VC-WIN64A",
+windows_platforms = ["VC-WIN64A-masm",
                      "VC-WIN64-CLANGASM-ARM"]
 
 all_platforms = nix_platforms + windows_platforms
