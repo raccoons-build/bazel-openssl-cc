@@ -121,7 +121,7 @@ perl_genrule = rule(
             allow_single_file = True,
             executable = True,
             cfg = "exec",
-            default = "@openssl-generated-overlay//:perl_generate_file.sh"
+            default = "@openssl-generated-overlay//:perl_generate_file.sh",
         ),
     },
 )

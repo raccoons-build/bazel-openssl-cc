@@ -156,6 +156,13 @@ OPENSSL_APP_WINDOWS_COPTS = [
     "/Iexternal/{}/apps/include".format(_REPO_NAME),
 ]
 
+OPENSSL_APP_NIX_LINKOPTS = [
+]
+
+OPENSSL_APP_WINDOWS_LINKOPTS = [
+    "-lws2_32",
+]
+
 COMMON_OPENSSL_WINDOWS_DEFINES = [
     "_WINSOCKAPI_",
     "OPENSSL_SYS_WINCE",
@@ -222,6 +229,11 @@ cc_binary(
         "//conditions:default": OPENSSL_APP_NIX_COPTS,
     }),
     defines = COMMON_OPENSSL_DEFINES,
+    linkopts = select({
+        "@bazel_tools//src/conditions:windows_arm64": OPENSSL_APP_WINDOWS_LINKOPTS,
+        "@bazel_tools//src/conditions:windows_x64": OPENSSL_APP_WINDOWS_LINKOPTS,
+        "//conditions:default": OPENSSL_APP_NIX_LINKOPTS,
+    }),
     visibility = ["//visibility:public"],
     deps = [":ssl"],
 )
