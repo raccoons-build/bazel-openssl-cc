@@ -68,7 +68,7 @@ my %libssl_srcs = get_recursive_srcs_of_one("libssl", (), %excludes);
 my %openssl_app_srcs;
 # On Windows we need to modify the path since the configdata file 
 # will be using different paths delimitters.
-if ("$^O" eq "MSWin32") {
+if (@ARGV[0] eq "windows") {
     %openssl_app_srcs = get_recursive_srcs_of_one("apps\\openssl", (), %excludes);
 } else {
     %openssl_app_srcs = get_recursive_srcs_of_one("apps/openssl", (), %excludes);

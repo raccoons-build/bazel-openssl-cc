@@ -138,6 +138,15 @@ def get_extra_tar_options(os: str):
     else:
         raise ValueError(f'Unknown os: {os}')
 
+def get_simple_platform(os: str): 
+    if os == WINDOWS: 
+        return WINDOWS
+    elif os == NIX: 
+        return NIX
+    elif os == ALL:
+        return NIX
+    else: 
+        raise ValueError(f'Unknown os: {os}')
 
 def replace_backslashes_in_paths(string):
     """Replaces single backslashes with double backslashes in paths within a string."""
@@ -193,6 +202,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 generated_path_to_platform_to_contents[generated_file][
                     platform
                 ] = content
+            simple_platform = get_simple_platform(operating_system)
             platform_to_perl_output[platform] = subprocess.check_output(
                 [
                     "perl",
@@ -201,6 +211,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     "-Mconfigdata",
                     pathlib.Path(os.path.join(
                         os.path.dirname(__file__), "extract_srcs.pl")),
+                    simple_platform
                 ],
                 cwd=openssl_dir,
             ).decode("utf-8")
