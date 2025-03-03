@@ -160,7 +160,8 @@ OPENSSL_APP_NIX_LINKOPTS = [
 ]
 
 OPENSSL_APP_WINDOWS_LINKOPTS = [
-    "--defaultlib:ws2_32.lib",
+    "-defaultlib:ws2_32.lib",
+    "-defaultlib:advapi32.li",
 ]
 
 COMMON_OPENSSL_WINDOWS_DEFINES = [
