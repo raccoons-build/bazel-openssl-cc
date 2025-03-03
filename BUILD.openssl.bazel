@@ -160,8 +160,7 @@ OPENSSL_APP_NIX_LINKOPTS = [
 ]
 
 OPENSSL_APP_WINDOWS_LINKOPTS = [
-    "-lws2_32",
-    "-lwsock32",
+    "--defaultlib:ws2_32.lib",
 ]
 
 COMMON_OPENSSL_WINDOWS_DEFINES = [
