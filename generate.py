@@ -97,53 +97,45 @@ def get_platforms(os: str):
         raise ValueError(f'Unknown os: {os}')
 
 
-def get_start_configure_list(os: str):
-    if os == WINDOWS:
+def get_start_configure_list(platform: str):
+    if platform in windows_platforms:
         # On Windows we don't  use any assembly because the assembler is mismatched 
         # between MSVC with Bazel and MSVC with OpenSSL.
         # See https://github.com/rustls/boringssl/blob/018edfaaaeea43bf35a16e9f7ba24510c0c003bb/util/util.bzl#L149
         # for the inspiration.
         return ["perl", "Configure", "no-asm"]
-    elif os == NIX:
-        return ["./Configure"]
-    elif os == ALL:
+    elif platform in nix_platforms:
         return ["./Configure"]
     else:
         raise ValueError(f'Unknown os: {os}')
 
 
-def get_make_command(os: str):
-    if os == WINDOWS:
+def get_make_command(platform: str):
+    if platform in windows_platforms:
         return "nmake"
-    elif os == NIX:
-        return "make"
-    elif os == ALL:
+    elif platform in nix_platforms:
         return "make"
     else:
         raise ValueError(f'Unknown os: {os}')
 
 
-def get_extra_tar_options(os: str):
+def get_extra_tar_options(platform: str):
     all_tar_options = ["--owner",
                        "root",
                        "--group",
                        "wheel",
                        "--mtime=UTC 1980-01-01"]
-    if os == WINDOWS:
+    if platform in windows_platforms:
         return []
-    elif os == NIX:
-        return all_tar_options
-    elif os == ALL:
+    elif platform in nix_platforms:
         return all_tar_options
     else:
         raise ValueError(f'Unknown os: {os}')
 
-def get_simple_platform(os: str): 
-    if os == WINDOWS: 
+def get_simple_platform(platform: str): 
+    if platform in windows_platforms: 
         return WINDOWS
-    elif os == NIX: 
-        return NIX
-    elif os == ALL:
+    elif platform in nix_platforms: 
         return NIX
     else: 
         raise ValueError(f'Unknown os: {os}')
@@ -176,7 +168,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
-            start_configure_list = get_start_configure_list(operating_system)
+            start_configure_list = get_start_configure_list(platform)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
                 start_configure_list +
@@ -188,7 +180,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 ],
                 cwd=openssl_dir,
             )
-            make_command = get_make_command(operating_system)
+            make_command = get_make_command(platform)
             subprocess.check_call(
                 [make_command] + generated_files,
                 cwd=openssl_dir,
@@ -202,7 +194,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 generated_path_to_platform_to_contents[generated_file][
                     platform
                 ] = content
-            simple_platform = get_simple_platform(operating_system)
+            simple_platform = get_simple_platform(platform)
             platform_to_perl_output[platform] = subprocess.check_output(
                 [
                     "perl",
@@ -300,7 +292,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
             files_to_tar = list(sorted(os.listdir(output_tar_dir)))
             tar = "gtar" if sys.platform == "darwin" else "tar"
-            extra_tar_options = get_extra_tar_options(operating_system)
+            extra_tar_options = get_extra_tar_options(platform)
             subprocess.check_call([tar] + extra_tar_options + ["-czf", overlay_tar_path] + files_to_tar,
                                   cwd=output_tar_dir,
                                   )
