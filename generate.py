@@ -279,6 +279,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                              "perl_genrule.bzl")),
             )
             copy_from_here_to(
+                ".bazelrc",
+                pathlib.Path(os.path.join(output_tar_dir,
+                             ".bazelrc")),
+            )
+            copy_from_here_to(
                 "move_file_and_strip_prefix.sh",
                 pathlib.Path(os.path.join(output_tar_dir,
                              "move_file_and_strip_prefix.sh")),
@@ -470,7 +475,6 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """ 
-    print(out)
     path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
     with open(pathlib.Path(path), "w") as f:
         f.write(out)
