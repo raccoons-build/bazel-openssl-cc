@@ -1,33 +1,10 @@
-sh_test(
+load("@rules_python//python:defs.bzl", "py_test")
+
+py_test(
     name = "sha256_test",
-    srcs = ["sha256_test.sh"],
+    srcs = ["sha256_test.py"],
     args = ["$(rootpath //:openssl)"],
     data = ["//:openssl"],
-)
-
-genrule(
-    name = "gen_sha256_test",
-    outs = ["sha256_test.sh"],
-    cmd = """cat >$@ <<'EOF'
-#!/bin/bash
-
-set -euo pipefail
-
-if [[ "$$#" -ne 1 ]]; then
-  echo >&2 "Usage: $$0 /path/to/openssl"
-  exit 1
-fi
-openssl="$$1"
-
-out="$$(echo -n "European Burmese" | "$${openssl}" dgst -sha256 | awk '{print $$2}')"
-
-if [[ "$${out}" != "693d8db7b05e99c6b7a7c0616456039d89c555029026936248085193559a0b5d" ]]; then
-  echo >2 "Wrong hash - got $${out}"
-  exit 1
-fi
-EOF
-""",
-    executable = True,
 )
 
 cc_library(
@@ -42,5 +19,8 @@ genrule(
     cmd = """cat >$@ <<'EOF'
 #include <openssl/bn.h>
 EOF
+""",
+    cmd_ps = """
+`n#include <openssl/bn.h>`n' | Out-File -FilePath $(OUTS) -Encoding utf8
 """,
 )
