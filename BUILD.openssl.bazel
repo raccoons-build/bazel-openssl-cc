@@ -132,13 +132,16 @@ COMMON_OPENSSL_APP_SRCS = glob(
     ":include/openssl/x509_vfy.h",
 ]
 
+# Some source files are missing from OpenSSL metadata so we never pick them up.
+MISSING_OPENSSL_WINDOWS_SRCS = ["apps/lib/win32_init.c"]
+
 ALL_OPENSSL_APP_SRCS = COMMON_OPENSSL_APP_SRCS + select({
     "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
     "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
     "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
     "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
-    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_OPENSSL_APP_SRCS),
-    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_OPENSSL_APP_SRCS),
+    "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_OPENSSL_APP_SRCS) + MISSING_OPENSSL_WINDOWS_SRCS,
+    "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_OPENSSL_APP_SRCS) + MISSING_OPENSSL_WINDOWS_SRCS,
 })
 
 OPENSSL_APP_NIX_COPTS = [
