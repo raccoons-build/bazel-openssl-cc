@@ -75,7 +75,7 @@ Copy-Item -Path {file} -Destination $dest_path -Recurse -Force
     srcs_map.update(implicit_srcs_from_outs)
 
     if ctx.attr.is_nix:
-        input_files, copy_calls = get_inputs_and_commands(mv_file, call_to_script, srcs_map, outdir)
+        input_files, copy_calls = get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
 
         ctx.actions.run_shell(
             inputs = input_files,
@@ -85,7 +85,7 @@ Copy-Item -Path {file} -Destination $dest_path -Recurse -Force
             progress_message = "Copying files to directory",
         )
     else:
-        input_files, copy_calls = get_inputs_and_commands(None, call_to_script_windows, srcs_map, outdir)
+        input_files, copy_calls = get_inputs_and_commands(None, call_to_script_windows, srcs_map, ctx, outdir)
 
         ctx.actions.run_shell(
             inputs = input_files,
