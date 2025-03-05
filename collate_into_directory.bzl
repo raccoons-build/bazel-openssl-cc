@@ -39,9 +39,11 @@ def get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
                         prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
                     ),
                 )
-
+    mv_file_list = []
+    if mv_file:
+        mv_file_list.append(mv_file)
     input_files = depset(
-        [],
+        mv_file_list,
         transitive = [tgt[DefaultInfo].files for tgt in srcs_map.keys()],
     )
 
