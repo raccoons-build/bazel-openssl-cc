@@ -21,6 +21,6 @@ genrule(
 EOF
 """,
     cmd_ps = """
-`n#include <openssl/bn.h>`n' | Out-File -FilePath $(OUTS) -Encoding utf8
+#include <openssl/bn.h> | Out-File -FilePath $(OUTS) -Encoding utf8
 """,
 )
