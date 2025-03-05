@@ -2,18 +2,18 @@
 """
 
 def get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
-"""Gets the input files and the commands to run
+    """Gets the input files and the commands to run
 
-Args: 
-    mv_file: The move file to use on nix
-    call_to_script: the formatted string to do replace on 
-    srcs_map: map of sources to the outputs
-    ctx: the current context
-    outdir: the output directory
-Returns: 
-    input_files: The input files to the run_shell
-    copy_calls: The structured commands to run
-"""
+    Args: 
+        mv_file: The move file to use on nix
+        call_to_script: the formatted string to do replace on 
+        srcs_map: map of sources to the outputs
+        ctx: the current context
+        outdir: the output directory
+    Returns: 
+        input_files: The input files to the run_shell
+        copy_calls: The structured commands to run
+    """
 
     copy_calls = []
     for (tgt, prefix) in srcs_map.items():
@@ -31,14 +31,14 @@ Returns:
                         prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
                     ),
                 )
-            else: 
+            else:
                 copy_calls.append(
                     call_to_script.format(
                         outdir = outdir.path if not output_prefix else "{}/{}".format(outdir.path, output_prefix),
                         file = file.path,
                         prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
                     ),
-                ) 
+                )
 
     input_files = depset(
         [],
@@ -54,17 +54,13 @@ def _collate_into_directory_impl(ctx):
 
     call_to_script = """{script_path} {outdir} {file} {prefix_to_strip}"""
     call_to_script_windows = """ 
-# Remove the prefix from the file path
 $clean_filepath = {file}.Substring({prefix_to_strip}.Length)
 
-# Get the directory name from the cleaned file path
 $clean_dirname = [System.IO.Path]::GetDirectoryName($clean_filepath)
 
-# Create the destination directory structure if it doesn't exist
 $dest_path = Join-Path -Path {outdir} -ChildPath $clean_dirname
 New-Item -ItemType Directory -Force -Path $dest_path
 
-# Copy the file to the destination directory
 Copy-Item -Path {file} -Destination $dest_path -Recurse -Force
 """
 
@@ -88,7 +84,7 @@ Copy-Item -Path {file} -Destination $dest_path -Recurse -Force
             mnemonic = "CopyFilesToDir",
             progress_message = "Copying files to directory",
         )
-    else: 
+    else:
         input_files, copy_calls = get_inputs_and_commands(None, call_to_script_windows, srcs_map, outdir)
 
         ctx.actions.run_shell(

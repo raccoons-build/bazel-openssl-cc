@@ -551,6 +551,10 @@ genrule(
 
 collate_into_directory(
     name = "gen_dir",
+    is_nix = select({
+        "//conditions:default": True,
+        "@platforms//os:windows": False,
+    }),
     outs_prefix_map = {
         ":crypto": "lib/",
         ":openssl": "bin/",
@@ -565,9 +569,5 @@ collate_into_directory(
         k: "external/{}".format(_REPO_NAME)
         for k in glob(["include/openssl/*.h"])
     },
-    is_nix = select({
-        "//conditions:default": True,
-        "@platforms//os:windows": False,
-    }),
     visibility = ["//visibility:public"],
 )
