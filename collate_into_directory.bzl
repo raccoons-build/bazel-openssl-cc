@@ -61,7 +61,8 @@ $clean_filepath = "{file}".Substring("{prefix_to_strip}".Length);
 $clean_dirname = [System.IO.Path]::GetDirectoryName($clean_filepath);
 
 $dest_path = Join-Path -Path "{outdir}" -ChildPath $clean_dirname;
-New-Item -ItemType Directory -Force -Path $dest_path
+
+New-Item -ItemType Directory -Force -Path $dest_path;
 
 Copy-Item -Path "{file}" -Destination $dest_path -Recurse -Force;
 """
