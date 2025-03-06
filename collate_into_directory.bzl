@@ -22,23 +22,14 @@ def get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
             output_prefix = ctx.attr.outs_prefix_map[tgt]
 
         for file in tgt[DefaultInfo].files.to_list():
-            if ctx.attr.is_nix:
-                copy_calls.append(
-                    call_to_script.format(
-                        script_path = mv_file.path,
-                        outdir = outdir.path if not output_prefix else "{}/{}".format(outdir.path, output_prefix),
-                        file = file.path,
-                        prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
-                    ),
-                )
-            else:
-                copy_calls.append(
-                    call_to_script.format(
-                        outdir = outdir.path if not output_prefix else "{}/{}".format(outdir.path, output_prefix),
-                        file = file.path,
-                        prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
-                    ),
-                )
+            copy_calls.append(
+                call_to_script.format(
+                    script_path = mv_file.path,
+                    outdir = outdir.path if not output_prefix else "{}/{}".format(outdir.path, output_prefix),
+                    file = file.path,
+                    prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
+                ),
+            )
     mv_file_list = []
     if mv_file:
         mv_file_list.append(mv_file)
@@ -88,12 +79,12 @@ Copy-Item -Path "{file}" -Destination $dest_path -Recurse -Force;
             progress_message = "Copying files to directory",
         )
     else:
-        input_files, copy_calls = get_inputs_and_commands(None, call_to_script_windows, srcs_map, ctx, outdir)
+        input_files, copy_calls = get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
 
         ctx.actions.run_shell(
             inputs = input_files,
             outputs = [outdir],
-            command = "powershell " + "\n".join(copy_calls),
+            command = "\n".join(copy_calls),
             mnemonic = "CopyFilesToDirOnWindows",
             progress_message = "Copying files to directory on Windows",
         )
