@@ -21,6 +21,6 @@ genrule(
 EOF
 """,
     cmd_ps = """
-#include <openssl/bn.h> | Out-File -FilePath $(OUTS) -Encoding utf8
+    New-Item -Path "$@" -ItemType File -Value "#include <openssl/bn.h>"
 """,
 )

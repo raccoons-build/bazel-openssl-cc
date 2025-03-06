@@ -4,13 +4,13 @@
 def get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
     """Gets the input files and the commands to run
 
-    Args: 
+    Args:
         mv_file: The move file to use on nix
-        call_to_script: the formatted string to do replace on 
+        call_to_script: the formatted string to do replace on
         srcs_map: map of sources to the outputs
         ctx: the current context
         outdir: the output directory
-    Returns: 
+    Returns:
         input_files: The input files to the run_shell
         copy_calls: The structured commands to run
     """
