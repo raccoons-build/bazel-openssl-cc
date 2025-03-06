@@ -56,14 +56,14 @@ def _collate_into_directory_impl(ctx):
 
     call_to_script = """{script_path} {outdir} {file} {prefix_to_strip}"""
     call_to_script_windows = """ 
-$clean_filepath = "{file}".Substring("{prefix_to_strip}".Length)
+$clean_filepath = "{file}".Substring("{prefix_to_strip}".Length);
 
-$clean_dirname = [System.IO.Path]::GetDirectoryName($clean_filepath)
+$clean_dirname = [System.IO.Path]::GetDirectoryName($clean_filepath);
 
-$dest_path = Join-Path -Path "{outdir}" -ChildPath $clean_dirname
+$dest_path = Join-Path -Path "{outdir}" -ChildPath $clean_dirname;
 New-Item -ItemType Directory -Force -Path $dest_path
 
-Copy-Item -Path "{file}" -Destination $dest_path -Recurse -Force
+Copy-Item -Path "{file}" -Destination $dest_path -Recurse -Force;
 """
 
     srcs_map = dict(ctx.attr.srcs_prefix_map)
@@ -92,7 +92,7 @@ Copy-Item -Path "{file}" -Destination $dest_path -Recurse -Force
         ctx.actions.run_shell(
             inputs = input_files,
             outputs = [outdir],
-            command = "\n".join(copy_calls),
+            command = "powershell " + "\n".join(copy_calls),
             mnemonic = "CopyFilesToDirOnWindows",
             progress_message = "Copying files to directory on Windows",
         )
