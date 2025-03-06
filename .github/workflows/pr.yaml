@@ -82,9 +82,9 @@ jobs:
     strategy:
       matrix:
         os:
+          # x86 but doesn't work right now
+          # macos-13
           # arm64
-          - macos-13
-          # x86
           - macos-14
           # x86
           - ubuntu-latest
@@ -111,7 +111,7 @@ jobs:
       matrix:
         os:
           # No arm64 small hosted runners.
-          # So we only use x86.
+          # So we only use x8
           - windows-latest
     needs:
       - pr-generate-windows
