@@ -82,8 +82,14 @@ jobs:
     strategy:
       matrix:
         os:
+          # arm64
+          - macos-13
+          # x86
           - macos-14
+          # x86
           - ubuntu-latest
+          # arm64
+          - ubuntu-24.04-arm
     needs:
       - pr-generate-nix
     runs-on: ${{ matrix.os }}
@@ -104,8 +110,9 @@ jobs:
     strategy:
       matrix:
         os:
+          # No arm64 small hosted runners.
+          # So we only use x86.
           - windows-latest
-          - windows-arm64
     needs:
       - pr-generate-windows
     runs-on: ${{ matrix.os }}
