@@ -57,26 +57,15 @@ def _collate_into_directory_impl(ctx):
     }
     srcs_map.update(implicit_srcs_from_outs)
 
-    if ctx.attr.is_nix:
-        input_files, copy_calls = get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
+    input_files, copy_calls = get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
 
-        ctx.actions.run_shell(
-            inputs = input_files,
-            outputs = [outdir],
-            command = "\n".join(copy_calls),
-            mnemonic = "CopyFilesToDir",
-            progress_message = "Copying files to directory",
-        )
-    else:
-        input_files, copy_calls = get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
-
-        ctx.actions.run_shell(
-            inputs = input_files,
-            outputs = [outdir],
-            command = "\n".join(copy_calls),
-            mnemonic = "CopyFilesToDirOnWindows",
-            progress_message = "Copying files to directory on Windows",
-        )
+    ctx.actions.run_shell(
+        inputs = input_files,
+        outputs = [outdir],
+        command = "\n".join(copy_calls),
+        mnemonic = "CopyFilesToDir",
+        progress_message = "Copying files to directory",
+    )
     runfiles = ctx.runfiles(files = [outdir])
 
     return [DefaultInfo(files = depset([outdir]), runfiles = runfiles)]
@@ -93,8 +82,6 @@ collate_into_directory = rule(
             allow_files = True,
             doc = "Map from target that provides files to prefix to strip from those files.",
         ),
-        # We need to know what os this is running on.
-        "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
         "_move_file_script": attr.label(
             allow_single_file = True,
             executable = True,

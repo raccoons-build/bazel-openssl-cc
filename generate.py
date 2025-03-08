@@ -17,7 +17,7 @@ from typing import Dict
 
 openssl_version = "3.3.1"
 
-nix_platforms = [
+unix_platforms = [
     "darwin64-arm64-cc",
     "darwin64-x86_64-cc",
     "linux-x86_64-clang",
@@ -27,7 +27,7 @@ nix_platforms = [
 windows_platforms = ["VC-WIN64A-masm",
                      "VC-WIN64-CLANGASM-ARM"]
 
-all_platforms = nix_platforms + windows_platforms
+all_platforms = unix_platforms + windows_platforms
 
 generated_files = [
     "apps/progs.c",
@@ -82,15 +82,15 @@ generated_files = [
 
 # Used for generation and testing on a pull request.
 WINDOWS = "windows"
-NIX = "nix"
+UNIX = "unix"
 # Used for release flow.
 ALL = "all"
 
 def get_platforms(os: str):
     if os == WINDOWS:
         return windows_platforms
-    elif os == NIX:
-        return nix_platforms
+    elif os == UNIX:
+        return unix_platforms
     elif os == ALL:
         return all_platforms
     else:
@@ -105,12 +105,12 @@ def get_start_configure_list(os: str, platform: str):
             # See https://github.com/rustls/boringssl/blob/018edfaaaeea43bf35a16e9f7ba24510c0c003bb/util/util.bzl#L149
             # for the inspiration.
             return ["perl", "Configure", "no-asm"]
-        elif platform in nix_platforms: 
-            # If we are generating nix on Windows (don't know why we would) we need to keep assembly.
+        elif platform in unix_platforms: 
+            # If we are generating unix on Windows (don't know why we would) we need to keep assembly.
             return ["perl", "Configure"]
         else: 
             raise ValueError(f'Unknown platform: {platform}')
-    elif os == NIX:
+    elif os == UNIX:
         return ["./Configure"]
     elif os == ALL:
         return ["./Configure"]
@@ -121,7 +121,7 @@ def get_start_configure_list(os: str, platform: str):
 def get_make_command(os: str):
     if os == WINDOWS:
         return "nmake"
-    elif os == NIX:
+    elif os == UNIX:
         return "make"
     elif os == ALL:
         return "make"
@@ -137,7 +137,7 @@ def get_extra_tar_options(os: str):
                        "--mtime=UTC 1980-01-01"]
     if os == WINDOWS:
         return []
-    elif os == NIX:
+    elif os == UNIX:
         return all_tar_options
     elif os == ALL:
         return all_tar_options
@@ -147,10 +147,10 @@ def get_extra_tar_options(os: str):
 def get_simple_platform(os: str): 
     if os == WINDOWS: 
         return WINDOWS
-    elif os == NIX: 
-        return NIX
+    elif os == UNIX: 
+        return UNIX
     elif os == ALL:
-        return NIX
+        return UNIX
     else: 
         raise ValueError(f'Unknown os: {os}')
 
@@ -217,7 +217,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     "-Mconfigdata",
                     pathlib.Path(os.path.join(
                         os.path.dirname(__file__), "extract_srcs.pl")),
-                    simple_platform
+                    simple_platform,
                 ],
                 cwd=openssl_dir,
             ).decode("utf-8")
@@ -392,7 +392,7 @@ def write_module_files(
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
-bazel_dep(name = "rules_python", version = "1.2.0")
+bazel_dep(name = "rules_python", version = "1.2.0", dev_dependency = True)
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 

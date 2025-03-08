@@ -61,7 +61,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-    if ctx.attr.is_nix:
+    if ctx.attr.is_unix:
         return ",".join(commands), src_files, out_files
     else:
         return ";".join(commands), src_files, out_files
@@ -74,7 +74,7 @@ def _perl_genrule_impl(ctx):
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file._perl_generate_file
-    if ctx.attr.is_nix:
+    if ctx.attr.is_unix:
         ctx.actions.run(
             inputs = srcs_as_files + additional_srcs,
             outputs = outs_as_files,
@@ -109,9 +109,7 @@ perl_genrule = rule(
         # We specify what assemby flavor to use based on os and architecture.
         "assembly_flavor": attr.string(doc = "What flavor to use for assembly generation."),
         # We need to know what os this is running on.
-        "is_nix": attr.bool(doc = "Whether this is mac or linux or not."),
-        # We need to know what architecture we are running on.
-        "is_x86": attr.bool(doc = "Whether this is on arm64 or x86_64."),
+        "is_unix": attr.bool(doc = "Whether this is mac or linux or not."),
         # The dict of srcs to their outs.
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.

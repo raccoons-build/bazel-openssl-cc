@@ -269,13 +269,9 @@ perl_genrule(
         "@bazel_tools//src/conditions:windows_arm64": "win64",
         "@bazel_tools//src/conditions:windows_x64": "masm",
     }),
-    is_nix = select({
+    is_unix = select({
         "//conditions:default": True,
         "@platforms//os:windows": False,
-    }),
-    is_x86 = select({
-        "//conditions:default": False,
-        "@platforms//cpu:x86_64": True,
     }),
     srcs_to_outs = select({
         "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
@@ -551,10 +547,6 @@ genrule(
 
 collate_into_directory(
     name = "gen_dir",
-    is_nix = select({
-        "//conditions:default": True,
-        "@platforms//os:windows": False,
-    }),
     outs_prefix_map = {
         ":crypto": "lib/",
         ":openssl": "bin/",
