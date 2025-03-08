@@ -392,7 +392,7 @@ def write_module_files(
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
-bazel_dep(name = "rules_python", version = "1.2.0", dev_dependency = True)
+bazel_dep(name = "rules_python", version = "1.2.0")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
