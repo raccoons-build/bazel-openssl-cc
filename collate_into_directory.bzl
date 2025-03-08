@@ -1,7 +1,7 @@
 """Move files from one path to an output directory specified through a series of dicts
 """
 
-def get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
+def _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
     """Gets the input files and the commands to run
 
     Args:
