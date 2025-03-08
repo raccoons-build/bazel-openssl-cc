@@ -57,7 +57,7 @@ def _collate_into_directory_impl(ctx):
     }
     srcs_map.update(implicit_srcs_from_outs)
 
-    input_files, copy_calls = get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
+    input_files, copy_calls = _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
 
     ctx.actions.run_shell(
         inputs = input_files,
