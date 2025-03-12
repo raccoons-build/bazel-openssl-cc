@@ -43,13 +43,13 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, operating_system: str):
                 # it needs to be non-zero
                 env=dict(os.environ) | {"SOURCE_DATE_EPOCH": "443779200"},
             )
-            with tempfile.TemporaryDirectory() as output_tar_dir:
-                files_to_tar = list(sorted(os.listdir(output_tar_dir)))
-                tar = "gtar" if sys.platform == "darwin" else "tar"
-                extra_tar_options = get_extra_tar_options(operating_system)
-                subprocess.check_call([tar] + extra_tar_options + ["-czf", overlay_tar_path] + files_to_tar,
-                                    cwd=output_tar_dir,
-                                    )
+            
+            files_to_tar = list(sorted(os.listdir(openssl_dir)))
+            tar = "gtar" if sys.platform == "darwin" else "tar"
+            extra_tar_options = get_extra_tar_options(operating_system)
+            subprocess.check_call([tar] + extra_tar_options + ["-czf", overlay_tar_path] + files_to_tar,
+                                cwd=openssl_dir,
+                                )
 
 
 
