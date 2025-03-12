@@ -7,6 +7,8 @@ import os
 import subprocess
 import hashlib
 import base64
+import shutil
+import platform
 
 openssl_version = "3.3.1"
 
@@ -187,4 +189,14 @@ def integrity_hash(path: str) -> str:
     with open(pathlib.Path(path).resolve(), "rb") as f:
         digest = hashlib.file_digest(f, algo).digest()
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
+
+def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copyfile(pathlib.Path(os.path.join(
+        os.path.dirname(__file__), local_path)), dst)
+    if executable:
+        if platform.system == "Windows":
+            os.access(dst, os.R_OK | os.W_OK | os.X_OK)
+        else:
+            os.chmod(dst, 0o755)
 

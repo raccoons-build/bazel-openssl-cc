@@ -9,10 +9,10 @@ import subprocess
 import sys
 import tempfile
 import pathlib
-import platform
 from typing import Dict
+from contextlib import contextmanager
 
-from common import download_openssl, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash
+from common import copy_from_here_to, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash
 
 def replace_backslashes_in_paths(string):
     """Replaces single backslashes with double backslashes in paths within a string."""
@@ -26,13 +26,14 @@ def replace_backslashes_in_paths(string):
     return re.sub(pattern, replace_match, string)
 
 
-def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str):
+def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str, openssl_tar_path: str):
     openssl_module_dir = pathlib.Path(
         os.path.join(bcr_dir, "modules", "openssl"))
     out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
     overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
+    openssl_dir = pathlib.Path(openssl_tar_path)
 
-    with download_openssl(openssl_version, out_dir, overlay_dir) as (openssl_dir, openssl_info):
+    with download_openssl_info(openssl_dir) as openssl_info:
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
@@ -172,6 +173,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     add_to_metadata(openssl_module_dir, tag)
 
 
+@contextmanager
+def download_openssl_info(openssl_dir: str): 
+    with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'r') as fp: 
+        yield json.load(fp)
+
 def write_module_files(
     out_dir: str,
     tag: int,
@@ -263,17 +269,6 @@ GEN_FILES = {json_dump}
         f.write(out)
     subprocess.check_call([pathlib.Path(buildifier_path), pathlib.Path(path)])
 
-
-def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    shutil.copyfile(pathlib.Path(os.path.join(
-        os.path.dirname(__file__), local_path)), dst)
-    if executable:
-        if platform.system == "Windows":
-            os.access(dst, os.R_OK | os.W_OK | os.X_OK)
-        else:
-            os.chmod(dst, 0o755)
-
 def add_to_metadata(openssl_module_dir, tag):
     metadata_path = pathlib.Path(os.path.join(
         openssl_module_dir, "metadata.json"))
@@ -329,6 +324,7 @@ if __name__ == "__main__":
     parser.add_argument("--bcr_dir", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--overlay_tar_path", required=True)
+    parser.add_argument("--openssl_tar_path", required=True)
     parser.add_argument(
         "--release_tar_url_template",
         default="https://github.com/raccoons-build/bazel-openssl-cc/releases/download/{tag}/bazel-openssl-cc-{tag}.tar.gz",
@@ -336,4 +332,4 @@ if __name__ == "__main__":
     parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
     main(args.bcr_dir, args.overlay_tar_path, args.tag,
-         args.buildifier, args.release_tar_url_template, args.os)
+         args.buildifier, args.release_tar_url_template, args.os, args.openssl_tar_path)
