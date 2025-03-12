@@ -64,7 +64,7 @@ jobs:
       - name: Upload intermediate windows overlay
         uses: actions/upload-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.tar.gz
+          name: 3.3.1.bcr.wip.windows.tar.gz
           path: C:/3.3.1.bcr.wip.windows.tar.gz
           if-no-files-found: error
       - name: Upload intermediate windows bcr
