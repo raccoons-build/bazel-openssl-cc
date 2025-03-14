@@ -180,9 +180,9 @@ def download_openssl(version: str, out_dir: str, overlay_dir: str):
 
 def cleanup(out_dir: str, overlay_dir: str):
     if os.path.exists(out_dir):
-        os.removedirs(out_dir)
+        shutil.rmtree(out_dir, ignore_errors=True)
     if os.path.exists(overlay_dir):
-        os.removedirs(overlay_dir)
+        shutil.rmtree(overlay_dir, ignore_errors=True)
 
 def integrity_hash(path: str) -> str:
     algo = "sha256"
