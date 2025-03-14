@@ -33,12 +33,12 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
     openssl_dir = pathlib.Path(openssl_tar_path)
 
-    with download_openssl_files(openssl_dir) as openssl_info:
+    with download_openssl_files(openssl_dir) as (openssl_info, openssl_final_dir):
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
             for generated_file in generated_files:
-                with open(pathlib.Path(os.path.join(openssl_dir, generated_file)), "r") as f:
+                with open(pathlib.Path(os.path.join(openssl_final_dir, generated_file)), "r") as f:
                     content = f.read()
                 generated_path_to_platform_to_contents[generated_file][
                     platform
@@ -54,7 +54,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                         os.path.dirname(__file__), "extract_srcs.pl")),
                     simple_platform,
                 ],
-                cwd=openssl_dir,
+                cwd=openssl_final_dir,
             ).decode("utf-8")
 
         with tempfile.TemporaryDirectory() as output_tar_dir:
@@ -72,7 +72,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                         exist_ok=True,
                     )
                     shutil.copyfile(
-                        pathlib.Path(os.path.join(openssl_dir, path)),
+                        pathlib.Path(os.path.join(openssl_final_dir, path)),
                         pathlib.Path(os.path.join(output_tar_dir, path)),
                     )
                     platform_independent_generated_files.append(path)
@@ -175,30 +175,18 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
 @contextmanager
 def download_openssl_files(openssl_dir: str): 
-    merge_openssl_dir(openssl_dir)
+    openssl_windows_dir = pathlib.Path(os.path.join(openssl_dir, "windows"))
+    openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix"))
+    final_dest_path = pathlib.Path(os.path.join(openssl_dir, "combined"))
+
+    # First we move windows 
+    shutil.copytree(openssl_windows_dir, final_dest_path)
+    # Then we move unix
+    shutil.copytree(openssl_unix_dir, final_dest_path)
 
     with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'r') as fp: 
-        yield json.load(fp), pathlib.Path(os.path.join(openssl_dir, "combined"))
+        yield json.load(fp), final_dest_path
 
-def merge_openssl_dir(root_dir: str):
-    for root, dirs, files in os.walk(root_dir):
-        merge_files_into(root_dir, root, dirs=dirs)
-        merge_files_into(root_dir, root, files=files)
-
-def merge_files_into(root: str, current_dir: str, files: list = None, dirs: list = None):
-    full_dir = pathlib.Path(os.path.join(root, current_dir))
-
-    if files:
-        for file in files: 
-            file_path = pathlib.Path(os.path.join(full_dir, file))
-            dest_path = pathlib.Path(os.path.join(root, "combined", current_dir, file))
-            if os.path.exists(file_path):
-                continue
-            else: 
-                shutil.move(file_path, dest_path)
-    elif dirs:
-        for dir in dirs: 
-            merge_openssl_dir(dir)
 
 def write_module_files(
     out_dir: str,
