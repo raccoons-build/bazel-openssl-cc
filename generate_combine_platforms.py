@@ -33,7 +33,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
     openssl_dir = pathlib.Path(openssl_tar_path)
 
-    with download_openssl_info(openssl_dir) as openssl_info:
+    with download_openssl_files(openssl_dir) as openssl_info:
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
@@ -174,9 +174,31 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
 
 @contextmanager
-def download_openssl_info(openssl_dir: str): 
+def download_openssl_files(openssl_dir: str): 
+    merge_openssl_dir(openssl_dir)
+
     with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'r') as fp: 
-        yield json.load(fp)
+        yield json.load(fp), pathlib.Path(os.path.join(openssl_dir, "combined"))
+
+def merge_openssl_dir(root_dir: str):
+    for root, dirs, files in os.walk(root_dir):
+        merge_files_into(root_dir, root, dirs=dirs)
+        merge_files_into(root_dir, root, files=files)
+
+def merge_files_into(root: str, current_dir: str, files: list = None, dirs: list = None):
+    full_dir = pathlib.Path(os.path.join(root, current_dir))
+
+    if files:
+        for file in files: 
+            file_path = pathlib.Path(os.path.join(full_dir, file))
+            dest_path = pathlib.Path(os.path.join(root, "combined", current_dir, file))
+            if os.path.exists(file_path):
+                continue
+            else: 
+                shutil.move(file_path, dest_path)
+    elif dirs:
+        for dir in dirs: 
+            merge_openssl_dir(dir)
 
 def write_module_files(
     out_dir: str,

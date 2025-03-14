@@ -46,14 +46,22 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
                 json.dump(openssl_info, fp)
             
-            files_to_tar = list(sorted(os.listdir(openssl_dir)))
+            files_to_tar = list(sorted(get_files_to_tar(openssl_dir, openssl_dir)))
             tar = "gtar" if sys.platform == "darwin" else "tar"
             extra_tar_options = get_extra_tar_options(operating_system)
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
                                 cwd=openssl_dir,
                                 )
 
-
+def get_files_to_tar(original_root: str, walk_dir: str):
+    files_to_tar = []
+    for _, dirs, files in os.walk(walk_dir):
+        for file in files:
+            full_path = pathlib.Path(os.path.join(original_root, walk_dir, file))
+            files_to_tar.append(full_path)
+        for dir in dirs: 
+                files_to_tar = files_to_tar + get_files_to_tar(original_root, dir)
+    return files_to_tar
 
 def write_config_file(openssl_dir, platform):
     with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
