@@ -4,6 +4,7 @@ import subprocess
 import sys
 import pathlib
 import json
+import shutil
 
 from common import download_openssl, openssl_version, get_platforms, get_start_configure_list, get_make_command, generated_files, get_extra_tar_options, copy_from_here_to, get_simple_platform, WINDOWS
 
@@ -63,12 +64,20 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
                                 cwd=openssl_dir,
                                 )
+
+def move_files(openssl_dir: str, files):
+    suffix = f'openssl-{openssl_version}'
+    prefix_dir = str(openssl_dir).removesuffix(suffix)
+    moved_files = [pathlib.Path(str(file).removeprefix(prefix_dir)) for file in files]
+
+    shutil.move(openssl_dir, suffix)
+
+    return moved_files
+
 def list_of_files_matching_pattern(openssl_dir: str, pattern: str):
     return list(sorted(pathlib.Path(openssl_dir).rglob(pattern=pattern)))
 
 def get_files_to_tar(openssl_dir: str):
-    suffix = f'openssl-{openssl_version}'
-    prefix_dir = str(openssl_dir).removesuffix(suffix)
 
     all_files_to_tar = []
 
@@ -82,7 +91,10 @@ def get_files_to_tar(openssl_dir: str):
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "ssl/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "providers/**/*")
-    return list(sorted([pathlib.Path(str(file).removeprefix(prefix_dir)) for file in all_files_to_tar]))
+
+    moved_files_to_tar = move_files(all_files_to_tar)
+
+    return list(sorted(moved_files_to_tar))
 
 def write_config_file(openssl_dir, platform):
     with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
