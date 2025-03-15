@@ -92,6 +92,7 @@ jobs:
           name: bcr.windows.tar.gz
           path: /tmp/windows/
       - run: (cd /tmp && tar -tzf /tmp/windows/bcr.windows.tar.gz && tar xzf /tmp/windows/bcr.windows.tar.gz)
+      - run: (cd /tmp && tar -tzf /tmp/windows/3.3.1.bcr.wip.windows.tar.gz && tar xzf /tmp/windows/3.3.1.bcr.wip.windows.tar.gz)
       - name: Download unix overlay
         uses: actions/download-artifact@v4
         with:
@@ -103,6 +104,7 @@ jobs:
           name: bcr.unix.tar.gz
           path: /tmp/unix/
       - run: (cd /tmp && tar -tzf /tmp/windows/bcr.windows.tar.gz && tar xzf /tmp/unix/bcr.unix.tar.gz)
+      - run: (cd /tmp && tar -tzf /tmp/windows/3.3.1.bcr.wip.unix.tar.gz && tar xzf /tmp/unix/v3.3.1.bcr.wip.unix.tar.gz)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
