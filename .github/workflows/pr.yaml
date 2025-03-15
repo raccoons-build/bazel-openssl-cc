@@ -104,7 +104,7 @@ jobs:
           name: bcr.unix.tar.gz
           path: /tmp/unix/
       - run: (cd /tmp && tar -tzf /tmp/unix/bcr.unix.tar.gz && tar xzf /tmp/unix/bcr.unix.tar.gz)
-      - run: (cd /tmp && tar -tzf /tmp/unix/3.3.1.bcr.wip.unix.tar.gz && tar xzf /tmp/unix/v3.3.1.bcr.wip.unix.tar.gz)
+      - run: (cd /tmp && tar -tzf /tmp/unix/3.3.1.bcr.wip.unix.tar.gz && tar xzf /tmp/unix/3.3.1.bcr.wip.unix.tar.gz)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
