@@ -55,6 +55,7 @@ jobs:
       - name: Preparing nmake
         uses: ilammy/msvc-dev-cmd@v1
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
+      - run: git config --system core.longpaths true
       - uses: nick-fields/retry@v2
         with:
           timeout_minutes: 10
