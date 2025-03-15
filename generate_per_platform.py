@@ -68,7 +68,7 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
 def move_files(openssl_dir: str, files):
     suffix = f'openssl-{openssl_version}'
     prefix_dir = str(openssl_dir).removesuffix(suffix)
-    moved_files = [pathlib.Path(str(file).removeprefix(prefix_dir)) for file in files]
+    moved_files = [pathlib.Path(f"/{str(file).removeprefix(prefix_dir)}") for file in files]
 
     shutil.move(openssl_dir, suffix)
 
