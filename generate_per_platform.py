@@ -92,7 +92,7 @@ def get_files_to_tar(openssl_dir: str):
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "providers/**/*")
 
-    moved_files_to_tar = move_files(all_files_to_tar)
+    moved_files_to_tar = move_files(openssl_dir, all_files_to_tar)
 
     return list(sorted(moved_files_to_tar))
 
