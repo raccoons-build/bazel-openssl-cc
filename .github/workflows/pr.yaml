@@ -42,7 +42,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: echo "Windows Registry Editor Version 5.00\n[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem]\n"LongPathsEnabled"=dword:00000001" > C:/longpaths.reg
+      - name: Run PowerShell command to increase path lengths
+        shell: pwsh
+        run: |
+          New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - name: Checkout BCR
         uses: actions/checkout@v4.2.2
