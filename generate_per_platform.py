@@ -48,16 +48,13 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
                 json.dump(openssl_info, fp)
             # Just grab every file
-            all_files_to_tar = list(sorted(pathlib.Path(openssl_dir).rglob(pattern="*")))
+            all_files_to_tar = get_files_to_tar(openssl_dir)
             files_to_tar = []
             simple_platform = get_simple_platform(operating_system)
             if simple_platform == WINDOWS:
                 for file in all_files_to_tar:
                     if len(str(file)) < MAX_PATH_LEN_WINDOWS: 
-                        print(f"File ok length {file}")
                         files_to_tar.append(file)
-                    else: 
-                        print(f"File too long {file}")
             else: 
                 files_to_tar = all_files_to_tar
 
@@ -66,6 +63,25 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
                                 cwd=openssl_dir,
                                 )
+
+def list_of_files_matching_pattern(openssl_dir: str, pattern: str):
+    return list(sorted(pathlib.Path(openssl_dir).rglob(pattern=pattern)))
+
+def get_files_to_tar(openssl_dir: str):
+    all_files_to_tar = []
+
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl_info.json")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "configdata*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "Makefile*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "opensslconf.h")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "config.h")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "crypto/**/*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "include/**/*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "ssl/**/*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl/**/*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "providers/**/*")
+    print(all_files_to_tar)
+    return list(sorted(all_files_to_tar))
 
 def write_config_file(openssl_dir, platform):
     with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
