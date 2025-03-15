@@ -45,22 +45,22 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
                 env=dict(os.environ) | {"SOURCE_DATE_EPOCH": "443779200"},
             )
             
-    # Write out the openssl_info to be used later
-    with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
-        json.dump(openssl_info, fp)
-    # Just grab every file
-    all_files_to_tar = get_files_to_tar(openssl_dir)
-    files_to_tar = []
-    simple_platform = get_simple_platform(operating_system)
-    if simple_platform == WINDOWS:
-        for file in all_files_to_tar:
-            if len(str(file)) < MAX_PATH_LEN_WINDOWS: 
-                files_to_tar.append(file)
-    else: 
-        files_to_tar = all_files_to_tar
-    tar = "gtar" if sys.platform == "darwin" else "tar"
-    extra_tar_options = get_extra_tar_options(operating_system)
-    subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
+        # Write out the openssl_info to be used later
+        with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
+            json.dump(openssl_info, fp)
+        # Just grab every file
+        all_files_to_tar = get_files_to_tar(openssl_dir)
+        files_to_tar = []
+        simple_platform = get_simple_platform(operating_system)
+        if simple_platform == WINDOWS:
+            for file in all_files_to_tar:
+                if len(str(file)) < MAX_PATH_LEN_WINDOWS: 
+                    files_to_tar.append(file)
+        else: 
+            files_to_tar = all_files_to_tar
+        tar = "gtar" if sys.platform == "darwin" else "tar"
+        extra_tar_options = get_extra_tar_options(operating_system)
+        subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
                         )
 
 def move_files(openssl_dir: str, files):
