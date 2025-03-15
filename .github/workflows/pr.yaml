@@ -91,7 +91,7 @@ jobs:
         with:
           name: bcr.windows.tar.gz
           path: /tmp/windows/
-      - run: (ls /tmp/windows && cd /tmp && tar xzf /tmp/windows/bcr.windows.tar.gz)
+      - run: (cd /tmp && tar -tzf /tmp/windows/bcr.windows.tar.gz && tar xzf /tmp/windows/bcr.windows.tar.gz)
       - name: Download unix overlay
         uses: actions/download-artifact@v4
         with:
@@ -102,13 +102,12 @@ jobs:
         with:
           name: bcr.unix.tar.gz
           path: /tmp/unix/
-      - run: (cd /tmp && tar xzf /tmp/unix/bcr.unix.tar.gz)
+      - run: (cd /tmp && tar -tzf /tmp/windows/bcr.windows.tar.gz && tar xzf /tmp/unix/bcr.unix.tar.gz)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - run: ./download-buildifier.sh
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - run: ls -R /tmp/windows && ls -R /tmp/unix
       - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.tar.gz --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --release_tar_url_template=file:///tmp/3.3.1.bcr.wip.tar.gz --buildifier=/tmp/buildifier.exe
       - run: tar czf bcr.tar.gz bazel-central-registry
       - name: Upload overlay
