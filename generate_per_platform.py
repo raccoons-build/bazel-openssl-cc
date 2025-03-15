@@ -68,7 +68,7 @@ def list_of_files_matching_pattern(openssl_dir: str, pattern: str):
 
 def get_files_to_tar(openssl_dir: str):
     suffix = f'openssl-{openssl_version}'
-    prefix_dir = openssl_dir.removesuffix(suffix)
+    prefix_dir = str(openssl_dir).removesuffix(suffix)
 
     all_files_to_tar = []
 
