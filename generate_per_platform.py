@@ -89,8 +89,8 @@ def get_files_to_tar(openssl_dir: str):
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "crypto/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "include/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "ssl/**/*")
-    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "providers/**/*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "apps/**/*")
 
     moved_files_to_tar = move_files(openssl_dir, all_files_to_tar)
 
