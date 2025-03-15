@@ -58,7 +58,7 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
                         files_to_tar.append(file)
             else: 
                 files_to_tar = all_files_to_tar
-
+            subprocess.check_call(["ls" "-R", to_tar_dir])
             tar = "gtar" if sys.platform == "darwin" else "tar"
             extra_tar_options = get_extra_tar_options(operating_system)
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
