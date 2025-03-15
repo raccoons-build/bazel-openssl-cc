@@ -49,7 +49,7 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
                 json.dump(openssl_info, fp)
             # Just grab every file
-            all_files_to_tar = get_files_to_tar(openssl_dir)
+            all_files_to_tar, to_tar_dir = get_files_to_tar(openssl_dir)
             files_to_tar = []
             simple_platform = get_simple_platform(operating_system)
             if simple_platform == WINDOWS:
@@ -62,7 +62,7 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             tar = "gtar" if sys.platform == "darwin" else "tar"
             extra_tar_options = get_extra_tar_options(operating_system)
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
-                                cwd=openssl_dir,
+                                cwd=to_tar_dir,
                                 )
 
 def move_files(openssl_dir: str, files):
@@ -72,7 +72,7 @@ def move_files(openssl_dir: str, files):
 
     shutil.move(openssl_dir, suffix)
 
-    return moved_files
+    return moved_files, suffix
 
 def list_of_files_matching_pattern(openssl_dir: str, pattern: str):
     return list(sorted(pathlib.Path(openssl_dir).rglob(pattern=pattern)))
@@ -92,9 +92,9 @@ def get_files_to_tar(openssl_dir: str):
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "providers/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "apps/**/*")
 
-    moved_files_to_tar = move_files(openssl_dir, all_files_to_tar)
+    moved_files_to_tar, dst_dir = move_files(openssl_dir, all_files_to_tar)
 
-    return list(sorted(moved_files_to_tar))
+    return list(sorted(moved_files_to_tar)), dst_dir
 
 def write_config_file(openssl_dir, platform):
     with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
