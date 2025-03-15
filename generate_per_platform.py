@@ -58,17 +58,15 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
                         files_to_tar.append(file)
             else: 
                 files_to_tar = all_files_to_tar
-            subprocess.check_call(["ls", "-R", to_tar_dir])
             tar = "gtar" if sys.platform == "darwin" else "tar"
             extra_tar_options = get_extra_tar_options(operating_system)
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
-                                cwd=to_tar_dir,
                                 )
 
 def move_files(openssl_dir: str, files):
     suffix = f'openssl-{openssl_version}'
     prefix_dir = str(openssl_dir).removesuffix(suffix)
-    moved_files = [pathlib.Path(f"/{str(file).removeprefix(prefix_dir)}") for file in files]
+    moved_files = [pathlib.Path(str(file).removeprefix(prefix_dir)) for file in files]
 
     shutil.move(openssl_dir, suffix)
 
