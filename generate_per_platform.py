@@ -7,6 +7,8 @@ import json
 
 from common import download_openssl, openssl_version, get_platforms, get_start_configure_list, get_make_command, generated_files, get_extra_tar_options, copy_from_here_to, get_simple_platform, WINDOWS
 
+MAX_PATH_LEN_WINDOWS = 260
+
 def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
     openssl_module_dir = pathlib.Path(
         os.path.join(bcr_dir, "modules", "openssl"))
@@ -51,8 +53,11 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             simple_platform = get_simple_platform(operating_system)
             if simple_platform == WINDOWS:
                 for file in all_files_to_tar:
-                    if len(str(file)) <= 260: 
+                    if len(str(file)) < MAX_PATH_LEN_WINDOWS: 
+                        print(f"File ok length {file}")
                         files_to_tar.append(file)
+                    else: 
+                        print(f"File too long {file}")
             else: 
                 files_to_tar = all_files_to_tar
 
