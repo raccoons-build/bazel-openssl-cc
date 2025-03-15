@@ -63,11 +63,13 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
                                 cwd=openssl_dir,
                                 )
-
 def list_of_files_matching_pattern(openssl_dir: str, pattern: str):
     return list(sorted(pathlib.Path(openssl_dir).rglob(pattern=pattern)))
 
 def get_files_to_tar(openssl_dir: str):
+    suffix = f'openssl-{openssl_version}'
+    prefix_dir = openssl_dir.removesuffix(suffix)
+
     all_files_to_tar = []
 
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl_info.json")
@@ -80,8 +82,7 @@ def get_files_to_tar(openssl_dir: str):
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "ssl/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "providers/**/*")
-    print(all_files_to_tar)
-    return list(sorted(all_files_to_tar))
+    return list(sorted([pathlib.Path(str(file).removeprefix(prefix_dir)) for file in all_files_to_tar]))
 
 def write_config_file(openssl_dir, platform):
     with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
