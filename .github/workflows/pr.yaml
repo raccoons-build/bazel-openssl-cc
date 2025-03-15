@@ -43,9 +43,6 @@ jobs:
         with:
           python-version: "3.13"
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - name: Enable long paths
-        run: |
-            git config --system core.longpaths true
       - name: Checkout BCR
         uses: actions/checkout@v4.2.2
         with:
