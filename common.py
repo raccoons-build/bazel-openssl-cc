@@ -174,15 +174,17 @@ def download_openssl(version: str, out_dir: str, overlay_dir: str):
         # On Windows this step can fail and we need to retry. But first clean things up.
         except Exception as e:
             cleanup(
-                out_dir, overlay_dir)
+                out_dir, overlay_dir, prefix_dir)
             raise e
 
 
-def cleanup(out_dir: str, overlay_dir: str):
+def cleanup(out_dir: str, overlay_dir: str, prefix_dir: str):
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir, ignore_errors=True)
     if os.path.exists(overlay_dir):
         shutil.rmtree(overlay_dir, ignore_errors=True)
+    if os.path.exists(prefix_dir):
+        shutil.rmtree(prefix_dir, ignore_errors=True)
 
 def integrity_hash(path: str) -> str:
     algo = "sha256"
