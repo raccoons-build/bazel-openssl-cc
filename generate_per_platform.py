@@ -65,7 +65,6 @@ def main(bcr_dir: str, openssl_tar_path: str, tag: str, operating_system: str):
         extra_tar_options = get_extra_tar_options(operating_system)
         # On Windows the command gets far too long when specifying every file so we just tar the whole thing
         if simple_platform == WINDOWS:
-            subprocess.check_call(["ls", "-R", dir_to_tar])
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path, dir_to_tar])
         else:
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
