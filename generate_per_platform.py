@@ -77,7 +77,7 @@ def move_files(openssl_dir: str, files):
 
     shutil.move(openssl_dir, suffix)
 
-    return moved_files, prefix_dir
+    return moved_files, suffix
 
 def list_of_files_matching_pattern(openssl_dir: str, pattern: str):
     return list(sorted(pathlib.Path(openssl_dir).rglob(pattern=pattern)))
