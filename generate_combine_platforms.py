@@ -175,8 +175,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
 @contextmanager
 def download_openssl_files(openssl_dir: str): 
-    openssl_windows_dir = pathlib.Path(os.path.join(openssl_dir, "windows"))
-    openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix"))
+    openssl_windows_dir = pathlib.Path(os.path.join(openssl_dir, "windows_unzipped"))
+    openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix_unzipped"))
     final_dest_path = pathlib.Path(os.path.join(openssl_dir, "combined"))
 
     subprocess.check_call(["ls", "-R", openssl_windows_dir])
