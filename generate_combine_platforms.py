@@ -187,7 +187,9 @@ def download_openssl_files(openssl_dir: str):
     # Then we move unix
     shutil.copytree(openssl_unix_dir, final_dest_path, dirs_exist_ok=True, ignore=ignore_files)
 
-    with open(pathlib.Path(os.path.join(final_dest_path, 'openssl_info.json')), 'r') as fp: 
+    subprocess.check_call(["ls", "-R", final_dest_path])
+
+    with open(pathlib.Path(os.path.join(final_dest_path, f'openssl-{openssl_version}', 'openssl_info.json')), 'r') as fp: 
         yield json.load(fp), final_dest_path
 
 
