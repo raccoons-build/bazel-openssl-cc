@@ -174,7 +174,9 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
 def ignore_files(dir, files):
     # The .rev files cause permissions issues and we don't need them
-    return [file for file in files if not str(file).endswith(".rev")]
+    files_to_ret = [file for file in files if not str(file).endswith(".rev")]
+    print(files_to_ret)
+    return files_to_ret
 
 @contextmanager
 def download_openssl_files(openssl_dir: str): 
