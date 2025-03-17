@@ -12,27 +12,14 @@ jobs:
         with:
           python-version: "3.13"
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - name: Checkout BCR
-        uses: actions/checkout@v4.2.2
-        with:
-          repository: illicitonion/bazel-central-registry
-          token: ${{ secrets.BCR_GITHUB_TOKEN }}
-          path: bazel-central-registry
-          ref: refs/heads/main
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-      - run: python3 generate_per_platform.py --os=unix --bcr_dir=$(pwd)/bazel-central-registry --tag=3.3.1.bcr.unix.wip --openssl_tar_path=/tmp/3.3.1.bcr.wip.unix.tar.gz
+      - run: python3 generate_per_platform.py --os=unix --openssl_tar_path=/tmp/3.3.1.bcr.wip.unix.tar.gz
       - run: tar czf bcr.unix.tar.gz bazel-central-registry
       - name: Upload intermediate unix overlay
         uses: actions/upload-artifact@v4
         with:
           name: 3.3.1.bcr.wip.unix.tar.gz
           path: /tmp/3.3.1.bcr.wip.unix.tar.gz
-          if-no-files-found: error
-      - name: Upload intermediate unix bcr
-        uses: actions/upload-artifact@v4
-        with:
-          name: bcr.unix.tar.gz
-          path: bcr.unix.tar.gz
           if-no-files-found: error
   pr-generate-windows:
     runs-on: windows-latest
@@ -47,13 +34,6 @@ jobs:
         run: |
           New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - name: Checkout BCR
-        uses: actions/checkout@v4.2.2
-        with:
-          repository: illicitonion/bazel-central-registry
-          token: ${{ secrets.BCR_GITHUB_TOKEN }}
-          path: bazel-central-registry
-          ref: refs/heads/main
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
       - name: Preparing nmake
@@ -65,19 +45,13 @@ jobs:
         with:
           timeout_minutes: 10
           max_attempts: 3
-          command: python3 generate_per_platform.py --os=windows --bcr_dir=$(pwd)/bazel-central-registry --tag=3.3.1.bcr.windows.wip --openssl_tar_path=C:/3.3.1.bcr.wip.windows.tar.gz
+          command: python3 generate_per_platform.py --os=windows --openssl_tar_path=C:/3.3.1.bcr.wip.windows.tar.gz
       - run: tar czf bcr.windows.tar.gz bazel-central-registry
       - name: Upload intermediate windows overlay
         uses: actions/upload-artifact@v4
         with:
           name: 3.3.1.bcr.wip.windows.tar.gz
           path: C:/3.3.1.bcr.wip.windows.tar.gz
-          if-no-files-found: error
-      - name: Upload intermediate windows bcr
-        uses: actions/upload-artifact@v4
-        with:
-          name: bcr.windows.tar.gz
-          path: bcr.windows.tar.gz
           if-no-files-found: error
   pr-merge-generate:
     runs-on: ubuntu-latest
@@ -87,30 +61,25 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4.2.2
+      - name: Checkout BCR
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: illicitonion/bazel-central-registry
+          token: ${{ secrets.BCR_GITHUB_TOKEN }}
+          path: bazel-central-registry
+          ref: refs/heads/main
       - name: Download windows overlay
         uses: actions/download-artifact@v4
         with:
           name: 3.3.1.bcr.wip.windows.tar.gz
           path: /tmp/windows/
-      - name: Download windows bcr
-        uses: actions/download-artifact@v4
-        with:
-          name: bcr.windows.tar.gz
-          path: /tmp/windows/
-      - run: (cd /tmp && mkdir /tmp/windows_unzipped && tar -xzvf /tmp/windows/bcr.windows.tar.gz -C /tmp/windows_unzipped )
-      - run: (cd /tmp && tar -xzvf /tmp/windows/3.3.1.bcr.wip.windows.tar.gz -C /tmp/windows_unzipped)
+      - run: (cd /tmp && mkdir /tmp/windows_unzipped && tar -xzvf /tmp/windows/3.3.1.bcr.wip.windows.tar.gz -C /tmp/windows_unzipped)
       - name: Download unix overlay
         uses: actions/download-artifact@v4
         with:
           name: 3.3.1.bcr.wip.unix.tar.gz
           path: /tmp/unix/
-      - name: Download unix bcr
-        uses: actions/download-artifact@v4
-        with:
-          name: bcr.unix.tar.gz
-          path: /tmp/unix/
-      - run: (cd /tmp && mkdir /tmp/unix_unzipped && tar -xzvf /tmp/unix/bcr.unix.tar.gz -C /tmp/unix_unzipped)
-      - run: (cd /tmp && tar -xzvf /tmp/unix/3.3.1.bcr.wip.unix.tar.gz -C /tmp/unix_unzipped)
+      - run: (cd /tmp && mkdir /tmp/unix_unzipped && tar -xzvf /tmp/unix/3.3.1.bcr.wip.unix.tar.gz -C /tmp/unix_unzipped)
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"

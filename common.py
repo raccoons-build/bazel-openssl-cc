@@ -153,7 +153,7 @@ def get_simple_platform(os: str):
 
 
 @contextmanager
-def download_openssl(version: str, out_dir: str, overlay_dir: str):
+def download_openssl(version: str):
     with tempfile.TemporaryDirectory() as tempdir:
         try:
             tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
@@ -173,16 +173,11 @@ def download_openssl(version: str, out_dir: str, overlay_dir: str):
             yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
         # On Windows this step can fail and we need to retry. But first clean things up.
         except Exception as e:
-            cleanup(
-                out_dir, overlay_dir, prefix_dir)
+            cleanup(prefix_dir)
             raise e
 
 
-def cleanup(out_dir: str, overlay_dir: str, prefix_dir: str):
-    if os.path.exists(out_dir):
-        shutil.rmtree(out_dir, ignore_errors=True)
-    if os.path.exists(overlay_dir):
-        shutil.rmtree(overlay_dir, ignore_errors=True)
+def cleanup(prefix_dir: str):
     if os.path.exists(prefix_dir):
         shutil.rmtree(prefix_dir, ignore_errors=True)
 
