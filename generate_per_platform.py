@@ -40,7 +40,7 @@ def main(openssl_tar_path: str, operating_system: str):
         with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
             json.dump(openssl_info, fp)
         # Just grab every relevant file and the directory to tar
-        all_files_to_tar, dir_to_tar = get_files_to_tar(openssl_dir)
+        all_files_to_tar = get_files_to_tar(openssl_dir)
         files_to_tar = []
         simple_platform = get_simple_platform(operating_system)
 
@@ -56,7 +56,7 @@ def main(openssl_tar_path: str, operating_system: str):
         extra_tar_options = get_extra_tar_options(operating_system)
         # On Windows the command gets far too long when specifying every file so we just tar the whole thing
         if simple_platform == WINDOWS:
-            subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path, dir_to_tar])
+            subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path, openssl_dir])
         else:
             subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
                             )
@@ -88,9 +88,7 @@ def get_files_to_tar(openssl_dir: str):
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "providers/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "apps/**/*")
 
-    moved_files_to_tar, dir_to_tar = move_files(openssl_dir, all_files_to_tar)
-
-    return list(sorted(moved_files_to_tar)), dir_to_tar
+    return list(sorted(all_files_to_tar))
 
 def write_config_file(openssl_dir, platform):
     with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:

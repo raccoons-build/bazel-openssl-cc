@@ -154,27 +154,27 @@ def get_simple_platform(os: str):
 
 @contextmanager
 def download_openssl(version: str):
-    with tempfile.TemporaryDirectory() as tempdir:
-        try:
-            tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
-            url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
-            subprocess.check_call(
-                ["curl", "--fail", "-L", "-o", tar_path, url],
-            )
-            subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
+    try:
+        tempdir = "/tmp"
+        tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
+        url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
+        subprocess.check_call(
+            ["curl", "--fail", "-L", "-o", tar_path, url],
+        )
+        subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
 
-            prefix_dir = f"openssl-{version}"
-            openssl_info = {
-                "url": url,
-                "integrity": integrity_hash(tar_path),
-                "strip_prefix": prefix_dir,
-            }
+        prefix_dir = f"openssl-{version}"
+        openssl_info = {
+            "url": url,
+            "integrity": integrity_hash(tar_path),
+            "strip_prefix": prefix_dir,
+        }
 
-            yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
-        # On Windows this step can fail and we need to retry. But first clean things up.
-        except Exception as e:
-            cleanup(prefix_dir)
-            raise e
+        yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
+    # On Windows this step can fail and we need to retry. But first clean things up.
+    except Exception as e:
+        cleanup(prefix_dir)
+        raise e
 
 
 def cleanup(prefix_dir: str):

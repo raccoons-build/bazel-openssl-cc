@@ -181,10 +181,9 @@ def ignore_files(dir, files):
     return [file for file in files if str(file).endswith((".rev", ".idx"))]
 
 @contextmanager
-def download_openssl_files(openssl_dir: str): 
-    openssl_windows_dir = pathlib.Path(os.path.join(openssl_dir, "windows_unzipped"))
-    openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix_unzipped"))
-    final_dest_path = pathlib.Path(os.path.join(openssl_dir, "combined"))
+def download_openssl_files(final_dest_path: str): 
+    openssl_windows_dir = pathlib.Path(os.path.join(final_dest_path, "windows_unzipped"))
+    openssl_unix_dir = pathlib.Path(os.path.join(final_dest_path, "unix_unzipped"))
 
     # Make directories
     if not os.path.exists(final_dest_path):
