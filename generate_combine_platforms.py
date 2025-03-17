@@ -178,7 +178,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
 def ignore_files(dir, files):
     # Some unneeded files cause permissions issues
-    return [file for file in files if str(file).endswith(suffix=(".rev", ".idx"))]
+    return [file for file in files if str(file).endswith((".rev", ".idx"))]
 
 @contextmanager
 def download_openssl_files(openssl_dir: str): 
