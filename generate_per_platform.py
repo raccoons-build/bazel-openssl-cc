@@ -86,11 +86,11 @@ def get_files_to_tar(openssl_dir: str):
 
     all_files_to_tar = []
 
-    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl_info.json")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl_info.json*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "configdata*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "Makefile*")
-    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "opensslconf.h")
-    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "config.h")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "opensslconf.h*")
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "config.h*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "crypto/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "include/**/*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "ssl/**/*")
