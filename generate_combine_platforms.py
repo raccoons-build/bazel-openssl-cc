@@ -182,6 +182,10 @@ def download_openssl_files(openssl_dir: str):
     openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix_unzipped"))
     final_dest_path = pathlib.Path(os.path.join(openssl_dir, "combined"))
 
+    # Make directories
+    if not os.path.exists(final_dest_path):
+        os.makedirs(final_dest_path)
+
     # First we move windows 
     shutil.copytree(openssl_windows_dir, final_dest_path, dirs_exist_ok=True, ignore=ignore_files)
     # Then we move unix
