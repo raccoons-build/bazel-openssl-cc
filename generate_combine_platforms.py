@@ -172,6 +172,9 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
     add_to_metadata(openssl_module_dir, tag)
 
+def ignore_files(dir, files):
+    # The .rev files cause permissions issues and we don't need them
+    return [file for file in files if not str(file).endswith(".rev")]
 
 @contextmanager
 def download_openssl_files(openssl_dir: str): 
@@ -179,13 +182,10 @@ def download_openssl_files(openssl_dir: str):
     openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix_unzipped"))
     final_dest_path = pathlib.Path(os.path.join(openssl_dir, "combined"))
 
-    # We need to ignore the .git files since they aren't needed
-    ignore_pattern = "**/.git/**/*"
-
     # First we move windows 
-    shutil.copytree(openssl_windows_dir, final_dest_path, ignore=shutil.ignore_patterns(ignore_pattern))
+    shutil.copytree(openssl_windows_dir, final_dest_path, ignore=ignore_files)
     # Then we move unix
-    shutil.copytree(openssl_unix_dir, final_dest_path, dirs_exist_ok=True, ignore=shutil.ignore_patterns(ignore_pattern))
+    shutil.copytree(openssl_unix_dir, final_dest_path, dirs_exist_ok=True, ignore=ignore_files)
 
     with open(pathlib.Path(os.path.join(final_dest_path, 'openssl_info.json')), 'r') as fp: 
         yield json.load(fp), final_dest_path
