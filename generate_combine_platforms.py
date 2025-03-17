@@ -179,15 +179,13 @@ def download_openssl_files(openssl_dir: str):
     openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix_unzipped"))
     final_dest_path = pathlib.Path(os.path.join(openssl_dir, "combined"))
 
-    subprocess.check_call(["ls", "-R", openssl_windows_dir])
-    subprocess.check_call(["ls", "-R", openssl_unix_dir])
+    # We need to ignore the .git files since they aren't needed
+    ignore_pattern = "**/.git/**/*"
 
     # First we move windows 
-    shutil.copytree(openssl_windows_dir, final_dest_path)
+    shutil.copytree(openssl_windows_dir, final_dest_path, ignore=shutil.ignore_patterns(ignore_pattern))
     # Then we move unix
-    shutil.copytree(openssl_unix_dir, final_dest_path, dirs_exist_ok=True)
-    
-    subprocess.check_call(["ls", "-R", final_dest_path])
+    shutil.copytree(openssl_unix_dir, final_dest_path, dirs_exist_ok=True, ignore=shutil.ignore_patterns(ignore_pattern))
 
     with open(pathlib.Path(os.path.join(final_dest_path, 'openssl_info.json')), 'r') as fp: 
         yield json.load(fp), final_dest_path
