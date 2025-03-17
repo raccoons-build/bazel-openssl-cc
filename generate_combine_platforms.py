@@ -33,7 +33,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
     openssl_dir = pathlib.Path(openssl_tar_path)
 
-    with download_openssl_files(openssl_dir) as (openssl_info, openssl_final_dir):
+    with download_openssl_files(openssl_dir) as (openssl_info, openssl_combined_dir):
+        openssl_final_dir = pathlib.Path(os.path.join(openssl_combined_dir, f'openssl-{openssl_version}'))
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
@@ -173,8 +174,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     add_to_metadata(openssl_module_dir, tag)
 
 def ignore_files(dir, files):
-    # The .rev files cause permissions issues and we don't need them
-    return [file for file in files if str(file).endswith(".rev")]
+    # Some unneeded files cause permissions issues
+    return [file for file in files if str(file).endswith(suffix=(".rev", ".idx"))]
 
 @contextmanager
 def download_openssl_files(openssl_dir: str): 
