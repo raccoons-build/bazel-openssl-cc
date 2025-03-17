@@ -182,10 +182,6 @@ def download_openssl_files(openssl_dir: str):
     openssl_unix_dir = pathlib.Path(os.path.join(openssl_dir, "unix_unzipped"))
     final_dest_path = pathlib.Path(os.path.join(openssl_dir, "combined"))
 
-    subprocess.check_call(["ls", "-R", openssl_windows_dir])
-
-    subprocess.check_call(["ls", "-R", openssl_unix_dir])
-
     # First we move windows 
     shutil.copytree(openssl_windows_dir, final_dest_path, dirs_exist_ok=True, ignore=ignore_files)
     # Then we move unix
