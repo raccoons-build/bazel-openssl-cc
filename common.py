@@ -155,6 +155,7 @@ def get_simple_platform(os: str):
 @contextmanager
 def download_openssl(version: str, simple_platform: str):
     prefix_dir = f"openssl-{version}"
+    tempdir = ""
     try:
         tempdir = "/tmp"
         if simple_platform == WINDOWS:
@@ -177,13 +178,15 @@ def download_openssl(version: str, simple_platform: str):
         yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
     # On Windows this step can fail and we need to retry. But first clean things up.
     except Exception as e:
-        cleanup(prefix_dir)
+        cleanup(prefix_dir, tempdir)
         raise e
 
 
-def cleanup(prefix_dir: str):
+def cleanup(prefix_dir: str, tempdir: str):
     if os.path.exists(prefix_dir):
         shutil.rmtree(prefix_dir, ignore_errors=True)
+    if os.path.exists(tempdir):
+        shutil.rmtree(tempdir, ignore_errors=True)
 
 def integrity_hash(path: str) -> str:
     algo = "sha256"
