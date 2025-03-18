@@ -154,6 +154,7 @@ def get_simple_platform(os: str):
 
 @contextmanager
 def download_openssl(version: str):
+    prefix_dir = f"openssl-{version}"
     try:
         tempdir = "/tmp"
         tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
@@ -163,7 +164,6 @@ def download_openssl(version: str):
         )
         subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
 
-        prefix_dir = f"openssl-{version}"
         openssl_info = {
             "url": url,
             "integrity": integrity_hash(tar_path),
