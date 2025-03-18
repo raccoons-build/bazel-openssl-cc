@@ -39,27 +39,11 @@ def main(openssl_tar_path: str, operating_system: str):
         # Write out the openssl_info to be used later
         with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
             json.dump(openssl_info, fp)
-        # Just grab every relevant file and the directory to tar
-        all_files_to_tar = get_files_to_tar(openssl_dir)
-        files_to_tar = []
-        simple_platform = get_simple_platform(operating_system)
-
-        # On Windows exclude files who have too long a path
-        if simple_platform == WINDOWS:
-            for file in all_files_to_tar:
-                if len(str(file)) < MAX_PATH_LEN_WINDOWS: 
-                    files_to_tar.append(file)
-        else: 
-            files_to_tar = all_files_to_tar
-
         tar = "gtar" if sys.platform == "darwin" else "tar"
         extra_tar_options = get_extra_tar_options(operating_system)
-        # On Windows the command gets far too long when specifying every file so we just tar the whole thing
-        if simple_platform == WINDOWS:
-            subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path, openssl_dir])
-        else:
-            subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path] + files_to_tar,
-                            )
+
+        # Just grab everything.
+        subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path, openssl_dir])
 
 def move_files(openssl_dir: str, files):
     suffix = f'openssl-{openssl_version}'
