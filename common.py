@@ -159,6 +159,8 @@ def download_openssl(version: str, simple_platform: str):
         tempdir = "/tmp"
         if simple_platform == WINDOWS:
             tempdir = "C:/tmp"
+        if not os.path.exists(tempdir):
+            os.makedirs(tempdir)
         tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
         url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
         subprocess.check_call(
