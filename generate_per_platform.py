@@ -12,7 +12,7 @@ MAX_PATH_LEN_WINDOWS = 260
 
 def main(openssl_tar_path: str, operating_system: str):
 
-    with download_openssl(openssl_version) as (openssl_dir, openssl_info):
+    with download_openssl(openssl_version, get_simple_platform(operating_system)) as (openssl_dir, openssl_info):
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
             start_configure_list = get_start_configure_list(operating_system, platform)

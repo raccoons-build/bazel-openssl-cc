@@ -153,10 +153,12 @@ def get_simple_platform(os: str):
 
 
 @contextmanager
-def download_openssl(version: str):
+def download_openssl(version: str, simple_platform: str):
     prefix_dir = f"openssl-{version}"
     try:
-        tempdir = "C:/tmp"
+        tempdir = "/tmp"
+        if simple_platform == WINDOWS:
+            tempdir = "C:/tmp"
         tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
         url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
         subprocess.check_call(
