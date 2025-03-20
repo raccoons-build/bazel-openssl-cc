@@ -203,6 +203,8 @@ def download_openssl_files(tmp_dir: str):
 
     shutil.move(dir_with_version, openssl_subdir)
 
+    subprocess.check_call(["ls", "-R", openssl_subdir])
+
     with open(pathlib.Path(os.path.join(openssl_subdir, 'openssl_info.json')), 'r') as fp: 
         yield json.load(fp), openssl_subdir
 
