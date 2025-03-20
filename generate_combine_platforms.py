@@ -37,12 +37,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         os.path.join(out_dir, "presubmit.yml")))
 
     with download_openssl_files(openssl_dir) as (openssl_info, openssl_combined_dir):
-        openssl_final_dir = pathlib.Path(os.path.join(openssl_combined_dir, f'openssl-{openssl_version}'))
         generated_path_to_platform_to_contents = defaultdict(dict)
         platform_to_perl_output = {}
         for platform in get_platforms(operating_system):
             for generated_file in generated_files:
-                with open(pathlib.Path(os.path.join(openssl_final_dir, generated_file)), "r") as f:
+                with open(pathlib.Path(os.path.join(openssl_combined_dir, generated_file)), "r") as f:
                     content = f.read()
                 generated_path_to_platform_to_contents[generated_file][
                     platform
@@ -58,7 +57,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                         os.path.dirname(__file__), "extract_srcs.pl")),
                     simple_platform,
                 ],
-                cwd=openssl_final_dir,
+                cwd=openssl_combined_dir,
             ).decode("utf-8")
 
         with tempfile.TemporaryDirectory() as output_tar_dir:
@@ -76,7 +75,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                         exist_ok=True,
                     )
                     shutil.copyfile(
-                        pathlib.Path(os.path.join(openssl_final_dir, path)),
+                        pathlib.Path(os.path.join(openssl_combined_dir, path)),
                         pathlib.Path(os.path.join(output_tar_dir, path)),
                     )
                     platform_independent_generated_files.append(path)
