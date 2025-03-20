@@ -194,7 +194,7 @@ def download_openssl_files(tmp_dir: str):
     # Then we move unix
     shutil.copytree(openssl_unix_dir, final_dest_path, dirs_exist_ok=True, ignore=ignore_files)
 
-    openssl_subdir = os.path.join(final_dest_path, f'openssl-{openssl_version}')
+    openssl_subdir = os.path.join(tmp_dir, f'openssl-{openssl_version}')
     with_tmp_dir = os.path.join(final_dest_path, "tmp")
     dir_with_version = os.path.join(with_tmp_dir, f'openssl-{openssl_version}')
 
