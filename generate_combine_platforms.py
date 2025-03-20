@@ -204,10 +204,10 @@ def download_openssl_files(tmp_dir: str):
 
     shutil.move(dir_with_version, openssl_subdir)
 
-    subprocess.check_call(["ls", "-R", openssl_subdir])
+    openssl_subdir_with_version = os.path.join(openssl_subdir, f'openssl-{openssl_version}')
 
-    with open(pathlib.Path(os.path.join(openssl_subdir, 'openssl_info.json')), 'r') as fp: 
-        yield json.load(fp), openssl_subdir
+    with open(pathlib.Path(os.path.join(openssl_subdir_with_version, 'openssl_info.json')), 'r') as fp: 
+        yield json.load(fp), openssl_subdir_with_version
 
 
 def write_module_files(
