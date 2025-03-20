@@ -194,7 +194,7 @@ def download_openssl_files(tmp_dir: str):
     # Then we move unix
     shutil.copytree(openssl_unix_dir, final_dest_path, dirs_exist_ok=True, ignore=ignore_files)
 
-    openssl_subdir = os.path.join(final_dest_path, 'openssl')
+    openssl_subdir = os.path.join(final_dest_path, f'openssl-{openssl_version}')
     with_tmp_dir = os.path.join(final_dest_path, "tmp")
     dir_with_version = os.path.join(with_tmp_dir, f'openssl-{openssl_version}')
 
@@ -203,10 +203,8 @@ def download_openssl_files(tmp_dir: str):
 
     shutil.move(dir_with_version, openssl_subdir)
 
-    openssl_subdir_with_version = os.path.join(openssl_subdir, f'openssl-{openssl_version}')
-
-    with open(pathlib.Path(os.path.join(openssl_subdir_with_version, 'openssl_info.json')), 'r') as fp: 
-        yield json.load(fp), openssl_subdir_with_version
+    with open(pathlib.Path(os.path.join(openssl_subdir, 'openssl_info.json')), 'r') as fp: 
+        yield json.load(fp), openssl_subdir
 
 
 def write_module_files(
