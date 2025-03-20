@@ -198,9 +198,6 @@ def download_openssl_files(tmp_dir: str):
     with_tmp_dir = os.path.join(final_dest_path, "tmp")
     dir_with_version = os.path.join(with_tmp_dir, f'openssl-{openssl_version}')
 
-    if not os.path.exists(openssl_subdir):
-        os.makedirs(openssl_subdir)
-
     shutil.move(dir_with_version, tmp_dir)
 
     subprocess.check_call(["ls", "-R", openssl_subdir])
