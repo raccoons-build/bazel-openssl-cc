@@ -201,6 +201,9 @@ def download_openssl_files(tmp_dir: str):
     dir_with_version = os.path.join(final_dest_path, f'openssl-{openssl_version}')
     with_tmp_dir = os.path.join(dir_with_version, "tmp")
 
+    if not os.path.exists(openssl_subdir):
+        os.makedirs(openssl_subdir)
+
     shutil.move(with_tmp_dir, openssl_subdir)
 
     with open(pathlib.Path(os.path.join(openssl_subdir, 'openssl_info.json')), 'r') as fp: 
