@@ -198,13 +198,13 @@ def download_openssl_files(tmp_dir: str):
     subprocess.check_call(["ls", "-R", final_dest_path])
 
     openssl_subdir = os.path.join(final_dest_path, 'openssl')
-    dir_with_version = os.path.join(final_dest_path, f'openssl-{openssl_version}')
-    with_tmp_dir = os.path.join(dir_with_version, "tmp")
+    with_tmp_dir = os.path.join(final_dest_path, "tmp")
+    dir_with_version = os.path.join(with_tmp_dir, f'openssl-{openssl_version}')
 
     if not os.path.exists(openssl_subdir):
         os.makedirs(openssl_subdir)
 
-    shutil.move(with_tmp_dir, openssl_subdir)
+    shutil.move(dir_with_version, openssl_subdir)
 
     with open(pathlib.Path(os.path.join(openssl_subdir, 'openssl_info.json')), 'r') as fp: 
         yield json.load(fp), openssl_subdir
