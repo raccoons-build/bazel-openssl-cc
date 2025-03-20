@@ -183,8 +183,8 @@ def ignore_files(dir, files):
 @contextmanager
 def download_openssl_files(tmp_dir: str): 
     final_dest_path = pathlib.Path(os.path.join(tmp_dir, "combined_unzipped"))
-    openssl_windows_dir = pathlib.Path(os.path.join(final_dest_path, "windows_unzipped"))
-    openssl_unix_dir = pathlib.Path(os.path.join(final_dest_path, "unix_unzipped"))
+    openssl_windows_dir = pathlib.Path(os.path.join(tmp_dir, "windows_unzipped"))
+    openssl_unix_dir = pathlib.Path(os.path.join(tmp_dir, "unix_unzipped"))
 
     # Make directories
     if not os.path.exists(final_dest_path):
