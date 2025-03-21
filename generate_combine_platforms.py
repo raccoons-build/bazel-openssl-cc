@@ -48,9 +48,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         if simple_platform == WINDOWS:
             dir_to_copy = openssl_windows_dir
 
+        dir_to_copy_with_version = os.path.join(dir_to_copy, f'openssl-{openssl_version}')
+
         # We load the platform specific copy each time we loop so that the 
         # hardcodedd paths throughtout openssl's generated configs don't break
-        load_dir(dir_to_copy, openssl_tar_root, openssl_version_dir)
+        load_dir(dir_to_copy, dir_to_copy_with_version, openssl_tar_root, openssl_version_dir)
 
         with open(pathlib.Path(os.path.join(openssl_version_dir, 'openssl_info.json')), 'r') as fp: 
             openssl_info = json.load(fp)
@@ -193,11 +195,11 @@ def ignore_files(dir, files):
     # Some unneeded files cause permissions issues
     return [file for file in files if str(file).endswith((".rev", ".idx"))]
 
-def load_dir(dir_to_load, dest_dir, dest_dir_with_version):
+def load_dir(src_dir, src_dir_with_version, dest_dir, dest_dir_with_version):
     
     # Because you cannot copytree to tmp we move it and copy the files back
-    shutil.move(dir_to_load, dest_dir)
-    shutil.copytree(dest_dir_with_version, dir_to_load, ignore=ignore_files, dirs_exist_ok=True)
+    shutil.move(src_dir_with_version, dest_dir)
+    shutil.copytree(dest_dir_with_version, src_dir, ignore=ignore_files, dirs_exist_ok=True)
 
 
 def write_module_files(
