@@ -197,17 +197,19 @@ def ignore_files(dir, files):
 
 def load_dir(src_dir, src_dir_with_version, dest_dir, dest_dir_with_version):
 
-    ls_dir(src_dir)
-    ls_dir(src_dir_with_version)
+    ls_dir(src_dir, True)
     if os.path.exists(dest_dir_with_version):
         shutil.rmtree(dest_dir_with_version)
     # Because you cannot copytree to tmp we move it and copy the files back
     shutil.move(src_dir_with_version, dest_dir)
     shutil.copytree(dest_dir_with_version, src_dir, ignore=ignore_files, dirs_exist_ok=True)
 
-def ls_dir(dir):
+def ls_dir(dir, recursive=False):
     if os.path.exists(dir):
-        subprocess.check_call(["ls", dir])
+        if recursive:
+            subprocess.check_call(["ls", "-R" dir])
+        else:
+            subprocess.check_call(["ls", dir])
     else: 
         print(f'{dir} doesnt exist')
 
