@@ -197,6 +197,8 @@ def ignore_files(dir, files):
 
 def load_dir(src_dir, src_dir_with_version, dest_dir, dest_dir_with_version):
     
+    if os.path.exists(dest_dir_with_version):
+        shutil.rmtree(dest_dir_with_version)
     # Because you cannot copytree to tmp we move it and copy the files back
     shutil.move(src_dir_with_version, dest_dir)
     shutil.copytree(dest_dir_with_version, src_dir, ignore=ignore_files, dirs_exist_ok=True)
