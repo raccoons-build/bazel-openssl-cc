@@ -50,7 +50,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
         # We load the platform specific copy each time we loop so that the 
         # hardcodedd paths throughtout openssl's generated configs don't break
-        shutil.copytree(dir_to_copy, openssl_version_dir, ignore=ignore_files, dirs_exist_ok=True)
+        load_dir(dir_to_copy, openssl_tar_root, openssl_version_dir)
 
         with open(pathlib.Path(os.path.join(openssl_version_dir, 'openssl_info.json')), 'r') as fp: 
             openssl_info = json.load(fp)
@@ -192,6 +192,13 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 def ignore_files(dir, files):
     # Some unneeded files cause permissions issues
     return [file for file in files if str(file).endswith((".rev", ".idx"))]
+
+def load_dir(dir_to_load, dest_dir, dest_dir_with_version):
+    
+    # Because you cannot copytree to tmp we move it and copy the files back
+    shutil.move(dir_to_load, dest_dir)
+    shutil.copytree(dest_dir_with_version, dir_to_load, ignore=ignore_files, dirs_exist_ok=True)
+
 
 def write_module_files(
     out_dir: str,
