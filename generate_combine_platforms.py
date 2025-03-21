@@ -35,8 +35,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         os.path.join(out_dir, "presubmit.yml")))
 
     openssl_tar_root = pathlib.Path(openssl_tar_path)
-    openssl_windows_dir = pathlib.Path(os.path.join(openssl_tar_root, "windows_unzipped"))
-    openssl_unix_dir = pathlib.Path(os.path.join(openssl_tar_root, "unix_unzipped"))
+    openssl_windows_dir = pathlib.Path(os.path.join(openssl_tar_root, "windows_unzipped", "tmp"))
+    openssl_unix_dir = pathlib.Path(os.path.join(openssl_tar_root, "unix_unzipped", "tmp"))
     openssl_version_dir = pathlib.Path(os.path.join(openssl_tar_root, f'openssl-{openssl_version}'))
     
     generated_path_to_platform_to_contents = defaultdict(dict)
