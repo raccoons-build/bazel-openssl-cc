@@ -51,9 +51,16 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
             dir_to_copy = openssl_windows_dir
             dir_to_copyback_to = openssl_unix_dir
 
+        load_dir = False
+
+        # If there is no current platform (first iteration) we always load
+        if not last_simple_platform: 
+            load_dir = True
+
         # If we have switched platforms reload tmp 
         if last_simple_platform and last_simple_platform != simple_platform:
             shutil.move(openssl_version_dir, dir_to_copyback_to)
+            load_dir = True
            
         last_simple_platform = simple_platform
 
@@ -61,9 +68,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
         # We load the platform specific copy each time we loop so that the 
         # hardcoded paths throughtout openssl's generated configs don't break
-        if os.path.exists(openssl_version_dir):
-            shutil.rmtree(openssl_version_dir)
-        shutil.move(dir_to_copy_with_version, openssl_tar_root)
+        if load_dir:
+            if os.path.exists(openssl_version_dir):
+                shutil.rmtree(openssl_version_dir)
+            shutil.move(dir_to_copy_with_version, openssl_tar_root)
 
         with open(pathlib.Path(os.path.join(openssl_version_dir, 'openssl_info.json')), 'r') as fp: 
             openssl_info = json.load(fp)
