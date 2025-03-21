@@ -61,6 +61,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         # hardcoded paths throughtout openssl's generated configs don't break
         shutil.move(dir_to_copy, openssl_tar_root)
 
+        subprocess.check_call(["ls", "-R", openssl_tar_root])
+
         with open(pathlib.Path(os.path.join(openssl_version_dir, 'openssl_info.json')), 'r') as fp: 
             openssl_info = json.load(fp)
             for generated_file in generated_files:
