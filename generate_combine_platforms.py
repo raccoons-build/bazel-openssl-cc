@@ -61,9 +61,9 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
         # We load the platform specific copy each time we loop so that the 
         # hardcoded paths throughtout openssl's generated configs don't break
+        if os.path.exists(openssl_version_dir):
+            shutil.rmtree(openssl_version_dir)
         shutil.move(dir_to_copy_with_version, openssl_tar_root)
-
-        subprocess.check_call(["ls", "-R", openssl_tar_root])
 
         with open(pathlib.Path(os.path.join(openssl_version_dir, 'openssl_info.json')), 'r') as fp: 
             openssl_info = json.load(fp)
