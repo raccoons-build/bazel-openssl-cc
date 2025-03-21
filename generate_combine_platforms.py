@@ -207,7 +207,7 @@ def load_dir(src_dir, src_dir_with_version, dest_dir, dest_dir_with_version):
 def ls_dir(dir, recursive=False):
     if os.path.exists(dir):
         if recursive:
-            subprocess.check_call(["ls", "-R" dir])
+            subprocess.check_call(["ls", "-R", dir])
         else:
             subprocess.check_call(["ls", dir])
     else: 
