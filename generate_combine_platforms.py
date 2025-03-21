@@ -41,18 +41,25 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     
     generated_path_to_platform_to_contents = defaultdict(dict)
     platform_to_perl_output = {}
+    last_simple_platform = None
     for platform in get_platforms(operating_system):
         simple_platform = get_simple_platform(operating_system)
         
         dir_to_copy = openssl_unix_dir
+        dir_to_copyback_to = openssl_windows_dir
         if simple_platform == WINDOWS:
             dir_to_copy = openssl_windows_dir
+            dir_to_copyback_to = openssl_unix_dir
 
-        dir_to_copy_with_version = os.path.join(dir_to_copy, f'openssl-{openssl_version}')
+        # If we have switched platforms reload tmp 
+        if last_simple_platform and last_simple_platform != simple_platform:
+            shutil.move(openssl_version_dir, dir_to_copyback_to)
+           
+        last_simple_platform = simple_platform
 
         # We load the platform specific copy each time we loop so that the 
         # hardcoded paths throughtout openssl's generated configs don't break
-        load_dir(dir_to_copy, dir_to_copy_with_version, openssl_tar_root, openssl_version_dir)
+        shutil.move(dir_to_copy, openssl_tar_root)
 
         with open(pathlib.Path(os.path.join(openssl_version_dir, 'openssl_info.json')), 'r') as fp: 
             openssl_info = json.load(fp)
@@ -194,25 +201,6 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 def ignore_files(dir, files):
     # Some unneeded files cause permissions issues
     return [file for file in files if str(file).endswith((".rev", ".idx"))]
-
-def load_dir(src_dir, src_dir_with_version, dest_dir, dest_dir_with_version):
-
-    ls_dir(src_dir, True)
-    if os.path.exists(dest_dir_with_version):
-        shutil.rmtree(dest_dir_with_version)
-    # Because you cannot copytree to tmp we move it and copy the files back
-    shutil.move(src_dir_with_version, dest_dir)
-    shutil.copytree(dest_dir, src_dir, ignore=ignore_files, dirs_exist_ok=True)
-
-def ls_dir(dir, recursive=False):
-    if os.path.exists(dir):
-        if recursive:
-            subprocess.check_call(["ls", "-R", dir])
-        else:
-            subprocess.check_call(["ls", dir])
-    else: 
-        print(f'{dir} doesnt exist')
-
 
 def write_module_files(
     out_dir: str,
