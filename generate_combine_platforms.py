@@ -38,9 +38,6 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     openssl_windows_dir = pathlib.Path(os.path.join(openssl_tar_root, "windows_unzipped"))
     openssl_unix_dir = pathlib.Path(os.path.join(openssl_tar_root, "unix_unzipped"))
     openssl_version_dir = os.path.join(openssl_tar_root, f'openssl-{openssl_version}')
-
-    # In order to copy to the tmp dir we need to modify permissions 
-    os.chmod(openssl_tar_root, 0o755)
     
     generated_path_to_platform_to_contents = defaultdict(dict)
     platform_to_perl_output = {}
@@ -53,7 +50,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
         # We load the platform specific copy each time we loop so that the 
         # hardcodedd paths throughtout openssl's generated configs don't break
-        shutil.copytree(dir_to_copy, openssl_tar_root, ignore=ignore_files, dirs_exist_ok=True)
+        shutil.copytree(dir_to_copy, openssl_version_dir, ignore=ignore_files, dirs_exist_ok=True)
 
         with open(pathlib.Path(os.path.join(openssl_version_dir, 'openssl_info.json')), 'r') as fp: 
             openssl_info = json.load(fp)
