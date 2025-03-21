@@ -57,9 +57,11 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
            
         last_simple_platform = simple_platform
 
+        dir_to_copy_with_version = os.path.join(dir_to_copy, f'openssl-{openssl_version}')
+
         # We load the platform specific copy each time we loop so that the 
         # hardcoded paths throughtout openssl's generated configs don't break
-        shutil.move(dir_to_copy, openssl_tar_root)
+        shutil.move(dir_to_copy_with_version, openssl_tar_root)
 
         subprocess.check_call(["ls", "-R", openssl_tar_root])
 
