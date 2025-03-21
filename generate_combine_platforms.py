@@ -198,10 +198,10 @@ def ignore_files(dir, files):
 def load_dir(src_dir, src_dir_with_version, dest_dir, dest_dir_with_version):
 
     print("Before \n\n\n")
-    subprocess.check_call(["ls", src_dir])
-    subprocess.check_call(["ls", dest_dir])
-    subprocess.check_call(["ls", src_dir_with_version])
-    subprocess.check_call(["ls", dest_dir_with_version])
+    ls_dir(src_dir)
+    ls_dir(dest_dir)
+    ls_dir(src_dir_with_version)
+    ls_dir(dest_dir_with_version)
     
     if os.path.exists(dest_dir_with_version):
         shutil.rmtree(dest_dir_with_version)
@@ -210,10 +210,17 @@ def load_dir(src_dir, src_dir_with_version, dest_dir, dest_dir_with_version):
     shutil.copytree(dest_dir_with_version, src_dir, ignore=ignore_files, dirs_exist_ok=True)
 
     print("After \n\n\n")
-    subprocess.check_call(["ls", src_dir])
-    subprocess.check_call(["ls", dest_dir])
-    subprocess.check_call(["ls", src_dir_with_version])
-    subprocess.check_call(["ls", dest_dir_with_version])
+    ls_dir(src_dir)
+    ls_dir(dest_dir)
+    ls_dir(src_dir_with_version)
+    ls_dir(dest_dir_with_version)
+
+def ls_dir(dir):
+    if os.path.exists(dir):
+        subprocess.check_call(["ls", dir])
+    else: 
+        print(f'{dir} doesnt exist')
+
 
 def write_module_files(
     out_dir: str,
