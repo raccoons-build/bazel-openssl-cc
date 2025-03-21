@@ -76,118 +76,118 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 cwd=openssl_version_dir,
             ).decode("utf-8")
 
-        with tempfile.TemporaryDirectory() as output_tar_dir:
-            platform_independent_generated_files = []
-            platform_specific_generated_paths = []
+    with tempfile.TemporaryDirectory() as output_tar_dir:
+        platform_independent_generated_files = []
+        platform_specific_generated_paths = []
 
-            for (
-                path,
-                platform_to_contents,
-            ) in generated_path_to_platform_to_contents.items():
-                if len(set(platform_to_contents.values())) == 1:
-                    os.makedirs(
-                        os.path.dirname(pathlib.Path(
-                            os.path.join(output_tar_dir, path))),
-                        exist_ok=True,
-                    )
-                    shutil.copyfile(
-                        pathlib.Path(os.path.join(openssl_version_dir, path)),
-                        pathlib.Path(os.path.join(output_tar_dir, path)),
-                    )
-                    platform_independent_generated_files.append(path)
-                else:
-                    platform_specific_generated_paths.append(path)
-
-            # We need to write constants for ALL platforms not just the ones we are configuring openssl
-            # for so the BUILD file imports work
-            for platform in all_platforms:
-                write_platform_specific_constants(
-                    output_tar_dir,
-                    openssl_version,
-                    platform,
-                    # There should be no perl output when we aren't generating for a platform.
-                    platform_to_perl_output.get(platform, ""),
-                    {
-                        # If there is no path or platform then return nothing
-                        path: generated_path_to_platform_to_contents.get(
-                            path, {}).get(platform, "")
-                        for path in platform_specific_generated_paths
-                    },
-                    pathlib.Path(buildifier_path),
+        for (
+            path,
+            platform_to_contents,
+        ) in generated_path_to_platform_to_contents.items():
+            if len(set(platform_to_contents.values())) == 1:
+                os.makedirs(
+                    os.path.dirname(pathlib.Path(
+                        os.path.join(output_tar_dir, path))),
+                    exist_ok=True,
                 )
-
-            copy_from_here_to(
-                "BUILD.openssl.bazel", pathlib.Path(
-                    os.path.join(overlay_dir, "BUILD.bazel"))
-            )
-            copy_from_here_to("utils.bzl", pathlib.Path(os.path.join(
-                overlay_dir, "utils.bzl")))
-            copy_from_here_to(
-                "collate_into_directory.bzl",
-                pathlib.Path(os.path.join(output_tar_dir,
-                                "collate_into_directory.bzl")),
-            )
-            copy_from_here_to(
-                "perl_genrule.bzl",
-                pathlib.Path(os.path.join(output_tar_dir,
-                                "perl_genrule.bzl")),
-            )
-            copy_from_here_to(
-                ".bazelrc",
-                pathlib.Path(os.path.join(output_tar_dir,
-                                ".bazelrc")),
-            )
-            copy_from_here_to(
-                "move_file_and_strip_prefix.sh",
-                pathlib.Path(os.path.join(output_tar_dir,
-                                "move_file_and_strip_prefix.sh")),
-                executable=True,
-            )
-            copy_from_here_to(
-                "perl_generate_file.sh",
-                pathlib.Path(os.path.join(output_tar_dir,
-                                "perl_generate_file.sh")),
-                executable=True,
-            )
-            with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
-                f.write(
-                    f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n"
+                shutil.copyfile(
+                    pathlib.Path(os.path.join(openssl_version_dir, path)),
+                    pathlib.Path(os.path.join(output_tar_dir, path)),
                 )
+                platform_independent_generated_files.append(path)
+            else:
+                platform_specific_generated_paths.append(path)
 
-            copy_from_here_to(
-                "BUILD.test.bazel",
-                pathlib.Path(os.path.join(
-                    overlay_dir, "test_bazel_build", "BUILD.bazel")),
-            )
-            copy_from_here_to(
-                "sha256_test.py",
-                pathlib.Path(os.path.join(
-                    overlay_dir, "test_bazel_build", "sha256_test.py")),
-                executable=True,
-            )
-
-            with open(pathlib.Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
-                f.write('exports_files(glob(["**"]))\n')
-
-            files_to_tar = list(sorted(os.listdir(output_tar_dir)))
-            tar = "gtar" if sys.platform == "darwin" else "tar"
-            extra_tar_options = get_extra_tar_options(operating_system)
-            subprocess.check_call([tar] + extra_tar_options + ["-czf", overlay_tar_path] + files_to_tar,
-                                    cwd=output_tar_dir,
-                                    )
-
-            write_module_files(
-                out_dir,
-                tag,
-                release_tar_url_template.format(tag=tag),
-                integrity_hash(overlay_tar_path),
+        # We need to write constants for ALL platforms not just the ones we are configuring openssl
+        # for so the BUILD file imports work
+        for platform in all_platforms:
+            write_platform_specific_constants(
+                output_tar_dir,
+                openssl_version,
+                platform,
+                # There should be no perl output when we aren't generating for a platform.
+                platform_to_perl_output.get(platform, ""),
+                {
+                    # If there is no path or platform then return nothing
+                    path: generated_path_to_platform_to_contents.get(
+                        path, {}).get(platform, "")
+                    for path in platform_specific_generated_paths
+                },
+                pathlib.Path(buildifier_path),
             )
 
-            write_source_json(out_dir, openssl_info)
+        copy_from_here_to(
+            "BUILD.openssl.bazel", pathlib.Path(
+                os.path.join(overlay_dir, "BUILD.bazel"))
+        )
+        copy_from_here_to("utils.bzl", pathlib.Path(os.path.join(
+            overlay_dir, "utils.bzl")))
+        copy_from_here_to(
+            "collate_into_directory.bzl",
+            pathlib.Path(os.path.join(output_tar_dir,
+                            "collate_into_directory.bzl")),
+        )
+        copy_from_here_to(
+            "perl_genrule.bzl",
+            pathlib.Path(os.path.join(output_tar_dir,
+                            "perl_genrule.bzl")),
+        )
+        copy_from_here_to(
+            ".bazelrc",
+            pathlib.Path(os.path.join(output_tar_dir,
+                            ".bazelrc")),
+        )
+        copy_from_here_to(
+            "move_file_and_strip_prefix.sh",
+            pathlib.Path(os.path.join(output_tar_dir,
+                            "move_file_and_strip_prefix.sh")),
+            executable=True,
+        )
+        copy_from_here_to(
+            "perl_generate_file.sh",
+            pathlib.Path(os.path.join(output_tar_dir,
+                            "perl_generate_file.sh")),
+            executable=True,
+        )
+        with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
+            f.write(
+                f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n"
+            )
 
-        previous_tag_dir = guess_previous_tag_dir(openssl_module_dir, tag)
-        if previous_tag_dir:
-            dedupe_content_with_symlinks(previous_tag_dir, out_dir)
+        copy_from_here_to(
+            "BUILD.test.bazel",
+            pathlib.Path(os.path.join(
+                overlay_dir, "test_bazel_build", "BUILD.bazel")),
+        )
+        copy_from_here_to(
+            "sha256_test.py",
+            pathlib.Path(os.path.join(
+                overlay_dir, "test_bazel_build", "sha256_test.py")),
+            executable=True,
+        )
+
+        with open(pathlib.Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
+            f.write('exports_files(glob(["**"]))\n')
+
+        files_to_tar = list(sorted(os.listdir(output_tar_dir)))
+        tar = "gtar" if sys.platform == "darwin" else "tar"
+        extra_tar_options = get_extra_tar_options(operating_system)
+        subprocess.check_call([tar] + extra_tar_options + ["-czf", overlay_tar_path] + files_to_tar,
+                                cwd=output_tar_dir,
+                                )
+
+        write_module_files(
+            out_dir,
+            tag,
+            release_tar_url_template.format(tag=tag),
+            integrity_hash(overlay_tar_path),
+        )
+
+        write_source_json(out_dir, openssl_info)
+
+    previous_tag_dir = guess_previous_tag_dir(openssl_module_dir, tag)
+    if previous_tag_dir:
+        dedupe_content_with_symlinks(previous_tag_dir, out_dir)
 
     add_to_metadata(openssl_module_dir, tag)
 
