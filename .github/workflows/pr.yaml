@@ -70,6 +70,8 @@ jobs:
           name: 3.3.1.bcr.wip.windows.tar.gz
           path: /tmp/windows/
       - run: (cd /tmp && mkdir /tmp/windows_unzipped && tar -xzvf /tmp/windows/3.3.1.bcr.wip.windows.tar.gz -C /tmp/windows_unzipped)
+      # We need to replace the `C:/tmp` strings with `/tmp` throughout the files so that the incldues do not break
+      - run: find /tmp/windows_unzipped -type f -exec sed -i 's|C:/tmp|/tmp|g' {} +
       - name: Download unix overlay and openssl files
         uses: actions/download-artifact@v4
         with:
