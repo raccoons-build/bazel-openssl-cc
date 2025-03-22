@@ -70,8 +70,8 @@ jobs:
           name: 3.3.1.bcr.wip.windows.tar.gz
           path: /tmp/windows/
       - run: (cd /tmp && mkdir /tmp/windows_unzipped && tar -xzvf /tmp/windows/3.3.1.bcr.wip.windows.tar.gz -C /tmp/windows_unzipped)
-      - run: mkdir /tmp/windows_unzipped/windows/x86_64 && tar -xzvf /tmp/windows_unzipped/3.3.1.bcr.wip.VC-WIN64A-masm.tar.gz -C /tmp/windows_unzipped/windows/x86_64
-      - run: mkdir /tmp/windows_unzipped/windows/arm64 && tar -xzvf /tmp/windows_unzipped/3.3.1.bcr.wip.VC-WIN64-CLANGASM-ARM.tar.gz -C /tmp/windows_unzipped/windows/arm64
+      - run: mkdir -p /tmp/windows_unzipped/windows/x86_64 && tar -xzvf /tmp/windows_unzipped/3.3.1.bcr.wip.VC-WIN64A-masm.tar.gz -C /tmp/windows_unzipped/windows/x86_64
+      - run: mkdir -p /tmp/windows_unzipped/windows/arm64 && tar -xzvf /tmp/windows_unzipped/3.3.1.bcr.wip.VC-WIN64-CLANGASM-ARM.tar.gz -C /tmp/windows_unzipped/windows/arm64
       # We need to replace the `C:/tmp` strings with `/tmp` throughout the files so that the incldues do not break
       - run: find /tmp/windows_unzipped -type f -exec sed -i 's|C:/tmp|/tmp|g' {} +
       - name: Download unix overlay and openssl files
@@ -80,10 +80,10 @@ jobs:
           name: 3.3.1.bcr.wip.unix.tar.gz
           path: /tmp/unix/
       - run: (cd /tmp && mkdir /tmp/unix_unzipped && tar -xzvf /tmp/unix/3.3.1.bcr.wip.unix.tar.gz -C /tmp/unix_unzipped && mkdir /tmp/unix_unzipped/linux && mkdir /tmp/unix_unzipped/mac)
-      - run: mkdir /tmp/unix_unzipped/linux/x86_64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.linux-x86_64-clang.tar.gz -C /tmp/unix_unzipped/linux/x86_64
-      - run: mkdir /tmp/unix_unzipped/linux/arm64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.linux-aarch64.tar.gz -C /tmp/unix_unzipped/linux/arm64
-      - run: mkdir /tmp/unix_unzipped/mac/x86_64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.darwin64-x86_64-cc.tar.gz -C /tmp/mac/linux/x86_64
-      - run: mkdir /tmp/unix_unzipped/mac/arm64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.darwin64-arm64-cc.tar.gz -C /tmp/mac/linux/arm64
+      - run: mkdir -p /tmp/unix_unzipped/linux/x86_64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.linux-x86_64-clang.tar.gz -C /tmp/unix_unzipped/linux/x86_64
+      - run: mkdir -p /tmp/unix_unzipped/linux/arm64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.linux-aarch64.tar.gz -C /tmp/unix_unzipped/linux/arm64
+      - run: mkdir -p /tmp/unix_unzipped/mac/x86_64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.darwin64-x86_64-cc.tar.gz -C /tmp/mac/linux/x86_64
+      - run: mkdir -p /tmp/unix_unzipped/mac/arm64 && tar -xzvf /tmp/unix_unzipped/3.3.1.bcr.wip.darwin64-arm64-cc.tar.gz -C /tmp/mac/linux/arm64
       - run: ls -R /tmp/unix_unzipped
       - run: ls -R /tmp/windows_unzipped
       - uses: actions/setup-python@v5
