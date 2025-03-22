@@ -6,7 +6,7 @@ import pathlib
 import json
 import shutil
 
-from common import download_openssl, openssl_version, get_platforms, get_start_configure_list, get_make_command, generated_files, get_extra_tar_options
+from common import download_openssl, openssl_version, get_platforms, get_start_configure_list, get_make_command, generated_files, get_extra_tar_options, get_tar_platform
 
 MAX_PATH_LEN_WINDOWS = 260
 
@@ -36,14 +36,17 @@ def main(openssl_tar_path: str, operating_system: str):
                 env=dict(os.environ) | {"SOURCE_DATE_EPOCH": "443779200"},
             )
             
-        # Write out the openssl_info to be used later
-        with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
-            json.dump(openssl_info, fp)
-        tar = "gtar" if sys.platform == "darwin" else "tar"
-        extra_tar_options = get_extra_tar_options(operating_system)
+            # Write out the openssl_info to be used later
+            with open(pathlib.Path(os.path.join(openssl_dir, 'openssl_info.json')), 'w') as fp:
+                json.dump(openssl_info, fp)
+            tar = "gtar" if sys.platform == "darwin" else "tar"
+            extra_tar_options = get_extra_tar_options(operating_system)
 
-        # Just grab everything.
-        subprocess.check_call([tar] + extra_tar_options + ["-czf", openssl_tar_path, openssl_dir])
+            # Each platforms version of openssl is written to its own tar
+            platform_openssl_tar_path = os.path.join(openssl_tar_path, f"3.3.1.bcr.wip.{get_tar_platform(platform)}.tar.gz")
+
+            # Just grab everything.
+            subprocess.check_call([tar] + extra_tar_options + ["-czf", platform_openssl_tar_path, openssl_dir])
 
 def move_files(openssl_dir: str, files):
     suffix = f'openssl-{openssl_version}'

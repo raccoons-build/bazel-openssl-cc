@@ -12,21 +12,35 @@ import platform
 
 openssl_version = "3.3.1"
 
-unix_platforms = [
-    "darwin64-arm64-cc",
-    "darwin64-x86_64-cc",
-    "linux-x86_64-clang",
-    "linux-aarch64",
+MAC_ARM64 = "darwin64-arm64-cc"
+MAC_X86 = "darwin64-x86_64-cc"
+LINUX_ARM64 = "linux-aarch64"
+LINUX_X86 = "linux-x86_64-clang"
+WINDOWS_ARM64 = "VC-WIN64-CLANGASM-ARM"
+WINDOWS_X86 = "VC-WIN64A-masm"
+
+linux_platforms = [LINUX_ARM64, LINUX_X86]
+
+mac_platforms = [MAC_ARM64, MAC_X86]
+
+unix_platforms = linux_platforms + mac_platforms
+
+windows_platforms = [
+    WINDOWS_ARM64, WINDOWS_X86
 ]
 
-windows_platforms = ["VC-WIN64A-masm",
-                     "VC-WIN64-CLANGASM-ARM"]
-
 all_platforms = unix_platforms + windows_platforms
+
+x86_64_platforms = [MAC_X86, LINUX_X86, WINDOWS_X86]
+arm64_platforms = [MAC_ARM64, LINUX_ARM64, WINDOWS_ARM64]
 
 # Used for generation and testing on a pull request.
 WINDOWS = "windows"
 UNIX = "unix"
+LINUX = "linux"
+MAC = "mac"
+ARM64 = "arm64"
+X86_64 = "x86_64"
 # Used for release flow.
 ALL = "all"
 
@@ -148,7 +162,32 @@ def get_simple_platform(platform: str):
         return UNIX
     else: 
         raise ValueError(f'Unknown platform: {platform}')
+    
+def get_specific_common_platform(platform: str):
+    if platform in windows_platforms:
+        return WINDOWS
+    elif platform in linux_platforms:
+        return LINUX
+    elif platform in mac_platforms: 
+        return MAC
+    else: 
+        raise ValueError(f'Unknown platform: {platform}')
+    
+def get_architecture(platform: str):
+    if platform in arm64_platforms: 
+        return ARM64
+    elif platform in x86_64_platforms: 
+        return X86_64
+    else:
+        raise ValueError(f'Unknown platform: {platform}')
+    
+def get_tar_platform(platform: str):
+    # For now we just return platform but we want this
+    # in case we change how they are output
+    return platform
 
+def get_dir_to_copy(root: str, platform: str):
+    return os.path.join(root, f'{get_simple_platform(platform)}_unzipped', get_specific_common_platform(platform), get_architecture(platform))
 
 @contextmanager
 def download_openssl(version: str, simple_platform: str):
