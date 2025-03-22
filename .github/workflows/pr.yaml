@@ -17,7 +17,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 3.3.1.bcr.wip.unix.tar.gz
-          path: /tmp/3.3.1.bcr.wip.*.tar.gz
+          path: /tmp/3.3.1.bcr.wip.unix.tar.gz
           if-no-files-found: error
   pr-generate-windows:
     runs-on: windows-latest
@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 3.3.1.bcr.wip.windows.tar.gz
-          path: C:/3.3.1.bcr.wip.*.tar.gz
+          path: C:/3.3.1.bcr.wip.windows.tar.gz
           if-no-files-found: error
   pr-merge-generate:
     runs-on: ubuntu-latest
