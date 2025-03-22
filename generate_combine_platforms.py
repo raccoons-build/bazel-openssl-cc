@@ -43,7 +43,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     platform_to_perl_output = {}
     last_simple_platform = None
     for platform in get_platforms(operating_system):
-        simple_platform = get_simple_platform(operating_system)
+        simple_platform = get_simple_platform(platform)
         
         dir_to_copy = openssl_unix_dir
         dir_to_copyback_to = openssl_windows_dir
@@ -81,7 +81,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 generated_path_to_platform_to_contents[generated_file][
                     platform
                 ] = content
-            simple_platform = get_simple_platform(operating_system)
+            simple_platform = get_simple_platform(platform)
             platform_to_perl_output[platform] = subprocess.check_output(
                 [
                     "perl",

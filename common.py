@@ -141,15 +141,13 @@ def get_extra_tar_options(os: str):
     else:
         raise ValueError(f'Unknown os: {os}')
 
-def get_simple_platform(os: str): 
-    if os == WINDOWS: 
+def get_simple_platform(platform: str): 
+    if platform in windows_platforms:
         return WINDOWS
-    elif os == UNIX: 
-        return UNIX
-    elif os == ALL:
+    elif platform in unix_platforms:
         return UNIX
     else: 
-        raise ValueError(f'Unknown os: {os}')
+        raise ValueError(f'Unknown platform: {platform}')
 
 
 @contextmanager
