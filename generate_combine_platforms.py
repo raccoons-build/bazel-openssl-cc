@@ -112,10 +112,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     pathlib.Path(os.path.join(openssl_version_dir, path)),
                     pathlib.Path(os.path.join(output_tar_dir, path)),
                 )
-                print(f'Platform independent {path}')
                 platform_independent_generated_files.append(path)
             else:
-                print(f'Platform specific {path}')
                 platform_specific_generated_paths.append(path)
 
         # We need to write constants for ALL platforms not just the ones we are configuring openssl
