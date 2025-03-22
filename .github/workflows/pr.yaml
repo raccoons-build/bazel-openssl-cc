@@ -150,4 +150,6 @@ jobs:
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
+      # Need to replace where to look for the local bcr since it is formatted as a linux path
+      - run: find C:\ -type f -name 'MODULE.bazel' -exec sed -i 's|file:///tmp/|file:///C:|g' {} +
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k @openssl//...
