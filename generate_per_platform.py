@@ -11,7 +11,7 @@ from common import download_openssl, openssl_version, get_platforms, get_start_c
 MAX_PATH_LEN_WINDOWS = 260
 
 def main(openssl_tar_path: str, operating_system: str):
-
+    platform_tar_files = []
     with download_openssl(openssl_version, operating_system) as (openssl_dir, openssl_info):
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
@@ -44,16 +44,18 @@ def main(openssl_tar_path: str, operating_system: str):
 
             # Each platforms version of openssl is written to its own tar
             platform_openssl_tar_path = os.path.join(openssl_tar_path, f"3.3.1.bcr.wip.{get_tar_platform(platform)}.tar.gz")
+            platform_tar_files.append(platform_openssl_tar_path)
 
             # Just grab everything.
             subprocess.check_call([tar] + extra_tar_options + ["-czf", platform_openssl_tar_path, openssl_dir])
+            
     tar = "gtar" if sys.platform == "darwin" else "tar"
     extra_tar_options = get_extra_tar_options(operating_system)
 
     all_openssl_tar_path = os.path.join(openssl_tar_path, f'{openssl_version}.bcr.wip.{operating_system}.tar.gz')
 
     # Just zip up every platform zip file
-    subprocess.check_call([tar] + extra_tar_options + ["-czf", all_openssl_tar_path, openssl_tar_path])
+    subprocess.check_call([tar] + extra_tar_options + ["-czf", all_openssl_tar_path] + platform_tar_files)
 
 def move_files(openssl_dir: str, files):
     suffix = f'openssl-{openssl_version}'
