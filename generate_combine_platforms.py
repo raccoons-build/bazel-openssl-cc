@@ -78,7 +78,6 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
             for generated_file in generated_files:
                 with open(pathlib.Path(os.path.join(openssl_version_dir, generated_file)), "r") as f:
                     content = f.read()
-                print(f'Content for {generated_file} is {len(content)}')
                 generated_path_to_platform_to_contents[generated_file][
                     platform
                 ] = content
@@ -95,7 +94,6 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 ],
                 cwd=openssl_version_dir,
             ).decode("utf-8")
-    print(f'Generated path to platform: {generated_path_to_platform_to_contents}')
     with tempfile.TemporaryDirectory() as output_tar_dir:
         platform_independent_generated_files = []
         platform_specific_generated_paths = []
@@ -114,8 +112,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     pathlib.Path(os.path.join(openssl_version_dir, path)),
                     pathlib.Path(os.path.join(output_tar_dir, path)),
                 )
+                print(f'Platform independent {path}')
                 platform_independent_generated_files.append(path)
             else:
+                print(f'Platform specific {path}')
                 platform_specific_generated_paths.append(path)
 
         # We need to write constants for ALL platforms not just the ones we are configuring openssl
