@@ -78,6 +78,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
             for generated_file in generated_files:
                 with open(pathlib.Path(os.path.join(openssl_version_dir, generated_file)), "r") as f:
                     content = f.read()
+                print(f'Content for {generated_file} is {len(content)}')
                 generated_path_to_platform_to_contents[generated_file][
                     platform
                 ] = content
@@ -94,7 +95,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 ],
                 cwd=openssl_version_dir,
             ).decode("utf-8")
-
+    print(f'Generated path to platform: {generated_path_to_platform_to_contents}')
     with tempfile.TemporaryDirectory() as output_tar_dir:
         platform_independent_generated_files = []
         platform_specific_generated_paths = []
@@ -124,12 +125,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 output_tar_dir,
                 openssl_version,
                 platform,
-                # There should be no perl output when we aren't generating for a platform.
-                platform_to_perl_output.get(platform, ""),
+                platform_to_perl_output.get(platform),
                 {
-                    # If there is no path or platform then return nothing
                     path: generated_path_to_platform_to_contents.get(
-                        path, {}).get(platform, "")
+                        path).get(platform)
                     for path in platform_specific_generated_paths
                 },
                 pathlib.Path(buildifier_path),
@@ -300,7 +299,6 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """ 
-    print(out)
     path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
     with open(pathlib.Path(path), "w") as f:
         f.write(out)
