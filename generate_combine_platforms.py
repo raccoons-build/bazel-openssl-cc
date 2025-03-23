@@ -237,7 +237,7 @@ def write_config_file(openssl_dir, platform):
 
 
 def write_platform_specific_constants(
-    overlay_dir: str,
+    output_dir: str,
     openssl_version: str,
     platform: str,
     perl_output: str,
@@ -260,7 +260,8 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """ 
-    path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
+    print(out)
+    path = pathlib.Path(os.path.join(output_dir, f"constants-{platform}.bzl"))
     with open(pathlib.Path(path), "w") as f:
         f.write(out)
     subprocess.check_call([pathlib.Path(buildifier_path), pathlib.Path(path)])
