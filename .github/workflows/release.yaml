@@ -113,7 +113,8 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-      - run: cd bazel-central-registry && mv /tmp/${{github.ref_name}}.tar.gz bazel-openssl-cc-${{github.ref_name}}.tar.gz
+      # Unzip the new version
+      - run: tar xzf /tmp/${{github.ref_name}}.tar.gz
       - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
@@ -121,5 +122,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            bazel-openssl-cc-${{github.ref_name}}.tar.gz
+          files: ${{github.ref_name}}.tar.gz
