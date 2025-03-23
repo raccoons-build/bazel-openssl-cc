@@ -498,16 +498,6 @@ filegroup(
     srcs = [f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")],
 )
 
-[
-    genrule(
-        name = "copy_generated_{}".format(src),
-        srcs = ["@openssl-generated-overlay//:{}".format(src)],
-        outs = [src],
-        cmd = "cp $< $@",
-    )
-    for src in COMMON_GENERATED_FILES
-]
-
 GEN_FILE_CMD = """
 cat << 'E_O_F' >$(location {filename})
 {contents}

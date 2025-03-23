@@ -90,7 +90,7 @@ jobs:
       - run: ./download-buildifier.sh
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.tar.gz --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --buildifier=/tmp/buildifier.exe
+      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --buildifier=/tmp/buildifier.exe
       - run: tar czf bcr.tar.gz bazel-central-registry
       - name: Upload overlay
         uses: actions/upload-artifact@v4
@@ -131,7 +131,7 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo -e 'name = "openssl_wrapper"\nbazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
+      - run: cd /tmp && tar zfg /tmp/3.3.1.bcr.wip.tar.gz && ls -R && cd bazel-openssl-cc/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k //...
   pr-test-windows:
     strategy:
       matrix:
@@ -158,5 +158,4 @@ jobs:
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
-      - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k @openssl//...
+      - run: cd C:\ && tar xzf C:\3.3.1.bcr.wip.tar.gz && ls -R && cd bazel-openssl-cc/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k //...

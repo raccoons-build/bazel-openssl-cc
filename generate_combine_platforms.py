@@ -25,11 +25,10 @@ def replace_backslashes_in_paths(string):
     return re.sub(pattern, replace_match, string)
 
 
-def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, operating_system: str, openssl_tar_path: str):
+def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, openssl_tar_path: str):
     openssl_module_dir = pathlib.Path(
         os.path.join(bcr_dir, "modules", "openssl"))
     out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
-    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
 
     copy_from_here_to("presubmit.yml", pathlib.Path(
         os.path.join(out_dir, "presubmit.yml")))
@@ -109,10 +108,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, op
 
         copy_from_here_to(
             "BUILD.openssl.bazel", pathlib.Path(
-                os.path.join(overlay_dir, "BUILD.bazel"))
+                os.path.join(output_tar_dir, "BUILD.bazel"))
         )
         copy_from_here_to("utils.bzl", pathlib.Path(os.path.join(
-            overlay_dir, "utils.bzl")))
+            output_tar_dir, "utils.bzl")))
         copy_from_here_to(
             "collate_into_directory.bzl",
             pathlib.Path(os.path.join(output_tar_dir,
@@ -148,29 +147,25 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, op
         copy_from_here_to(
             "BUILD.test.bazel",
             pathlib.Path(os.path.join(
-                overlay_dir, "test_bazel_build", "BUILD.bazel")),
+                output_tar_dir, "test_bazel_build", "BUILD.bazel")),
         )
         copy_from_here_to(
             "sha256_test.py",
             pathlib.Path(os.path.join(
-                overlay_dir, "test_bazel_build", "sha256_test.py")),
+                output_tar_dir, "test_bazel_build", "sha256_test.py")),
             executable=True,
         )
-
-        with open(pathlib.Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
-            f.write('exports_files(glob(["**"]))\n')
 
         files_to_tar = list(sorted(os.listdir(output_tar_dir)))
         tar = "gtar" if sys.platform == "darwin" else "tar"
         extra_tar_options = get_extra_tar_options(operating_system)
-        subprocess.check_call([tar] + extra_tar_options + ["-czf", overlay_tar_path] + files_to_tar,
+        subprocess.check_call([tar] + extra_tar_options + ["-czf", output_tar_dir] + files_to_tar,
                                 cwd=output_tar_dir,
                                 )
 
         write_module_files(
             out_dir,
-            tag, 
-            overlay_dir
+            tag
         )
 
         write_source_json(out_dir, openssl_info)
@@ -187,11 +182,10 @@ def ignore_files(dir, files):
 
 def write_module_files(
     out_dir: str,
-    tag: int,
-    overlay_dir: str
+    tag: int
 ):
-    module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
-    with open(module_bazel_path, "w") as f:
+    main_module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
+    with open(main_module_bazel_path, "w") as f:
         f.write(
             f"""module(
     name = "openssl",
@@ -205,28 +199,26 @@ def write_module_files(
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
-bazel_dep(name = "rules_python", version = "1.2.0")
+"""
+        )
+    test_module_bazel_path = pathlib.Path(os.path.join(out_dir, "test_bazel_build", "MODULE.bazel"))
+    with open(test_module_bazel_path, "w") as f:
+        f.write(
+            f"""module(name = "openssl.test")
 
-bazel_dep(name = "openssl-generated-overlay")
+bazel_dep(name = "rules_python", version = "1.2.0")
+bazel_dep(name = "rules_cc", version = "0.0.13")
+bazel_dep(name = "openssl")
+
 local_path_override(
-    module_name = "openssl-generated-overlay",
-    path = "{overlay_dir}"
+    module_name = "openssl",
+    path = "..",
 )
 """
         )
-    os.symlink("../MODULE.bazel",
-               pathlib.Path(os.path.join(overlay_dir, "MODULE.bazel")))
 
 
 def write_source_json(out_dir: str, openssl_info: Dict):
-    overlay_info = {}
-    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
-    for root, _, files in os.walk(overlay_dir):
-        for file in files:
-            full_path = pathlib.Path(os.path.join(root, file))
-            overlay_relative_path = os.path.relpath(full_path, overlay_dir)
-            overlay_info[overlay_relative_path] = integrity_hash(full_path)
-    openssl_info["overlay"] = overlay_info
     with open(pathlib.Path(os.path.join(out_dir, "source.json")), "w") as f:
         f.write(json.dumps(openssl_info, indent="    ", sort_keys=True) + "\n")
 
@@ -328,9 +320,8 @@ if __name__ == "__main__":
     parser.add_argument("--os", required=True)
     parser.add_argument("--bcr_dir", required=True)
     parser.add_argument("--tag", required=True)
-    parser.add_argument("--overlay_tar_path", required=True)
     parser.add_argument("--openssl_tar_path", required=True)
     parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
-    main(args.bcr_dir, args.overlay_tar_path, args.tag,
+    main(args.bcr_dir, args.tag,
          args.buildifier, args.os, args.openssl_tar_path)
