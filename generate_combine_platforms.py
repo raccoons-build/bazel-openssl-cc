@@ -207,10 +207,9 @@ bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
 bazel_dep(name = "rules_python", version = "1.2.0")
 
-load("@bazel//tools/build_defs/repo:local.bzl", "local_repository")
-
-local_repository(
-    name = "openssl-generated-overlay",
+bazel_dep(name = "openssl-generated-overlay")
+local_path_override(
+    module_name = "openssl-generated-overlay",
     path = "{overlay_dir}"
 )
 """
