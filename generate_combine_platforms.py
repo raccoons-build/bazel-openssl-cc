@@ -73,7 +73,7 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
                 cwd=openssl_version_dir,
             ).decode("utf-8")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        output_tar_dir = pathlib.Path(os.path.join(tmp_dir, tag))
+        output_tar_dir = pathlib.Path(os.path.join(tmp_dir, out_dir))
         platform_independent_generated_files = []
         platform_specific_generated_paths = []
 
