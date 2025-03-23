@@ -10,7 +10,10 @@ from common import download_openssl, openssl_version, get_platforms, get_start_c
 
 MAX_PATH_LEN_WINDOWS = 260
 
-def main(openssl_tar_path: str, operating_system: str):
+def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
+    version = openssl_version
+    if github_ref_name: 
+        version = github_ref_name
     platform_tar_files = []
     with download_openssl(openssl_version, operating_system) as (openssl_dir, openssl_info):
         for platform in get_platforms(operating_system):
@@ -43,16 +46,16 @@ def main(openssl_tar_path: str, operating_system: str):
             extra_tar_options = get_extra_tar_options(operating_system)
 
             # Each platforms version of openssl is written to its own tar
-            platform_openssl_tar_path = os.path.join(openssl_tar_path, f"3.3.1.bcr.wip.{get_tar_platform(platform)}.tar.gz")
+            platform_openssl_tar_path = os.path.join(openssl_tar_path, f"{version}.bcr.wip.{get_tar_platform(platform)}.tar.gz")
             platform_tar_files.append(platform_openssl_tar_path)
 
             # Just grab everything.
             subprocess.check_call([tar] + extra_tar_options + ["-czf", platform_openssl_tar_path, openssl_dir])
-            
+
     tar = "gtar" if sys.platform == "darwin" else "tar"
     extra_tar_options = get_extra_tar_options(operating_system)
 
-    all_openssl_tar_path = os.path.join(openssl_tar_path, f'{openssl_version}.bcr.wip.{operating_system}.tar.gz')
+    all_openssl_tar_path = os.path.join(openssl_tar_path, f'{version}.bcr.wip.{operating_system}.tar.gz')
 
     # Just zip up every platform zip file
     subprocess.check_call([tar] + extra_tar_options + ["-czf", all_openssl_tar_path] + platform_tar_files)
@@ -102,6 +105,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("bazel-openssl-cc")
     parser.add_argument("--os", required=True)
     parser.add_argument("--openssl_tar_path", required=True)
+    parser.add_argument("--github_ref_name", required=False)
 
     args = parser.parse_args()
-    main(args.openssl_tar_path, args.os)
+    main(args.openssl_tar_path, args.os, args.github_ref_name)
