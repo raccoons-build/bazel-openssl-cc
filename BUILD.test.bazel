@@ -4,7 +4,7 @@ py_test(
     name = "sha256_test",
     srcs = ["sha256_test.py"],
     args = ["$(rootpath @openssl//:openssl)"],
-    data = ["@openssl//:openssl"],
+    data = ["@openssl"],
 )
 
 cc_library(
