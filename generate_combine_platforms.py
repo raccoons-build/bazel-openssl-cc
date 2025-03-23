@@ -25,10 +25,14 @@ def replace_backslashes_in_paths(string):
     return re.sub(pattern, replace_match, string)
 
 
-def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, openssl_tar_path: str):
+def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, openssl_tar_path: str, github_ref_name: str):
     openssl_module_dir = pathlib.Path(
         os.path.join(bcr_dir, "modules", "openssl"))
     out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
+
+    version = openssl_version
+    if github_ref_name: 
+        version = github_ref_name
 
     copy_from_here_to("presubmit.yml", pathlib.Path(
         os.path.join(out_dir, "presubmit.yml")))
@@ -159,7 +163,8 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
         files_to_tar = list(sorted(os.listdir(output_tar_dir)))
         tar = "gtar" if sys.platform == "darwin" else "tar"
         extra_tar_options = get_extra_tar_options(operating_system)
-        subprocess.check_call([tar] + extra_tar_options + ["-czvf"] + files_to_tar,
+        output_tar_file = os.path.join(openssl_tar_path, f'{version}.bcr.wip.tar.gz')
+        subprocess.check_call([tar] + extra_tar_options + ["-czvf", output_tar_file] + files_to_tar,
                                 cwd=output_tar_dir,
                                 )
 
@@ -324,7 +329,8 @@ if __name__ == "__main__":
     parser.add_argument("--bcr_dir", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--openssl_tar_path", required=True)
+    parser.add_argument("--github_ref_name", required=False)
     parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
     main(args.bcr_dir, args.tag,
-         args.buildifier, args.os, args.openssl_tar_path)
+         args.buildifier, args.os, args.openssl_tar_path, args.github_ref_name)
