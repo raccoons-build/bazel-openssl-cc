@@ -131,7 +131,7 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo -e 'name = "openssl_wrapper"\nbazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
+      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo -e 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
   pr-test-windows:
     strategy:
       matrix:
