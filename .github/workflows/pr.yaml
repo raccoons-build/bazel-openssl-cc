@@ -159,12 +159,17 @@ jobs:
         uses: ilammy/setup-nasm@v1
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
       # Need to replace where to look for the openssl overlay since it is formatted as a linux path
+      # As well as the checksum. This is not an issue in prod since the url we change is not local.
       - name: Modify MODULE.bazel files
         shell: pwsh
         run: |
          Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
+              # Replace the file path
               $content = Get-Content $_.FullName
-              $newContent = $content -replace 'file:///tmp/', 'file:///C:'
+              $updatedContent = $content -replace 'file:///tmp/', 'file:///C:'
+
+              # Replace the checksum
+              $newConent = $updatedContent -replace 'sha256-UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw=', 'sha256-tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg='
               Set-Content $_.FullName -Value $newContent
           }
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
