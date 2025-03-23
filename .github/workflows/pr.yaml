@@ -131,7 +131,7 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-      - run: cd /tmp && tar zfg /tmp/3.3.1.bcr.wip.tar.gz && ls -R && cd bazel-openssl-cc/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k //...
+      - run: cd /tmp && tar xzf /tmp/3.3.1.bcr.wip.tar.gz && ls -R && cd bazel-openssl-cc/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k //...
   pr-test-windows:
     strategy:
       matrix:
