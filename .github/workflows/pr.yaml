@@ -84,8 +84,6 @@ jobs:
       - run: mkdir -p /tmp/unix_unzipped/linux/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/3.3.1.bcr.wip.linux-aarch64.tar.gz -C /tmp/unix_unzipped/linux/arm64
       - run: mkdir -p /tmp/unix_unzipped/mac/x86_64 && tar -xzvf /tmp/unix_unzipped/tmp/3.3.1.bcr.wip.darwin64-x86_64-cc.tar.gz -C /tmp/unix_unzipped/mac/x86_64
       - run: mkdir -p /tmp/unix_unzipped/mac/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/3.3.1.bcr.wip.darwin64-arm64-cc.tar.gz -C /tmp/unix_unzipped/mac/arm64
-      - run: ls -R /tmp/unix_unzipped
-      - run: ls -R /tmp/windows_unzipped
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
