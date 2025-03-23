@@ -159,6 +159,9 @@ jobs:
         uses: ilammy/setup-nasm@v1
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
+      - run: ls -R C:\workspace
+      - run: ls -R C:\bazel-central-registry/modules/openssl
+      - run: ls C:\
       # Need to replace where to look for the openssl overlay since it is formatted as a linux path
       - run: Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\' | ForEach-Object { sed -i 's|file:///tmp/|file:///C:|g' $_.FullName }
       - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k @openssl//...
