@@ -131,7 +131,7 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-      - run: cd /tmp && tar xzf /tmp/3.3.1.bcr.wip.tar.gz -C /tmp/bazel-central-registry/modules/openssl && ls /tmp/bazel-central-registry/modules/openssl && cd /tmp/bazel-central-registry/modules/openssl/bazel-openssl-cc/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k //...
+      - run: cd /tmp && tar xzf /tmp/3.3.1.bcr.wip.tar.gz -C /tmp/bazel-central-registry/modules/openssl && cd /tmp/bazel-central-registry/modules/openssl/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k //...
   pr-test-windows:
     strategy:
       matrix:
@@ -158,4 +158,4 @@ jobs:
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
-      - run: cd C:\ && tar xzf C:\3.3.1.bcr.wip.tar.gz -C C:/bazel-central-registry/modules/openssl && ls C:/bazel-central-registry/modules/openssl && cd C:/bazel-central-registry/modules/openssl/bazel-openssl-cc/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k //...
+      - run: cd C:\ && tar xzf C:\3.3.1.bcr.wip.tar.gz -C C:/bazel-central-registry/modules/openssl && cd C:/bazel-central-registry/modules/openssl/test_bazel_build && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k //...
