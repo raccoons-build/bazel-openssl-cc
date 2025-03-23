@@ -161,12 +161,6 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
             executable=True,
         )
 
-        write_module_files(
-            out_dir,
-            output_tar_dir,
-            tag
-        )
-
         files_to_tar = list(sorted(os.listdir(output_tar_dir)))
         tar = "gtar" if sys.platform == "darwin" else "tar"
         extra_tar_options = get_extra_tar_options(operating_system)
@@ -175,6 +169,11 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
                                 cwd=output_tar_dir,
                                 )
 
+        write_module_files(
+            out_dir,
+            tag
+        )
+        
         write_source_json(out_dir, openssl_info)
 
     previous_tag_dir = guess_previous_tag_dir(openssl_module_dir, tag)
@@ -189,7 +188,6 @@ def ignore_files(dir, files):
 
 def write_module_files(
     out_dir: str,
-    output_tar_dir: str,
     tag: int
 ):
     main_module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
@@ -207,25 +205,7 @@ def write_module_files(
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
-"""
-        )
-
-    test_dir = pathlib.Path(os.path.join(output_tar_dir, "test_bazel_build"))
-    if not os.path.exists(test_dir):
-        os.makedirs(test_dir)
-    test_module_bazel_path = pathlib.Path(os.path.join(test_dir, "MODULE.bazel"))
-    with open(test_module_bazel_path, "w") as f:
-        f.write(
-            f"""module(name = "openssl.test")
-
 bazel_dep(name = "rules_python", version = "1.2.0")
-bazel_dep(name = "rules_cc", version = "0.0.13")
-bazel_dep(name = "openssl")
-
-local_path_override(
-    module_name = "openssl",
-    path = "..",
-)
 """
         )
 
