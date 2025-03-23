@@ -3,8 +3,8 @@ load("@rules_python//python:defs.bzl", "py_test")
 py_test(
     name = "sha256_test",
     srcs = ["sha256_test.py"],
-    args = ["$(rootpath //:openssl)"],
-    data = ["//:openssl"],
+    args = ["$(rootpath @openssl//:openssl)"],
+    data = ["@openssl//:openssl"],
 )
 
 cc_library(
