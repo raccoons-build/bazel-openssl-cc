@@ -187,7 +187,7 @@ def get_tar_platform(platform: str):
     return platform
 
 def get_dir_to_copy(root: str, platform: str):
-    return os.path.join(root, f'{get_simple_platform(platform)}_unzipped', get_specific_common_platform(platform), get_architecture(platform))
+    return os.path.join(root, f'{get_simple_platform(platform)}_unzipped', get_specific_common_platform(platform), get_architecture(platform), "tmp")
 
 @contextmanager
 def download_openssl(version: str, simple_platform: str):
