@@ -83,13 +83,13 @@ jobs:
       - run: sudo bash -c "curl --fail -L -o /usr/bin/buildifier https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64 && chmod 0755 /usr/bin/buildifier"
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --openssl_tar_path=/tmp/ --tag=${{github.ref_name}}.bcr.wip --buildifier=/usr/bin/buildifier --github_ref_name=${{github.ref_name}}
+      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --openssl_tar_path=/tmp/ --tag=${{github.ref_name}} --buildifier=/usr/bin/buildifier --github_ref_name=${{github.ref_name}}
       - run: tar czf bcr.tar.gz bazel-central-registry
       - name: Upload overlay
         uses: actions/upload-artifact@v4
         with:
-          name: ${{github.ref_name}}.bcr.wip.tar.gz
-          path: /tmp/${{github.ref_name}}.bcr.wip.tar.gz
+          name: ${{github.ref_name}}.tar.gz
+          path: /tmp/${{github.ref_name}}.tar.gz
           if-no-files-found: error
       - name: Upload bcr
         uses: actions/upload-artifact@v4
@@ -105,7 +105,7 @@ jobs:
       - name: Download overlay
         uses: actions/download-artifact@v4
         with:
-          name: ${{github.ref_name}}.bcr.wip.tar.gz
+          name: ${{github.ref_name}}.tar.gz
           path: /tmp/
       - name: Download bcr
         uses: actions/download-artifact@v4
@@ -113,7 +113,7 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-      - run: cd bazel-central-registry && mv /tmp/${{github.ref_name}}.bcr.wip.tar.gz bazel-openssl-cc-${{github.ref_name}}.bcr.tar.gz
+      - run: cd bazel-central-registry && mv /tmp/${{github.ref_name}}.tar.gz bazel-openssl-cc-${{github.ref_name}}.tar.gz
       - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
@@ -122,4 +122,4 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            bazel-openssl-cc-${{github.ref_name}}.bcr.tar.gz
+            bazel-openssl-cc-${{github.ref_name}}.tar.gz
