@@ -169,7 +169,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, op
 
         write_module_files(
             out_dir,
-            tag
+            tag, 
+            overlay_dir
         )
 
         write_source_json(out_dir, openssl_info)
@@ -186,10 +187,10 @@ def ignore_files(dir, files):
 
 def write_module_files(
     out_dir: str,
-    tag: int
+    tag: int,
+    overlay_dir: str
 ):
     module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
-    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
     with open(module_bazel_path, "w") as f:
         f.write(
             f"""module(
