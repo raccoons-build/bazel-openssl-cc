@@ -11,7 +11,7 @@ import tempfile
 import pathlib
 from typing import Dict
 
-from common import copy_from_here_to, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash, get_dir_to_copy
+from common import copy_from_here_to, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash, get_dir_to_copy, download_openssl
 
 def replace_backslashes_in_paths(string):
     """Replaces single backslashes with double backslashes in paths within a string."""
@@ -161,19 +161,24 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
             executable=True,
         )
 
-        files_to_tar = list(sorted(os.listdir(output_tar_dir)))
-        tar = "gtar" if sys.platform == "darwin" else "tar"
-        extra_tar_options = get_extra_tar_options(operating_system)
-        output_tar_file = os.path.join(openssl_tar_path, f'{version}.bcr.wip.tar.gz')
-        subprocess.check_call([tar] + extra_tar_options + ["-czvf", output_tar_file] + files_to_tar,
-                                cwd=output_tar_dir,
-                                )
+        # In the final output we need some of the openssl files
+        with download_openssl(openssl_version, operating_system) as (openssl_dir, _):
+
+            openssl_files_to_tar = get_openssl_files_to_tar(openssl_dir)
+
+            files_to_tar = list(sorted(os.listdir(output_tar_dir) + openssl_files_to_tar))
+            tar = "gtar" if sys.platform == "darwin" else "tar"
+            extra_tar_options = get_extra_tar_options(operating_system)
+            output_tar_file = os.path.join(openssl_tar_path, f'{version}.bcr.wip.tar.gz')
+            subprocess.check_call([tar] + extra_tar_options + ["-czvf", output_tar_file] + files_to_tar,
+                                    cwd=output_tar_dir,
+                                    )
 
         write_module_files(
             out_dir,
             tag
         )
-        
+
         write_source_json(out_dir, openssl_info)
 
     previous_tag_dir = guess_previous_tag_dir(openssl_module_dir, tag)
@@ -181,6 +186,17 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
         dedupe_content_with_symlinks(previous_tag_dir, out_dir)
 
     add_to_metadata(openssl_module_dir, tag)
+
+def get_openssl_files_to_tar(openssl_dir: str):
+    openssl_dir_path = pathlib.Path(openssl_dir)
+    all_files = []
+    all_files += openssl_dir_path.rglob("crypto/**/*")
+    all_files += openssl_dir_path.rglob("include/**/*")
+    all_files += openssl_dir_path.rglob("ssl/**/*")
+    all_files += openssl_dir_path.rglob("providers/**/*")
+    all_files += openssl_dir_path.rglob("apps/**/*")
+    
+    return all_files
 
 def ignore_files(dir, files):
     # Some unneeded files cause permissions issues
