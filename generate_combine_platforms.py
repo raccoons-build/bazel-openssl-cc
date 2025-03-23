@@ -201,7 +201,11 @@ bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
 """
         )
-    test_module_bazel_path = pathlib.Path(os.path.join(out_dir, "test_bazel_build", "MODULE.bazel"))
+
+    test_dir = pathlib.Path(os.path.join(out_dir, "test_bazel_build"))
+    if not os.path.exists(test_dir):
+        os.makedirs(test_dir)
+    test_module_bazel_path = pathlib.Path(os.path.join(test_dir, "MODULE.bazel"))
     with open(test_module_bazel_path, "w") as f:
         f.write(
             f"""module(name = "openssl.test")
