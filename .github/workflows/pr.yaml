@@ -169,7 +169,7 @@ jobs:
               $updatedContent = $content -replace 'file:///tmp/', 'file:///C:'
 
               # Replace the checksum
-              $newConent = $updatedContent -replace 'sha256-UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw=', 'sha256-tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg='
+              $newContent = $updatedContent -replace 'sha256-UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw=', 'sha256-tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg='
               Set-Content $_.FullName -Value $newContent
           }
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
