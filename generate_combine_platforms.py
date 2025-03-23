@@ -166,7 +166,7 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
 
             openssl_files_to_tar = get_openssl_files_to_tar(openssl_dir)
 
-            files_to_tar = list(sorted(os.listdir(output_tar_dir) + [pathlib.Path(path) for path in openssl_files_to_tar]))
+            files_to_tar = list(sorted(convert_to_path(os.listdir(output_tar_dir)) + openssl_files_to_tar))
             tar = "gtar" if sys.platform == "darwin" else "tar"
             extra_tar_options = get_extra_tar_options(operating_system)
             output_tar_file = os.path.join(openssl_tar_path, f'{version}.bcr.wip.tar.gz')
@@ -186,6 +186,9 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
         dedupe_content_with_symlinks(previous_tag_dir, out_dir)
 
     add_to_metadata(openssl_module_dir, tag)
+
+def convert_to_path(list_of_str):
+    return [pathlib.Path(path) for path in list_of_str]
 
 def get_openssl_files_to_tar(openssl_dir: str):
     openssl_dir_path = pathlib.Path(openssl_dir)
