@@ -159,7 +159,7 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
         files_to_tar = list(sorted(os.listdir(output_tar_dir)))
         tar = "gtar" if sys.platform == "darwin" else "tar"
         extra_tar_options = get_extra_tar_options(operating_system)
-        subprocess.check_call([tar] + extra_tar_options + ["-czf", output_tar_dir] + files_to_tar,
+        subprocess.check_call([tar] + extra_tar_options + ["-czf"] + files_to_tar,
                                 cwd=output_tar_dir,
                                 )
 
