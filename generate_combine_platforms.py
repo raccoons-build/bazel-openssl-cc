@@ -25,7 +25,7 @@ def replace_backslashes_in_paths(string):
     return re.sub(pattern, replace_match, string)
 
 
-def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, release_tar_url_template: str, operating_system: str, openssl_tar_path: str):
+def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, operating_system: str, openssl_tar_path: str):
     openssl_module_dir = pathlib.Path(
         os.path.join(bcr_dir, "modules", "openssl"))
     out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
@@ -169,9 +169,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
 
         write_module_files(
             out_dir,
-            tag,
-            release_tar_url_template.format(tag=tag),
-            integrity_hash(overlay_tar_path),
+            tag
         )
 
         write_source_json(out_dir, openssl_info)
@@ -188,11 +186,10 @@ def ignore_files(dir, files):
 
 def write_module_files(
     out_dir: str,
-    tag: int,
-    overlay_archive_url: str,
-    overlay_archive_integrity: str,
+    tag: int
 ):
     module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
+    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
     with open(module_bazel_path, "w") as f:
         f.write(
             f"""module(
@@ -209,17 +206,16 @@ bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
 bazel_dep(name = "rules_python", version = "1.2.0")
 
-http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel//tools/build_defs/repo:local.bzl", "local_repository")
 
-http_archive(
+local_repository(
     name = "openssl-generated-overlay",
-    integrity = "{overlay_archive_integrity}",
-    url = "{overlay_archive_url}",
+    path = "{overlay_dir}"
 )
 """
         )
     os.symlink("../MODULE.bazel",
-               pathlib.Path(os.path.join(out_dir, "overlay", "MODULE.bazel")))
+               pathlib.Path(os.path.join(overlay_dir, "MODULE.bazel")))
 
 
 def write_source_json(out_dir: str, openssl_info: Dict):
@@ -334,11 +330,7 @@ if __name__ == "__main__":
     parser.add_argument("--tag", required=True)
     parser.add_argument("--overlay_tar_path", required=True)
     parser.add_argument("--openssl_tar_path", required=True)
-    parser.add_argument(
-        "--release_tar_url_template",
-        default="https://github.com/raccoons-build/bazel-openssl-cc/releases/download/{tag}/bazel-openssl-cc-{tag}.tar.gz",
-    )
     parser.add_argument("--buildifier", default="buildifier")
     args = parser.parse_args()
     main(args.bcr_dir, args.overlay_tar_path, args.tag,
-         args.buildifier, args.release_tar_url_template, args.os, args.openssl_tar_path)
+         args.buildifier, args.os, args.openssl_tar_path)
