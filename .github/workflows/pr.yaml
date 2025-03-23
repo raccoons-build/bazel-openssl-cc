@@ -1,4 +1,4 @@
-name: Release
+name: Pull Request
 "on":
   workflow_dispatch: null
   pull_request: null
