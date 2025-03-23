@@ -208,7 +208,6 @@ bazel_dep(name = "rules_cc", version = "0.0.13")
 bazel_dep(name = "rules_perl", version = "0.2.4")
 """
         )
-    os.symlink("../MODULE.bazel", main_module_bazel_path)
 
     test_dir = pathlib.Path(os.path.join(output_tar_dir, "test_bazel_build"))
     if not os.path.exists(test_dir):
