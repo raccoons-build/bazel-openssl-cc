@@ -160,6 +160,12 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
             executable=True,
         )
 
+        write_module_files(
+            out_dir,
+            output_tar_dir,
+            tag
+        )
+
         files_to_tar = list(sorted(os.listdir(output_tar_dir)))
         tar = "gtar" if sys.platform == "darwin" else "tar"
         extra_tar_options = get_extra_tar_options(operating_system)
@@ -167,11 +173,6 @@ def main(bcr_dir: str, tag: str, buildifier_path: str, operating_system: str, op
         subprocess.check_call([tar] + extra_tar_options + ["-czvf", output_tar_file] + files_to_tar,
                                 cwd=output_tar_dir,
                                 )
-
-        write_module_files(
-            out_dir,
-            tag
-        )
 
         write_source_json(out_dir, openssl_info)
 
@@ -187,6 +188,7 @@ def ignore_files(dir, files):
 
 def write_module_files(
     out_dir: str,
+    output_tar_dir: str,
     tag: int
 ):
     main_module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
@@ -207,7 +209,7 @@ bazel_dep(name = "rules_perl", version = "0.2.4")
 """
         )
 
-    test_dir = pathlib.Path(os.path.join(out_dir, "test_bazel_build"))
+    test_dir = pathlib.Path(os.path.join(output_tar_dir, "test_bazel_build"))
     if not os.path.exists(test_dir):
         os.makedirs(test_dir)
     test_module_bazel_path = pathlib.Path(os.path.join(test_dir, "MODULE.bazel"))
