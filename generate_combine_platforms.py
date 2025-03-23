@@ -11,7 +11,7 @@ import tempfile
 import pathlib
 from typing import Dict
 
-from common import copy_from_here_to, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash, WINDOWS, get_dir_to_copy
+from common import copy_from_here_to, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash, get_dir_to_copy
 
 def replace_backslashes_in_paths(string):
     """Replaces single backslashes with double backslashes in paths within a string."""
