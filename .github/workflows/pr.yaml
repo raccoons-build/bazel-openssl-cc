@@ -161,7 +161,7 @@ jobs:
       # Need to replace the checksum in the overlay MODULE.bazel within the wip tar. Not an issue in prod 
       # becasue the url is not local.
       - name: Modify MODULE.bazel within wip bcr
-        run: cd C:\ && tar xzf C:\3.3.1.bcr.wip.tar.gz -C C:\openssl && find C:\openssl -type f -exec sed -i 's|UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw|tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg|g' {} + && cd C:\openssl && tar -czvf C:\3.3.1.bcr.wip.tar.gz *
+        run: cd C:\ && mkdir C:\openssl && tar xzf C:\3.3.1.bcr.wip.tar.gz -C C:\openssl && find C:\openssl -type f -exec sed -i 's|UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw|tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg|g' {} + && cd C:\openssl && tar -czvf C:\3.3.1.bcr.wip.tar.gz *
       # Need to replace where to look for the openssl overlay since it is formatted as a linux path
       # As well as the checksum. This is not an issue in prod since the url we change is not local.
       - name: Modify MODULE.bazel files
