@@ -158,5 +158,31 @@ jobs:
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
+      # Need to replace where to look for the openssl overlay since it is formatted as a linux path
+      # This is not an issue in prod since the url we change is not local.
+      - name: Modify MODULE.bazel files
+        shell: pwsh
+        run: |
+         Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
+              $content = Get-Content $_.FullName
+
+              # Replace the file path
+              $newContent = $content -replace 'file:///tmp/', 'file:///C:'
+
+              Set-Content $_.FullName -Value $newContent
+          }
+      # Need to replace checksum for the MODULE.bazel file since it will be different now that we modified it. This is not an issue in prod
+      # since we never need to modify where to look for the overlay.
+      - name: Modify source.json file
+        shell: pwsh
+        run: |
+         Get-ChildItem -Recurse -Filter 'source.json' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
+              $content = Get-Content $_.FullName
+
+              # Replace the checksum
+              $newContent = $content -replace 'UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw', 'tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg'
+
+              Set-Content $_.FullName -Value $newContent
+          }
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
       - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k @openssl//...
