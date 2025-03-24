@@ -42,6 +42,8 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
     for platform in get_platforms(operating_system):
         simple_platform = get_simple_platform(platform)
 
+        # Since there are hardcoded paths in the generated config files for openssl it is easier to 
+        # just move the files from their platform specific subdirs to root so that the paths all work.
         dir_to_copy = get_dir_to_copy(openssl_tar_root, platform)
         dir_to_copy_with_version = os.path.join(dir_to_copy, f'openssl-{openssl_version}')
         if os.path.exists(openssl_version_dir):
