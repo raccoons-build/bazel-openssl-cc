@@ -161,7 +161,27 @@ jobs:
       # Need to replace the checksum in the overlay MODULE.bazel within the wip tar. Not an issue in prod 
       # becasue the url is not local.
       - name: Modify MODULE.bazel within wip bcr
-        run: cd C:\ && mkdir C:\openssl && tar xzf C:\3.3.1.bcr.wip.tar.gz -C C:\openssl && find C:\openssl -type f -exec sed -i 's|UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw|tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg|g' {} + && cd C:\openssl && tar -czvf C:\3.3.1.bcr.wip.tar.gz *
+        shell: pwsh
+        run: |
+          # Step 1: Change to C:\ and create the 'openssl' directory
+          Set-Location -Path "C:\"
+          New-Item -Path "C:\openssl" -ItemType Directory -Force
+
+          # Step 2: Extract the tar.gz file to C:\openssl
+          # Note: Ensure you have tar available on your system (e.g., in Git Bash or Windows Subsystem for Linux)
+          tar -xzf "C:\3.3.1.bcr.wip.tar.gz" -C "C:\openssl"
+
+          # Step 3: Modify the files (search for the checksum and replace it)
+          # Use Get-ChildItem to get all files under C:\openssl and use StreamReader/StreamWriter to modify contents
+          Get-ChildItem -Path "C:\openssl" -Recurse -File | ForEach-Object {
+              (Get-Content $_.FullName) -replace 'UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw', 'tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg' | Set-Content $_.FullName
+          }
+
+          # Step 4: Change directory to C:\openssl
+          Set-Location -Path "C:\openssl"
+
+          # Step 5: Recreate the tar.gz archive with the modified files
+          tar -czvf "C:\3.3.1.bcr.wip.tar.gz" *
       # Need to replace where to look for the openssl overlay since it is formatted as a linux path
       # As well as the checksum. This is not an issue in prod since the url we change is not local.
       - name: Modify MODULE.bazel files
