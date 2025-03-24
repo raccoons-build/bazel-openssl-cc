@@ -11,7 +11,7 @@ import tempfile
 import pathlib
 from typing import Dict
 
-from common import copy_from_here_to, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash, get_dir_to_copy
+from common import copy_from_here_to, openssl_version, get_platforms, generated_files, get_simple_platform, all_platforms, get_extra_tar_options, integrity_hash, get_dir_to_copy, LINUX_X86
 
 def replace_backslashes_in_paths(string):
     """Replaces single backslashes with double backslashes in paths within a string."""
@@ -73,6 +73,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
         # Since we run this script multiple times we need to put the files back where they came from
         shutil.move(openssl_version_dir, dir_to_copy)
 
+    # Since we moved all the platform specific folders away. Use a representative folder to grab the
+    # platform independent files.
+    platform_independent_dir = get_dir_to_copy(openssl_tar_root, LINUX_X86)
+    platform_independent_dir_with_version = os.path.join(platform_independent_dir, f'openssl-{openssl_version}')
     with tempfile.TemporaryDirectory() as output_tar_dir:
         platform_independent_generated_files = []
         platform_specific_generated_paths = []
@@ -88,7 +92,7 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                     exist_ok=True,
                 )
                 shutil.copyfile(
-                    pathlib.Path(os.path.join(openssl_version_dir, path)),
+                    pathlib.Path(os.path.join(platform_independent_dir_with_version, path)),
                     pathlib.Path(os.path.join(output_tar_dir, path)),
                 )
                 platform_independent_generated_files.append(path)
