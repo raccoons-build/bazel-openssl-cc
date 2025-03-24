@@ -69,6 +69,10 @@ def main(bcr_dir: str, overlay_tar_path: str, tag: str, buildifier_path: str, re
                 ],
                 cwd=openssl_version_dir,
             ).decode("utf-8")
+
+        # Since we run this script multiple times we need to put the files back where they came from
+        shutil.move(openssl_version_dir, dir_to_copy)
+
     with tempfile.TemporaryDirectory() as output_tar_dir:
         platform_independent_generated_files = []
         platform_specific_generated_paths = []
