@@ -228,8 +228,10 @@ http_archive(
 )
 """
         )
-    os.symlink("../MODULE.bazel",
-               pathlib.Path(os.path.join(out_dir, "overlay", "MODULE.bazel")))
+    overlay_module_path = os.path.join(out_dir, "overlay", "MODULE.bazel")
+    if not os.path.exists(overlay_module_path):
+        os.symlink("../MODULE.bazel",
+               pathlib.Path(overlay_module_path))
 
 
 def write_source_json(out_dir: str, openssl_info: Dict):
