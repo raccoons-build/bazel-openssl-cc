@@ -90,19 +90,35 @@ jobs:
       - run: ./download-buildifier.sh
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.tar.gz --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --release_tar_url_template=file:///tmp/3.3.1.bcr.wip.tar.gz --buildifier=/tmp/buildifier.exe
-      - run: tar czf bcr.tar.gz bazel-central-registry
-      - name: Upload overlay
+      # We first run for all OS so we don't have any empty bzl files. But this run is just for Unix since we need to specify Unix paths for release_url_template
+      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.unix.tar.gz --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --release_tar_url_template=file:///tmp/3.3.1.bcr.wip.unix.tar.gz --buildifier=/tmp/buildifier.exe
+      - run: tar czf bcr.unix.tar.gz bazel-central-registry
+      - name: Upload Unix overlay
         uses: actions/upload-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.tar.gz
-          path: /tmp/3.3.1.bcr.wip.tar.gz
+          name: 3.3.1.bcr.wip.unix.tar.gz
+          path: /tmp/3.3.1.bcr.wip.unix.tar.gz
           if-no-files-found: error
-      - name: Upload bcr
+      - name: Upload Unix bcr
         uses: actions/upload-artifact@v4
         with:
-          name: bcr.tar.gz
-          path: bcr.tar.gz
+          name: bcr.unix.tar.gz
+          path: bcr.unix.tar.gz
+          if-no-files-found: error
+      # Then we run for all OS but use it for Windows. This way we don't need to change any files at runtime in the test workflow. This is not an issue in prod because the release url template is a url not a local url.
+      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.windows.tar.gz --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --release_tar_url_template=file:///C:/3.3.1.bcr.wip.windows.tar.gz --buildifier=/tmp/buildifier.exe
+      - run: tar czf bcr.windows.tar.gz bazel-central-registry
+      - name: Upload Windows overlay
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3.3.1.bcr.wip.windows.tar.gz
+          path: /tmp/3.3.1.bcr.wip.windows.tar.gz
+          if-no-files-found: error
+      - name: Upload Windows bcr
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcr.windows.tar.gz
+          path: bcr.windows.tar.gz
           if-no-files-found: error
   pr-test-unix:
     strategy:
@@ -120,17 +136,17 @@ jobs:
       - pr-merge-generate
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Download overlay
+      - name: Download Unix overlay
         uses: actions/download-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.tar.gz
+          name: 3.3.1.bcr.wip.unix.tar.gz
           path: /tmp/
-      - name: Download bcr
+      - name: Download Unix bcr
         uses: actions/download-artifact@v4
         with:
-          name: bcr.tar.gz
+          name: bcr.unix.tar.gz
           path: /tmp/
-      - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
+      - run: (cd /tmp && tar xzf /tmp/bcr.unix.tar.gz)
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo -e 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" -k @openssl//...
   pr-test-windows:
     strategy:
@@ -145,51 +161,18 @@ jobs:
     steps:
       - name: Download msys tools
         uses: msys2/setup-msys2@v2
-      - name: Download overlay
+      - name: Download Windows overlay
         uses: actions/download-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.tar.gz
+          name: 3.3.1.bcr.wip.windows.tar.gz
           path: C:\
-      - name: Download bcr
+      - name: Download Windows bcr
         uses: actions/download-artifact@v4
         with:
-          name: bcr.tar.gz
+          name: bcr.windows.tar.gz
           path: C:\
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
-      - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
-      # Need to replace where to look for the openssl overlay since it is formatted as a linux path
-      # This is not an issue in prod since the url we change is not local.
-      - name: Modify MODULE.bazel files
-        shell: pwsh
-        run: |
-         Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
-              $content = Get-Content $_.FullName
-
-              # Replace the file path
-              $newContent = $content -replace 'file:///tmp/', 'file:///C:'
-
-              
-              Write-Output $newContent
-              Write-Output $_.FullName
-
-              Set-Content $_.FullName -Value $newContent
-          }
-      # Need to replace checksum for the MODULE.bazel file since it will be different now that we modified it. This is not an issue in prod
-      # since we never need to modify where to look for the overlay.
-      - name: Modify source.json file
-        shell: pwsh
-        run: |
-         Get-ChildItem -Recurse -Filter 'source.json' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
-              $content = Get-Content $_.FullName
-
-              # Replace the checksum
-              $newContent = $content -replace 'UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw', 'tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg'
-
-              Write-Output $newContent
-              Write-Output $_.FullName
-
-              Set-Content $_.FullName -Value $newContent
-          }
+      - run: (cd C:\ && tar xzf C:\bcr.windows.tar.gz)
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
       - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k @openssl//...
