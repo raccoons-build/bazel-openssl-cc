@@ -105,7 +105,7 @@ jobs:
           name: bcr.unix_merged.tar.gz
           path: bcr.unix_merged.tar.gz
           if-no-files-found: error
-      # Then we run for all OS but use it for Windows. This way we don't need to change any files at runtime in the test workflow. This is not an issue in prod because the release url template is a url not a local url.
+      # Then we run for all OS but use it for Windows. This way we don't need to change any files at runtime in the test workflow. This is not an issue in prod because the release url template is an https url not a local url.
       - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.windows_merged.tar.gz --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --release_tar_url_template=file:///C:/3.3.1.bcr.wip.windows_merged.tar.gz --buildifier=/tmp/buildifier.exe
       - run: tar czf bcr.windows_merged.tar.gz bazel-central-registry
       - name: Upload Windows overlay
