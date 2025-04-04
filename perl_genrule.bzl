@@ -67,7 +67,10 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         return ";".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
+    # On Unix we want to use rules_perl version
     binary_invocation = "perl"
+    if ctx.attr.is_unix:
+        binary_invocation = "$(PERL)"
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
@@ -76,13 +79,13 @@ def _perl_genrule_impl(ctx):
     perl_generate_file = ctx.file._perl_generate_file
     if ctx.attr.is_unix:
         ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs,
+            inputs = srcs_as_files + additional_srcs + toolchain.files.to_list(),
             outputs = outs_as_files,
             executable = perl_generate_file,
             arguments = [commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain = "@rules_perl//:current_toolchain",
+            toolchain = ctx.toolchains["@rules_perl//perl:current_toolchain"],
         )
     else:
         ctx.actions.run_shell(
@@ -122,4 +125,5 @@ perl_genrule = rule(
             default = "@openssl-generated-overlay//:perl_generate_file.sh",
         ),
     },
+    toolchains = [config_common.toolchain_type("@rules_perl//perl:current_toolchain", mandatory = False)],
 )
