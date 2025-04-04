@@ -70,7 +70,7 @@ def _perl_genrule_impl(ctx):
     # On Unix we want to use rules_perl version
     binary_invocation = "perl"
     if ctx.attr.is_unix:
-        binary_invocation = "$(PERL)"
+        binary_invocation = ctx.expand_make_variables("$(PERL)")
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
