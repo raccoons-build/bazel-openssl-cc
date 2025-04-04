@@ -62,7 +62,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
     if ctx.attr.is_unix:
-        return ",".join([ctx.expand_make_variables(command) for command in commands]), src_files, out_files
+        return ",".join([ctx.expand_make_variables(command, "$(PERL)", {"PERL": ctx.attr._perl_toolchain.perl_runtime.interpreter}) for command in commands]), src_files, out_files
     else:
         return ";".join(commands), src_files, out_files
 
@@ -85,7 +85,7 @@ def _perl_genrule_impl(ctx):
             arguments = [commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain = "@rules_perl//perl:current_toolchain",
+            toolchain = ctx.attr._perl_toolchain,
         )
     else:
         ctx.actions.run_shell(
@@ -124,6 +124,8 @@ perl_genrule = rule(
             cfg = "exec",
             default = "@openssl-generated-overlay//:perl_generate_file.sh",
         ),
+        # Current perl toolchain
+        "_perl_toolchain": attr.label(default = "@rules_perl//perl:current_toolchain"),
     },
     toolchains = [config_common.toolchain_type("@rules_perl//perl:toolchain_type", mandatory = False)],
 )
