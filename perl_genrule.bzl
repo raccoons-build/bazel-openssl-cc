@@ -78,10 +78,8 @@ def _perl_genrule_impl(ctx):
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file._perl_generate_file
     if ctx.attr.is_unix:
-
-        toolchain = ctx.toolchains["@rules_perl//perl:current_toolchain"]
         ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs + toolchain.files.to_list(),
+            inputs = srcs_as_files + additional_srcs,
             outputs = outs_as_files,
             executable = perl_generate_file,
             arguments = [commands_joined],
