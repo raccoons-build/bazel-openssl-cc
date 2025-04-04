@@ -85,7 +85,7 @@ def _perl_genrule_impl(ctx):
             arguments = [commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain = ctx.toolchains["@rules_perl//perl:current_toolchain"],
+            toolchain = ctx.toolchains["@rules_perl//perl:toolchain_type"],
         )
     else:
         ctx.actions.run_shell(
@@ -125,5 +125,5 @@ perl_genrule = rule(
             default = "@openssl-generated-overlay//:perl_generate_file.sh",
         ),
     },
-    toolchains = [config_common.toolchain_type("@rules_perl//perl:current_toolchain", mandatory = False)],
+    toolchains = [config_common.toolchain_type("@rules_perl//perl:toolchain_type", mandatory = False)],
 )
