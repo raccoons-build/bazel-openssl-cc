@@ -79,7 +79,7 @@ def _perl_genrule_impl(ctx):
     perl_generate_file = ctx.file._perl_generate_file
     if ctx.attr.is_unix:
         ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs + ctx.attr.perl_toolchain.files.to_list(),
+            inputs = srcs_as_files + additional_srcs + ctx.toolchains["@rules_perl//perl:toolchain_type"].files.to_list(),
             outputs = outs_as_files,
             executable = perl_generate_file,
             arguments = [commands_joined],
@@ -116,8 +116,6 @@ perl_genrule = rule(
         "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
         # The dicts of srcs to their outs when they are dupes from the first dict.
         "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
-        # Current perl toolchain
-        "perl_toolchain": attr.label(doc = "The perl toolchain to use to run the generation scripts."),
         # Script that handles the file generation and existence check. Only used on nix.
         "_perl_generate_file": attr.label(
             allow_single_file = True,

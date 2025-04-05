@@ -273,16 +273,6 @@ perl_genrule(
         "//conditions:default": True,
         "@platforms//os:windows": False,
     }),
-    perl_toolchain = select({
-        "@bazel_tools//src/conditions:linux_aarch64": "@rules_perl//perl:perl_linux_arm64_toolchain",
-        "@bazel_tools//src/conditions:linux_x86_64": "@rules_perl//perl:perl_linux_amd64_toolchain",
-        "@bazel_tools//src/conditions:darwin_arm64": "@rules_perl//perl:perl_darwin_arm64_toolchain",
-        "@bazel_tools//src/conditions:darwin_x86_64": "@rules_perl//perl:perl_darwin_amd64_toolchain",
-        # This is unused and probably does not work.
-        "@bazel_tools//src/conditions:windows_arm64": "@rules_perl//perl:perl_windows_x86_64_toolchain",
-        # This is unused but we need something here.
-        "@bazel_tools//src/conditions:windows_x64": "@rules_perl//perl:perl_windows_x86_64_toolchain",
-    }),
     srcs_to_outs = select({
         "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
         "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
