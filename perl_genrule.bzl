@@ -85,7 +85,6 @@ def _perl_genrule_impl(ctx):
             arguments = [commands_joined],
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-            toolchain = ctx.attr.perl_toolchain,
         )
     else:
         ctx.actions.run_shell(
