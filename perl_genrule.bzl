@@ -62,7 +62,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
     if ctx.attr.is_unix:
-        return ",".join([ctx.expand_make_variables(command, "$(PERL)", {"PERL": ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter.path}) for command in commands]), src_files, out_files
+        return ",".join(commands), src_files, out_files
     else:
         return ";".join(commands), src_files, out_files
 
@@ -70,7 +70,7 @@ def _perl_genrule_impl(ctx):
     # On Unix we want to use rules_perl version
     binary_invocation = "perl"
     if ctx.attr.is_unix:
-        binary_invocation = "$(PERL)"
+        binary_invocation = ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter.path
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
