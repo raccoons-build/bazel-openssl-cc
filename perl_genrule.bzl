@@ -62,7 +62,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
     if ctx.attr.is_unix:
-        return ",".join([ctx.expand_make_variables(command, "$(PERL)", {"PERL": ctx.attr.perl_toolchain.toolchain_info.perl_runtime.interpreter}) for command in commands]), src_files, out_files
+        return ",".join([ctx.expand_make_variables(command, "$(PERL)", {"PERL": ctx.toolchains["@rules_perl//perl:toolchain_type"].toolchain.perl_runtime.interpreter}) for command in commands]), src_files, out_files
     else:
         return ";".join(commands), src_files, out_files
 
