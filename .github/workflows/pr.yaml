@@ -169,35 +169,13 @@ jobs:
               # Replace the file path
               $newContent = $content -replace 'file:///tmp/', 'file:///C:'
 
-              if ( $newContent -ne $content )
-              {
-                  Write-Output "DWH: Changed file $_.FullName"
-              }
-              else
-              {
-                  Write-Output "DWH: Unchanged file $_.FullName"
-              }
+              Write-Output "DWH: Changed file $_ to $newContent"
 
               Set-Content $_.FullName -Value $newContent
           }
-      - name: Check jq
-        run: jq '.overlay["MODULE.bazel"]' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
       # Need to replace checksum for the MODULE.bazel file since it will be different now that we modified it. This is not an issue in prod
       # since we never need to modify where to look for the overlay.
-      - name: Modify source.json file
-        shell: pwsh
-        run: |
-         Get-ChildItem -Recurse -Filter 'source.json' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
-              $content = Get-Content $_.FullName
-
-              Write-Output "DWH: File $_ contents: $content"
-
-              # Replace the checksum
-              $newContent = $content.Replace('tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg', 'UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw')
-
-              Write-Output "DWH: File $_ new contents: $newContent"
-
-              Set-Content $_.FullName -Value $newContent
-          }
+      - name: Check jq
+        run: jq '.overlay["MODULE.bazel"] = "UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw=' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified && mv C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
       - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" -k @openssl//...
