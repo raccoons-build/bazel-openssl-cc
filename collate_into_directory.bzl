@@ -1,20 +1,21 @@
-def _collate_into_directory_impl(ctx):
-    out = "{}_out".format(ctx.attr.name)
-    outdir = ctx.actions.declare_directory(out)
-    mv_file = ctx.file._move_file_script
+"""Move files from one path to an output directory specified through a series of dicts
+"""
 
-    call_to_script = """{script_path} {outdir} {file} {prefix_to_strip}"""
+def _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
+    """Gets the input files and the commands to run
+
+    Args:
+        mv_file: The move file to use on nix
+        call_to_script: the formatted string to do replace on
+        srcs_map: map of sources to the outputs
+        ctx: the current context
+        outdir: the output directory
+    Returns:
+        input_files: The input files to the run_shell
+        copy_calls: The structured commands to run
+    """
+
     copy_calls = []
-    srcs_map = dict(ctx.attr.srcs_prefix_map)
-
-    # If a user declares an output that is not in srcs, we still want to copy it.
-    implicit_srcs_from_outs = {
-        tgt: ""
-        for (tgt, _) in ctx.attr.outs_prefix_map.items()
-        if tgt not in srcs_map
-    }
-    srcs_map.update(implicit_srcs_from_outs)
-
     for (tgt, prefix) in srcs_map.items():
         output_prefix = None
         if tgt in ctx.attr.outs_prefix_map:
@@ -29,11 +30,35 @@ def _collate_into_directory_impl(ctx):
                     prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
                 ),
             )
-
+    mv_file_list = []
+    if mv_file:
+        mv_file_list.append(mv_file)
     input_files = depset(
-        [mv_file],
+        mv_file_list,
         transitive = [tgt[DefaultInfo].files for tgt in srcs_map.keys()],
     )
+
+    return input_files, copy_calls
+
+def _collate_into_directory_impl(ctx):
+    out = "{}_out".format(ctx.attr.name)
+    outdir = ctx.actions.declare_directory(out)
+    mv_file = ctx.file._move_file_script
+
+    call_to_script = """{script_path} {outdir} {file} {prefix_to_strip}"""
+
+    srcs_map = dict(ctx.attr.srcs_prefix_map)
+
+    # If a user declares an output that is not in srcs, we still want to copy it.
+    implicit_srcs_from_outs = {
+        tgt: ""
+        for (tgt, _) in ctx.attr.outs_prefix_map.items()
+        if tgt not in srcs_map
+    }
+    srcs_map.update(implicit_srcs_from_outs)
+
+    input_files, copy_calls = _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
+
     ctx.actions.run_shell(
         inputs = input_files,
         outputs = [outdir],
