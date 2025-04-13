@@ -167,7 +167,7 @@ jobs:
               $content = Get-Content $_.FullName
 
               # Replace the file path
-              $newContent = $content -replace 'file:///tmp/', 'file:///C:'
+              $newContent = $content -replace 'file:///tmp/', 'file:///C:/'
 
               Write-Output "DWH: Changed file $_ to $newContent"
 
