@@ -188,8 +188,12 @@ jobs:
          Get-ChildItem -Recurse -Filter 'source.json' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
               $content = Get-Content $_.FullName
 
+              Write-Output "DWH: File $_.FullName contents: $content"
+
               # Replace the checksum
-              $newContent = $content -replace 'UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw', 'tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg'
+              $newContent = $content -replace 'tdSHTJcMLlRtB4yWdykJk+Pl399eW87NceEIVDDypqg', 'UMrgW2zsc4AAS0GF5WgQNAfDPd0OkQfR8Wzj9Qmaqtw'
+
+              Write-Output "DWH: File $_.FullName new contents: $newContent"
 
               Set-Content $_.FullName -Value $newContent
           }
