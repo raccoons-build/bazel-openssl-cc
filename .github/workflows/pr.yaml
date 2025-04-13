@@ -180,6 +180,8 @@ jobs:
 
               Set-Content $_.FullName -Value $newContent
           }
+      - name: Check jq
+        run: jq '.overlay["MODULE.bazel"]' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
       # Need to replace checksum for the MODULE.bazel file since it will be different now that we modified it. This is not an issue in prod
       # since we never need to modify where to look for the overlay.
       - name: Modify source.json file
