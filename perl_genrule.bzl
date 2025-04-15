@@ -67,7 +67,7 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         return ";".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
-    perl_toolchain = ctx.toolchains["@rules_perl//perl:toolchain_type"]
+    perl_toolchain = ctx.toolchains.get("@rules_perl//perl:toolchain_type")
     if perl_toolchain != None:
         binary_invocation = perl_toolchain.perl_runtime.interpreter.path
     else:
