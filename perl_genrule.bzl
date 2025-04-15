@@ -67,22 +67,19 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         return ";".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
-    perl_toolchain = ctx.toolchains.get("@rules_perl//perl:toolchain_type")
-    if perl_toolchain != None:
-        binary_invocation = perl_toolchain.perl_runtime.interpreter.path
-    else:
-      # rules_perl doesn't currently support Windows, so we give up on hermeticity there.
-      binary_invocation = "perl"
-
+    # On Unix we want to use rules_perl version
+    binary_invocation = "perl"
+    if ctx.attr.is_unix:
+        binary_invocation = ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter.path
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file._perl_generate_file
-    if perl_toolchain != None:
+    if ctx.attr.is_unix:
         ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs + [perl_toolchain.perl_runtime.interpreter],
+            inputs = srcs_as_files + additional_srcs + [ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter],
             outputs = outs_as_files,
             executable = perl_generate_file,
             arguments = [commands_joined],
@@ -94,8 +91,8 @@ def _perl_genrule_impl(ctx):
             inputs = srcs_as_files + additional_srcs,
             outputs = outs_as_files,
             command = commands_joined,
-            mnemonic = "GenerateAssemblyFromPerlScriptsWithNonHermeticPerl",
-            progress_message = "Generating files {} from scripts {} (non-hermetic perl)".format(outs_as_files_paths, srcs_as_files_paths),
+            mnemonic = "GenerateAssemblyFromPerlScriptsOnWindows",
+            progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
             use_default_shell_env = True,
         )
 
