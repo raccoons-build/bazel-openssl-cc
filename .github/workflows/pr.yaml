@@ -169,8 +169,6 @@ jobs:
               # Replace the file path
               $newContent = $content -replace 'file:///tmp/', 'file:///C:/'
 
-              Write-Output "DWH: Changed file $_ to $newContent"
-
               Set-Content $_.FullName -Value $newContent
           }
       # Need to replace checksum for the MODULE.bazel file since it will be different now that we modified it. This is not an issue in prod
