@@ -67,21 +67,34 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         return ";".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
-    binary_invocation = ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter.path
+    # On Unix we want to use rules_perl version
+    binary_invocation = "perl"
+    if ctx.attr.is_unix:
+        binary_invocation = ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter.path
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
     perl_generate_file = ctx.file._perl_generate_file
-    ctx.actions.run(
-        inputs = srcs_as_files + additional_srcs + [ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter],
-        outputs = outs_as_files,
-        executable = perl_generate_file,
-        arguments = [commands_joined],
-        mnemonic = "GenerateAssemblyFromPerlScripts",
-        progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-    )
+    if ctx.attr.is_unix:
+        ctx.actions.run(
+            inputs = srcs_as_files + additional_srcs + [ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter],
+            outputs = outs_as_files,
+            executable = perl_generate_file,
+            arguments = [commands_joined],
+            mnemonic = "GenerateAssemblyFromPerlScripts",
+            progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
+        )
+    else:
+        ctx.actions.run_shell(
+            inputs = srcs_as_files + additional_srcs,
+            outputs = outs_as_files,
+            command = commands_joined,
+            mnemonic = "GenerateAssemblyFromPerlScriptsOnWindows",
+            progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
+            use_default_shell_env = True,
+        )
 
     cc_info = CcInfo(
         compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files),
@@ -111,5 +124,5 @@ perl_genrule = rule(
             default = "@openssl-generated-overlay//:perl_generate_file.sh",
         ),
     },
-    toolchains = [config_common.toolchain_type("@rules_perl//perl:toolchain_type")],
+    toolchains = [config_common.toolchain_type("@rules_perl//perl:toolchain_type", mandatory = False)],
 )
