@@ -125,7 +125,7 @@ perl_genrule = rule(
         ),
         "_perl_toolchain": attr.label(
             cfg = "exec",
-            default = Label("@rules_perl//perl:current_perl_toolchain"),
+            default = Label("@rules_perl//perl:current_toolchain"),
         ),
     },
 )
