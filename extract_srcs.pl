@@ -36,13 +36,13 @@ sub get_recursive_srcs_of_one {
 }
 
 sub gather_libcrypto_srcs {
-    my %srcs = get_recursive_srcs_of_one("libcrypto");
+    my %srcs = get_recursive_srcs_of_one("libcrypto", "libcrypto");
     return(%srcs);
 }
 
 sub gather_libssl_srcs {
     my %seen;
-    my $all = get_recursive_srcs_of_one("libssl", %seen);
+    my $all = get_recursive_srcs_of_one("libssl", "libssl", %seen);
 }
 
 sub get_recursive_defines {
@@ -65,7 +65,14 @@ my %libcrypto_srcs = get_recursive_srcs_of_one("libcrypto");
 my %excludes = %libcrypto_srcs;
 my %libssl_srcs = get_recursive_srcs_of_one("libssl", (), %excludes);
 %excludes = (%excludes, %libssl_srcs);
-my %openssl_app_srcs = get_recursive_srcs_of_one("apps/openssl", (), %excludes);
+my %openssl_app_srcs;
+# On Windows we need to modify the path since the configdata file 
+# will be using different paths delimitters.
+if (@ARGV[0] eq "windows") {
+    %openssl_app_srcs = get_recursive_srcs_of_one("apps\\openssl", (), %excludes);
+} else {
+    %openssl_app_srcs = get_recursive_srcs_of_one("apps/openssl", (), %excludes);
+}
 
 my %libcrypto_defines = get_recursive_defines("libcrypto");
 my %libssl_defines = get_recursive_defines("libssl", ("libcrypto", 1));
