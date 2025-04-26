@@ -18,8 +18,8 @@ jobs:
     - name: Upload intermediate unix overlay and openssl files
       uses: actions/upload-artifact@v4
       with:
-        name: ${{github.ref_name}}.bcr.unix.wip.tar.gz
-        path: /tmp/${{github.ref_name}}.bcr.unix.wip.tar.gz
+        name: ${{github.ref_name}}.bcr.wip.unix.tar.gz
+        path: /tmp/${{github.ref_name}}.bcr.wip.unix.tar.gz
         if-no-files-found: error
   generate-windows:
     runs-on: windows-latest
@@ -48,8 +48,8 @@ jobs:
     - name: Upload intermediate windows overlay and openssl files
       uses: actions/upload-artifact@v4
       with:
-        name: ${{github.ref_name}}.bcr.windows.wip.tar.gz
-        path: C:/${{github.ref_name}}.bcr.windows.wip.tar.gz
+        name: ${{github.ref_name}}.bcr.wip.windows.tar.gz
+        path: C:/${{github.ref_name}}.bcr.wip.windows.tar.gz
         if-no-files-found: error
   merge-generate:
     runs-on: ubuntu-latest
