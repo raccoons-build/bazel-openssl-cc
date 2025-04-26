@@ -13,7 +13,6 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: "3.13"
-    - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
     - run: python3 generate_per_platform.py --os=unix --openssl_tar_path=/tmp/ --github_ref_name=${{github.ref_name}}
     - name: Upload intermediate unix overlay and openssl files
       uses: actions/upload-artifact@v4
@@ -33,7 +32,6 @@ jobs:
       shell: pwsh
       run: |
         New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
-    - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
     - name: Setup nasm
       uses: ilammy/setup-nasm@v1
     - name: Preparing nmake
@@ -90,7 +88,6 @@ jobs:
         with:
           python-version: "3.13"
       - run: ./download-buildifier.sh
-      - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
       - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/${{github.ref_name}}.bcr.wip.tar.gz --openssl_tar_path=/tmp/ --tag=${{github.ref_name}} --buildifier=/tmp/buildifier.exe
       - run: tar czf bcr.tar.gz bazel-central-registry
@@ -123,6 +120,7 @@ jobs:
           path: /tmp/
       - run: tar xzf /tmp/bcr.tar.gz
       - run: cd bazel-central-registry && mv /tmp/${{github.ref_name}}.bcr.wip.tar.gz bazel-openssl-cc-${{github.ref_name}}.tar.gz
+      - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
