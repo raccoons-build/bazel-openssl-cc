@@ -70,7 +70,7 @@ def _perl_genrule_impl(ctx):
     # On Unix we want to use rules_perl version
     binary_invocation = "perl"
     if ctx.attr.is_unix:
-        binary_invocation = ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter.path
+        binary_invocation = ctx.attr._perl_toolchain[platform_common.ToolchainInfo].perl_runtime.interpreter.path
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
     commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
@@ -79,7 +79,7 @@ def _perl_genrule_impl(ctx):
     perl_generate_file = ctx.file._perl_generate_file
     if ctx.attr.is_unix:
         ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs + [ctx.toolchains["@rules_perl//perl:toolchain_type"].perl_runtime.interpreter],
+            inputs = srcs_as_files + additional_srcs + [ctx.attr_perl_toolchain[platform_common.ToolchainInfo].perl_runtime.interpreter],
             outputs = outs_as_files,
             executable = perl_generate_file,
             arguments = [commands_joined],
@@ -123,6 +123,9 @@ perl_genrule = rule(
             cfg = "exec",
             default = "@openssl-generated-overlay//:perl_generate_file.sh",
         ),
+        "_perl_toolchain": attr.label(
+            cfg = "exec",
+            default = Label("@rules_perl//perl:current_perl_toolchain"),
+        ),
     },
-    toolchains = [config_common.toolchain_type("@rules_perl//perl:toolchain_type", mandatory = False)],
 )
