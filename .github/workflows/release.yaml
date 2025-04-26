@@ -21,7 +21,7 @@ jobs:
         name: ${{github.ref_name}}.bcr.unix.wip.tar.gz
         path: /tmp/${{github.ref_name}}.bcr.unix.wip.tar.gz
         if-no-files-found: error
-  generate_windows:
+  generate-windows:
     runs-on: windows-latest
     steps:
     - name: Checkout repo
