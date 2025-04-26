@@ -79,7 +79,7 @@ def _perl_genrule_impl(ctx):
     perl_generate_file = ctx.file._perl_generate_file
     if ctx.attr.is_unix:
         ctx.actions.run(
-            inputs = srcs_as_files + additional_srcs + [ctx.attr_perl_toolchain[platform_common.ToolchainInfo].perl_runtime.interpreter],
+            inputs = srcs_as_files + additional_srcs + [ctx.attr.perl_toolchain[platform_common.ToolchainInfo].perl_runtime.interpreter],
             outputs = outs_as_files,
             executable = perl_generate_file,
             arguments = [commands_joined],
