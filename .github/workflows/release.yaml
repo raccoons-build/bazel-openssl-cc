@@ -119,7 +119,8 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: tar xzf /tmp/bcr.tar.gz
-      - run: cd bazel-central-registry && mv /tmp/${{github.ref_name}}.bcr.wip.tar.gz bazel-openssl-cc-${{github.ref_name}}.tar.gz
+      - run: mv /tmp/${{github.ref_name}}.bcr.wip.tar.gz bazel-openssl-cc-${{github.ref_name}}.tar.gz
+      - run: sha256sum bazel-openssl-cc-${{github.ref_name}}.tar.gz
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
         env:
