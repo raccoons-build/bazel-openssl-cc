@@ -1,14 +1,13 @@
-"""All functions and constants shared between geneartion scripts
-"""
-from contextlib import contextmanager
-import tempfile
-import pathlib
-import os
-import subprocess
-import hashlib
+"""All functions and constants shared between geneartion scripts"""
+
 import base64
-import shutil
+import hashlib
+import os
+import pathlib
 import platform
+import shutil
+import subprocess
+from contextlib import contextmanager
 
 openssl_version = "3.3.1"
 
@@ -25,9 +24,7 @@ mac_platforms = [MAC_ARM64, MAC_X86]
 
 unix_platforms = linux_platforms + mac_platforms
 
-windows_platforms = [
-    WINDOWS_ARM64, WINDOWS_X86
-]
+windows_platforms = [WINDOWS_ARM64, WINDOWS_X86]
 
 all_platforms = unix_platforms + windows_platforms
 
@@ -97,7 +94,6 @@ generated_files = [
 ]
 
 
-
 def get_platforms(os: str):
     if os == WINDOWS:
         return windows_platforms
@@ -106,7 +102,7 @@ def get_platforms(os: str):
     elif os == ALL:
         return all_platforms
     else:
-        raise ValueError(f'Unknown os: {os}')
+        raise ValueError(f"Unknown os: {os}")
 
 
 def get_make_command(os: str):
@@ -117,35 +113,32 @@ def get_make_command(os: str):
     elif os == ALL:
         return "make"
     else:
-        raise ValueError(f'Unknown os: {os}')
+        raise ValueError(f"Unknown os: {os}")
 
 
 def get_start_configure_list(os: str, platform: str):
     if os == WINDOWS:
         if platform in windows_platforms:
-            # On Windows we don't  use any assembly because the assembler is mismatched 
+            # On Windows we don't  use any assembly because the assembler is mismatched
             # between MSVC with Bazel and MSVC with OpenSSL.
             # See https://github.com/rustls/boringssl/blob/018edfaaaeea43bf35a16e9f7ba24510c0c003bb/util/util.bzl#L149
             # for the inspiration.
             return ["perl", "Configure", "no-asm"]
-        elif platform in unix_platforms: 
+        elif platform in unix_platforms:
             # If we are generating unix on Windows (don't know why we would) we need to keep assembly.
             return ["perl", "Configure"]
-        else: 
-            raise ValueError(f'Unknown platform: {platform}')
+        else:
+            raise ValueError(f"Unknown platform: {platform}")
     elif os == UNIX:
         return ["./Configure"]
     elif os == ALL:
         return ["./Configure"]
     else:
-        raise ValueError(f'Unknown os: {os}')
+        raise ValueError(f"Unknown os: {os}")
+
 
 def get_extra_tar_options(os: str):
-    all_tar_options = ["--owner",
-                       "root",
-                       "--group",
-                       "wheel",
-                       "--mtime=UTC 1980-01-01"]
+    all_tar_options = ["--owner", "root", "--group", "wheel", "--mtime=UTC 1980-01-01"]
     if os == WINDOWS:
         return []
     elif os == UNIX:
@@ -153,41 +146,53 @@ def get_extra_tar_options(os: str):
     elif os == ALL:
         return all_tar_options
     else:
-        raise ValueError(f'Unknown os: {os}')
+        raise ValueError(f"Unknown os: {os}")
 
-def get_simple_platform(platform: str): 
+
+def get_simple_platform(platform: str):
     if platform in windows_platforms:
         return WINDOWS
     elif platform in unix_platforms:
         return UNIX
-    else: 
-        raise ValueError(f'Unknown platform: {platform}')
-    
+    else:
+        raise ValueError(f"Unknown platform: {platform}")
+
+
 def get_specific_common_platform(platform: str):
     if platform in windows_platforms:
         return WINDOWS
     elif platform in linux_platforms:
         return LINUX
-    elif platform in mac_platforms: 
+    elif platform in mac_platforms:
         return MAC
-    else: 
-        raise ValueError(f'Unknown platform: {platform}')
-    
+    else:
+        raise ValueError(f"Unknown platform: {platform}")
+
+
 def get_architecture(platform: str):
-    if platform in arm64_platforms: 
+    if platform in arm64_platforms:
         return ARM64
-    elif platform in x86_64_platforms: 
+    elif platform in x86_64_platforms:
         return X86_64
     else:
-        raise ValueError(f'Unknown platform: {platform}')
-    
+        raise ValueError(f"Unknown platform: {platform}")
+
+
 def get_tar_platform(platform: str):
     # For now we just return platform but we want this
     # in case we change how they are output
     return platform
 
+
 def get_dir_to_copy(root: str, platform: str):
-    return os.path.join(root, f'{get_simple_platform(platform)}_unzipped', get_specific_common_platform(platform), get_architecture(platform), "tmp")
+    return os.path.join(
+        root,
+        f"{get_simple_platform(platform)}_unzipped",
+        get_specific_common_platform(platform),
+        get_architecture(platform),
+        "tmp",
+    )
+
 
 @contextmanager
 def download_openssl(version: str, simple_platform: str):
@@ -225,19 +230,21 @@ def cleanup(prefix_dir: str, tempdir: str):
     if os.path.exists(tempdir):
         shutil.rmtree(tempdir, ignore_errors=True)
 
+
 def integrity_hash(path: str) -> str:
     algo = "sha256"
     with open(pathlib.Path(path).resolve(), "rb") as f:
         digest = hashlib.file_digest(f, algo).digest()
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
+
 def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    shutil.copyfile(pathlib.Path(os.path.join(
-        os.path.dirname(__file__), local_path)), dst)
+    shutil.copyfile(
+        pathlib.Path(os.path.join(os.path.dirname(__file__), local_path)), dst
+    )
     if executable:
         if platform.system == "Windows":
             os.access(dst, os.R_OK | os.W_OK | os.X_OK)
         else:
             os.chmod(dst, 0o755)
-
