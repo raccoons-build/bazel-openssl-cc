@@ -177,3 +177,26 @@ jobs:
         run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
       - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" @openssl//...
+
+  pr-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'isort==6.0.1' 'black==25.1.0'
+      - name: Run isort
+        run: |
+          isort --check-only private
+      - name: Run black
+        run: |
+          black --check --diff private
+      - name: Run buildifier
+        run: |
+          ./download-buildifier.sh
+          /tmp/buildifier.exe -lint=warn -mode=check -warnings=all -r
