@@ -192,10 +192,10 @@ jobs:
           pip install 'isort==6.0.1' 'black==25.1.0'
       - name: Run isort
         run: |
-          isort --check-only private
+          isort --check-only *.py
       - name: Run black
         run: |
-          black --check --diff private
+          black --check --diff *.py
       - name: Run buildifier
         run: |
           ./download-buildifier.sh
