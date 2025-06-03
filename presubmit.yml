@@ -3,7 +3,6 @@ matrix:
   - ubuntu2004
   - ubuntu2004_arm64
   - ubuntu2404
-  - ubuntu2404_arm64
   - macos
   - macos_arm64
 # Not yet working on BCR CI for some reason still to be determined.
