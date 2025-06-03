@@ -84,12 +84,12 @@ cc_library(
     textual_hdrs = [
         "crypto/des/ncbc_enc.c",
     ] + select({
-        "//conditions:default": ["crypto/LPdir_unix.c"],
         "@platforms//os:windows": [
             "crypto/LPdir_win32.c",
             "crypto/LPdir_win.c",
             "crypto/LPdir_wince.c",
         ],
+        "//conditions:default": ["crypto/LPdir_unix.c"],
     }),
 )
 
@@ -136,10 +136,10 @@ COMMON_OPENSSL_APP_SRCS = glob(
 MISSING_OPENSSL_WINDOWS_SRCS = ["apps/lib/win32_init.c"]
 
 ALL_OPENSSL_APP_SRCS = COMMON_OPENSSL_APP_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
-    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
     "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
     "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
+    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
+    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
     "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_OPENSSL_APP_SRCS) + MISSING_OPENSSL_WINDOWS_SRCS,
     "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_OPENSSL_APP_SRCS) + MISSING_OPENSSL_WINDOWS_SRCS,
 })
@@ -224,10 +224,10 @@ cc_binary(
     name = "openssl",
     srcs = ALL_OPENSSL_APP_SRCS,
     copts = COMMON_OPENSSL_COPTS + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
     }) + select({
@@ -262,30 +262,30 @@ perl_genrule(
     name = "perlasm_genfiles",
     additional_srcs = PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
     assembly_flavor = select({
-        "@bazel_tools//src/conditions:linux_aarch64": "linux64",
-        "@bazel_tools//src/conditions:linux_x86_64": "elf",
         "@bazel_tools//src/conditions:darwin_arm64": "ios64",
         "@bazel_tools//src/conditions:darwin_x86_64": "macosx",
+        "@bazel_tools//src/conditions:linux_aarch64": "linux64",
+        "@bazel_tools//src/conditions:linux_x86_64": "elf",
         "@bazel_tools//src/conditions:windows_arm64": "win64",
         "@bazel_tools//src/conditions:windows_x64": "masm",
     }),
     is_unix = select({
-        "//conditions:default": True,
         "@platforms//os:windows": False,
+        "//conditions:default": True,
     }),
     srcs_to_outs = select({
-        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
         "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
         "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
         "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS,
         "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS,
     }),
     srcs_to_outs_dupes = select({
-        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "@bazel_tools//src/conditions:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "@bazel_tools//src/conditions:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "@bazel_tools//src/conditions:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "@bazel_tools//src/conditions:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "@bazel_tools//src/conditions:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
     }),
@@ -314,20 +314,20 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = [
 ]
 
 ALL_LIBCRYPTO_SRCS = COMMON_LIBCRYPTO_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": remove_dupes(
-        _LINUX_ARM64_LIBCRYPTO_SRCS,
-        NIX_ARM64_PERLASM_TOOLS_AND_OUTS.values() + NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ),
-    "@bazel_tools//src/conditions:linux_x86_64": remove_dupes(
-        _LINUX_X86_64_LIBCRYPTO_SRCS,
-        NIX_X86_64_PERLASM_TOOLS_AND_OUTS.values() + NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ),
     "@bazel_tools//src/conditions:darwin_arm64": remove_dupes(
         _DARWIN_ARM64_LIBCRYPTO_SRCS,
         NIX_ARM64_PERLASM_TOOLS_AND_OUTS.values() + NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
     ),
     "@bazel_tools//src/conditions:darwin_x86_64": remove_dupes(
         _DARWIN_X86_64_LIBCRYPTO_SRCS,
+        NIX_X86_64_PERLASM_TOOLS_AND_OUTS.values() + NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
+    ),
+    "@bazel_tools//src/conditions:linux_aarch64": remove_dupes(
+        _LINUX_ARM64_LIBCRYPTO_SRCS,
+        NIX_ARM64_PERLASM_TOOLS_AND_OUTS.values() + NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
+    ),
+    "@bazel_tools//src/conditions:linux_x86_64": remove_dupes(
+        _LINUX_X86_64_LIBCRYPTO_SRCS,
         NIX_X86_64_PERLASM_TOOLS_AND_OUTS.values() + NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
     ),
     "@bazel_tools//src/conditions:windows_arm64": remove_dupes(
@@ -402,17 +402,17 @@ cc_library(
     ),
     # To make sure downstream targets add the right copts to be able to include the headers.
     copts = COMMON_OPENSSL_COPTS + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_DEFINES,
     }) + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_DEFINES,
     }) + select({
@@ -444,10 +444,10 @@ COMMON_LIBSSL_SRCS = glob(
 )
 
 ALL_LIBSSL_SRCS = COMMON_LIBSSL_SRCS + select({
-    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBSSL_SRCS,
-    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBSSL_SRCS,
     "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
     "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
+    "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBSSL_SRCS,
+    "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBSSL_SRCS,
     "@bazel_tools//src/conditions:windows_arm64": fix_paths_for_windows(_WINDOWS_ARM64_LIBSSL_SRCS),
     "@bazel_tools//src/conditions:windows_x64": fix_paths_for_windows(_WINDOWS_X86_64_LIBSSL_SRCS),
 })
@@ -464,17 +464,17 @@ cc_library(
     hdrs = ALL_LIBSSL_HDRS,
     additional_compiler_inputs = [":generated-files"],
     copts = COMMON_OPENSSL_COPTS + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_OPENSSL_DEFINES,
     }) + select({
-        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBSSL_DEFINES,
-        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_arm64": _DARWIN_ARM64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:darwin_x86_64": _DARWIN_X86_64_LIBSSL_DEFINES,
+        "@bazel_tools//src/conditions:linux_aarch64": _LINUX_ARM64_LIBSSL_DEFINES,
+        "@bazel_tools//src/conditions:linux_x86_64": _LINUX_X86_64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_arm64": _WINDOWS_ARM64_LIBSSL_DEFINES,
         "@bazel_tools//src/conditions:windows_x64": _WINDOWS_X86_64_LIBSSL_DEFINES,
     }),
@@ -518,14 +518,6 @@ genrule(
     name = "generate-platform-specific-files",
     outs = sorted(_DARWIN_ARM64_GEN_FILES.keys()),
     cmd = select({
-        "@bazel_tools//src/conditions:linux_aarch64": "\n".join([GEN_FILE_CMD.format(
-            contents = v,
-            filename = k,
-        ) for k, v in _LINUX_ARM64_GEN_FILES.items()]),
-        "@bazel_tools//src/conditions:linux_x86_64": "\n".join([GEN_FILE_CMD.format(
-            contents = v,
-            filename = k,
-        ) for k, v in _LINUX_X86_64_GEN_FILES.items()]),
         "@bazel_tools//src/conditions:darwin_arm64": "\n".join([GEN_FILE_CMD.format(
             contents = v,
             filename = k,
@@ -534,6 +526,14 @@ genrule(
             contents = v,
             filename = k,
         ) for k, v in _DARWIN_X86_64_GEN_FILES.items()]),
+        "@bazel_tools//src/conditions:linux_aarch64": "\n".join([GEN_FILE_CMD.format(
+            contents = v,
+            filename = k,
+        ) for k, v in _LINUX_ARM64_GEN_FILES.items()]),
+        "@bazel_tools//src/conditions:linux_x86_64": "\n".join([GEN_FILE_CMD.format(
+            contents = v,
+            filename = k,
+        ) for k, v in _LINUX_X86_64_GEN_FILES.items()]),
         "@bazel_tools//src/conditions:windows_arm64": "\n".join([GEN_FILE_CMD.format(
             contents = v,
             filename = k,
