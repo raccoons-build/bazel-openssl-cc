@@ -233,6 +233,8 @@ def write_module_files(
             f"""module(
     name = "openssl",
     version = "{tag}",
+    # We use overlay, which requires at least 7.2.1
+    bazel_compatibility = [">=7.2.1"],
     # Note: This should rarely change. For now, we hold it as a constant.
     # Realistically, we should only change it if the major version of openssl changes.
     # When that happens, we probably want to change this to a single-digit number representing that version number.
