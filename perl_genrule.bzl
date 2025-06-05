@@ -1,7 +1,9 @@
 """Generate files with perl. These are assumed to be .pl files as src and .s file as output.
 """
 
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 
 def combine_list_of_lists(list_of_lists):
     final_list = []
@@ -67,6 +69,21 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         return ";".join(commands), src_files, out_files
 
 def _perl_genrule_impl(ctx):
+    cc_toolchain = find_cc_toolchain(ctx)
+
+    feature_configuration = cc_common.configure_features(
+        ctx = ctx,
+        cc_toolchain = cc_toolchain,
+        requested_features = ctx.features,
+        unsupported_features = ctx.disabled_features,
+    )
+    env = {
+        "CC": cc_common.get_tool_for_action(
+            feature_configuration = feature_configuration,
+            action_name = ACTION_NAMES.c_compile,
+        ),
+    }
+
     # On Unix we want to use rules_perl version
     binary_invocation = "perl"
     if ctx.attr.is_unix:
@@ -83,16 +100,20 @@ def _perl_genrule_impl(ctx):
             outputs = outs_as_files,
             executable = perl_generate_file,
             arguments = [commands_joined],
+            env = env,
             mnemonic = "GenerateAssemblyFromPerlScripts",
             progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
+            tools = cc_toolchain.all_files,
         )
     else:
         ctx.actions.run_shell(
             inputs = srcs_as_files + additional_srcs,
             outputs = outs_as_files,
             command = commands_joined,
+            env = env,
             mnemonic = "GenerateAssemblyFromPerlScriptsOnWindows",
             progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
+            tools = cc_toolchain.all_files,
             use_default_shell_env = True,
         )
 
@@ -128,4 +149,6 @@ perl_genrule = rule(
             default = Label("@rules_perl//perl:current_toolchain"),
         ),
     },
+    fragments = ["cpp"],
+    toolchains = use_cc_toolchain(),
 )
