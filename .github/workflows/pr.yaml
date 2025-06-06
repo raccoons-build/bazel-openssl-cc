@@ -178,25 +178,9 @@ jobs:
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
       - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" @openssl//...
 
-  pr-format:
+  pre-commit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install 'isort==6.0.1' 'black==25.1.0'
-      - name: Run isort
-        run: |
-          isort --check-only *.py
-      - name: Run black
-        run: |
-          black --check --diff *.py
-      - name: Run buildifier
-        run: |
-          ./download-buildifier.sh
-          /tmp/buildifier.exe -lint=warn -mode=check -warnings=all -r
+      - uses: actions/setup-python@v5
+      - uses: pre-commit/action@v3.0.1
