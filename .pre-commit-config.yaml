@@ -1,0 +1,17 @@
+repos:
+# As per BCR itself
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.5.0
+  hooks:
+  - id: ruff-format
+# Because we like import sorting
+- repo: https://github.com/pycqa/isort
+  rev: 5.11.2
+  hooks:
+    - id: isort
+      name: isort (python)
+# Buildifier is great.
+- repo: https://github.com/warchant/pre-commit-buildifier
+  rev: f8ce12ccaf29ba79d19c6a9d0643471372a8ba0f
+  hooks:
+    - id: buildifier
