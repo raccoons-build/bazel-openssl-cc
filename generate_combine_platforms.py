@@ -49,14 +49,10 @@ def main(
     out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
     overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
 
-    copy_from_here_to(
-        "presubmit.yml", pathlib.Path(os.path.join(out_dir, "presubmit.yml"))
-    )
+    copy_from_here_to("presubmit.yml", pathlib.Path(os.path.join(out_dir, "presubmit.yml")))
 
     openssl_tar_root = pathlib.Path(openssl_tar_path)
-    openssl_version_dir = pathlib.Path(
-        os.path.join(openssl_tar_root, f"openssl-{openssl_version}")
-    )
+    openssl_version_dir = pathlib.Path(os.path.join(openssl_tar_root, f"openssl-{openssl_version}"))
 
     generated_path_to_platform_to_contents = defaultdict(dict)
     platform_to_perl_output = {}
@@ -66,25 +62,17 @@ def main(
         # Since there are hardcoded paths in the generated config files for openssl it is easier to
         # just move the files from their platform specific subdirs to root so that the paths all work.
         dir_to_copy = get_dir_to_copy(openssl_tar_root, platform)
-        dir_to_copy_with_version = os.path.join(
-            dir_to_copy, f"openssl-{openssl_version}"
-        )
+        dir_to_copy_with_version = os.path.join(dir_to_copy, f"openssl-{openssl_version}")
         if os.path.exists(openssl_version_dir):
             shutil.rmtree(openssl_version_dir)
         shutil.move(dir_to_copy_with_version, openssl_tar_root)
 
-        with open(
-            pathlib.Path(os.path.join(openssl_version_dir, "openssl_info.json")), "r"
-        ) as fp:
+        with open(pathlib.Path(os.path.join(openssl_version_dir, "openssl_info.json")), "r") as fp:
             openssl_info = json.load(fp)
             for generated_file in generated_files:
-                with open(
-                    pathlib.Path(os.path.join(openssl_version_dir, generated_file)), "r"
-                ) as f:
+                with open(pathlib.Path(os.path.join(openssl_version_dir, generated_file)), "r") as f:
                     content = f.read()
-                generated_path_to_platform_to_contents[generated_file][
-                    platform
-                ] = content
+                generated_path_to_platform_to_contents[generated_file][platform] = content
             simple_platform = get_simple_platform(platform)
             platform_to_perl_output[platform] = subprocess.check_output(
                 [
@@ -92,9 +80,7 @@ def main(
                     "-I.",
                     "-l",
                     "-Mconfigdata",
-                    pathlib.Path(
-                        os.path.join(os.path.dirname(__file__), "extract_srcs.pl")
-                    ),
+                    pathlib.Path(os.path.join(os.path.dirname(__file__), "extract_srcs.pl")),
                     simple_platform,
                 ],
                 cwd=openssl_version_dir,
@@ -106,9 +92,7 @@ def main(
     # Since we moved all the platform specific folders away. Use a representative folder to grab the
     # platform independent files.
     platform_independent_dir = get_dir_to_copy(openssl_tar_root, LINUX_X86)
-    platform_independent_dir_with_version = os.path.join(
-        platform_independent_dir, f"openssl-{openssl_version}"
-    )
+    platform_independent_dir_with_version = os.path.join(platform_independent_dir, f"openssl-{openssl_version}")
     with tempfile.TemporaryDirectory() as output_tar_dir:
         platform_independent_generated_files = []
         platform_specific_generated_paths = []
@@ -123,9 +107,7 @@ def main(
                     exist_ok=True,
                 )
                 shutil.copyfile(
-                    pathlib.Path(
-                        os.path.join(platform_independent_dir_with_version, path)
-                    ),
+                    pathlib.Path(os.path.join(platform_independent_dir_with_version, path)),
                     pathlib.Path(os.path.join(output_tar_dir, path)),
                 )
                 platform_independent_generated_files.append(path)
@@ -151,9 +133,7 @@ def main(
             "BUILD.openssl.bazel",
             pathlib.Path(os.path.join(overlay_dir, "BUILD.bazel")),
         )
-        copy_from_here_to(
-            "utils.bzl", pathlib.Path(os.path.join(overlay_dir, "utils.bzl"))
-        )
+        copy_from_here_to("utils.bzl", pathlib.Path(os.path.join(overlay_dir, "utils.bzl")))
         copy_from_here_to(
             "collate_into_directory.bzl",
             pathlib.Path(os.path.join(output_tar_dir, "collate_into_directory.bzl")),
@@ -177,9 +157,7 @@ def main(
             executable=True,
         )
         with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
-            f.write(
-                f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n"
-            )
+            f.write(f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n")
 
         copy_from_here_to(
             "BUILD.test.bazel",
@@ -187,9 +165,7 @@ def main(
         )
         copy_from_here_to(
             "sha256_test.py",
-            pathlib.Path(
-                os.path.join(overlay_dir, "test_bazel_build", "sha256_test.py")
-            ),
+            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "sha256_test.py")),
             executable=True,
         )
 
@@ -294,10 +270,7 @@ def write_platform_specific_constants(
     platform_specific_generated_files: Dict[str, str],
     buildifier_path: str,
 ):
-
-    json_dump = json.dumps(
-        platform_specific_generated_files, indent="    ", sort_keys=True
-    )
+    json_dump = json.dumps(platform_specific_generated_files, indent="    ", sort_keys=True)
 
     # Buildifier thinks that Windows paths are escape sequences.
     if "WIN" in platform:

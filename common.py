@@ -240,9 +240,7 @@ def integrity_hash(path: str) -> str:
 
 def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    shutil.copyfile(
-        pathlib.Path(os.path.join(os.path.dirname(__file__), local_path)), dst
-    )
+    shutil.copyfile(pathlib.Path(os.path.join(os.path.dirname(__file__), local_path)), dst)
     if executable:
         if platform.system == "Windows":
             os.access(dst, os.R_OK | os.W_OK | os.X_OK)

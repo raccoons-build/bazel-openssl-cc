@@ -53,9 +53,7 @@ def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
             )
 
             # Write out the openssl_info to be used later
-            with open(
-                pathlib.Path(os.path.join(openssl_dir, "openssl_info.json")), "w"
-            ) as fp:
+            with open(pathlib.Path(os.path.join(openssl_dir, "openssl_info.json")), "w") as fp:
                 json.dump(openssl_info, fp)
             tar = "gtar" if sys.platform == "darwin" else "tar"
             extra_tar_options = get_extra_tar_options(operating_system)
@@ -68,23 +66,15 @@ def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
             platform_tar_files.append(platform_openssl_tar_path)
 
             # Just grab everything.
-            subprocess.check_call(
-                [tar]
-                + extra_tar_options
-                + ["-czf", platform_openssl_tar_path, openssl_dir]
-            )
+            subprocess.check_call([tar] + extra_tar_options + ["-czf", platform_openssl_tar_path, openssl_dir])
 
     tar = "gtar" if sys.platform == "darwin" else "tar"
     extra_tar_options = get_extra_tar_options(operating_system)
 
-    all_openssl_tar_path = os.path.join(
-        openssl_tar_path, f"{version}.bcr.wip.{operating_system}.tar.gz"
-    )
+    all_openssl_tar_path = os.path.join(openssl_tar_path, f"{version}.bcr.wip.{operating_system}.tar.gz")
 
     # Just zip up every platform zip file
-    subprocess.check_call(
-        [tar] + extra_tar_options + ["-czf", all_openssl_tar_path] + platform_tar_files
-    )
+    subprocess.check_call([tar] + extra_tar_options + ["-czf", all_openssl_tar_path] + platform_tar_files)
 
 
 def move_files(openssl_dir: str, files):
@@ -102,12 +92,9 @@ def list_of_files_matching_pattern(openssl_dir: str, pattern: str):
 
 
 def get_files_to_tar(openssl_dir: str):
-
     all_files_to_tar = []
 
-    all_files_to_tar += list_of_files_matching_pattern(
-        openssl_dir, "openssl_info.json*"
-    )
+    all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "openssl_info.json*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "configdata*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "Makefile*")
     all_files_to_tar += list_of_files_matching_pattern(openssl_dir, "opensslconf.h*")
