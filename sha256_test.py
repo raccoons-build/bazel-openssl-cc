@@ -11,9 +11,7 @@ openssl = sys.argv[1]
 
 # Run the openssl command to compute the SHA-256 hash
 command = [openssl, "dgst", "-sha256"]
-result = subprocess.run(
-    command, input="European Burmese", text=True, capture_output=True
-)
+result = subprocess.run(command, input="European Burmese", text=True, capture_output=True)
 
 # Extract the hash from the output
 out = result.stdout.split()[-1]
