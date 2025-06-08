@@ -1,13 +1,18 @@
+import os
 import subprocess
 import sys
 
-# Check if exactly one argument is provided
-if len(sys.argv) != 2:
-    print(f"Usage: {sys.argv[0]} /path/to/openssl", file=sys.stderr)
+from python.runfiles import Runfiles
+
+# Ensure exactly zero arguments are provided
+if len(sys.argv) != 1:
+    print(f"Usage: {sys.argv[0]}", file=sys.stderr)
     sys.exit(1)
 
-# Get the openssl binary path from the argument
-openssl = sys.argv[1]
+# Get the openssl binary path
+extension = ".exe" if os.name == "nt" else ""
+r = Runfiles.Create()
+openssl = r.Rlocation("openssl/openssl" + extension)
 
 # Run the openssl command to compute the SHA-256 hash
 command = [openssl, "dgst", "-sha256"]
