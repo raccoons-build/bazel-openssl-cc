@@ -160,6 +160,11 @@ def main(
             f.write(f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n")
 
         copy_from_here_to(
+            "BUILD.configs.bazel",
+            pathlib.Path(os.path.join(overlay_dir, "configs", "BUILD.bazel")),
+        )
+
+        copy_from_here_to(
             "BUILD.test.bazel",
             pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "BUILD.bazel")),
         )
