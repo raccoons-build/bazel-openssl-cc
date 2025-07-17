@@ -173,8 +173,10 @@ jobs:
           }
       # Need to replace checksum for the MODULE.bazel file since it will be different now that we modified it. This is not an issue in prod
       # since we never need to modify where to look for the overlay.
-      - name: Update hash in source.json
+      - name: Update MODULE.bazel hash in source.json
         run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
+      - name: Update test MODULE.bazel hash in source.json
+        run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\test_bazel_build\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["test_bazel_build/MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
       - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
       - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" @openssl//...
 
