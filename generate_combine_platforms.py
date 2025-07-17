@@ -165,6 +165,14 @@ def main(
         )
 
         copy_from_here_to(
+            "MODULE.test.bazel",
+            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "MODULE.bazel")),
+        )
+
+        with open(pathlib.Path(os.path.join(overlay_dir, ".bazelignore")), "w") as f:
+            f.write("test_bazel_build\n")
+
+        copy_from_here_to(
             "BUILD.test.bazel",
             pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "BUILD.bazel")),
         )
@@ -225,10 +233,6 @@ def write_module_files(
 bazel_dep(name = "platforms", version = "0.0.11")
 bazel_dep(name = "rules_cc", version = "0.1.1")
 bazel_dep(name = "rules_perl", version = "0.4.1")
-
-# Just for testing.
-bazel_dep(name = "bazel_skylib", version = "1.7.1")
-bazel_dep(name = "rules_python", version = "1.2.0")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
