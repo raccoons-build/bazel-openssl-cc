@@ -7,7 +7,7 @@ cc_test(
     copts = select({
         "//configs:windows_arm64": ["/std:c++17"],
         "//configs:windows_x64": ["/std:c++17"],
-        "//conditions:default": [],
+        "//conditions:default": ["-std=c++17"],
     }),
     data = ["@openssl"],
     env = {
