@@ -1,17 +1,19 @@
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("@rules_python//python:defs.bzl", "py_test")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
-py_test(
+cc_test(
     name = "sha256_test",
-    srcs = ["sha256_test.py"],
-    data = ["//:openssl"],
-    deps = ["@rules_python//python/runfiles"],
+    srcs = ["sha256_test.cc"],
+    data = ["@openssl"],
+    env = {
+        "OPENSSL": "$(rootpath @openssl)",
+    },
 )
 
-build_test(
+cc_test(
     name = "build_test",
-    targets = [
+    srcs = ["build_test.cc"],
+    deps = [
         ":includes_bn",
     ],
 )
