@@ -21,7 +21,11 @@ int main(void) {
   command << tmpfilePath;
 
   FILE *outputStream;
+#ifdef _WIN32
+  outputStream = _popen(command.str().c_str(), "r");
+#else
   outputStream = popen(command.str().c_str(), "r");
+#endif
   if (!outputStream) {
     std::cerr << "Failed to run command" << std::endl;
     return 1;
