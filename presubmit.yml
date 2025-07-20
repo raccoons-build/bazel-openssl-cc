@@ -12,11 +12,10 @@ matrix:
   - 8.x
 tasks:
   verify_targets:
-    name: Build
+    name: Build and test
     platform: ${{ platform }}
     bazel: ${{ bazel }}
-    working_directory: test_bazel_build
     build_targets:
     - "@openssl//..."
     test_targets:
-    - "//test_bazel_build/..."
+    - "@openssl//test_bazel_build/..."

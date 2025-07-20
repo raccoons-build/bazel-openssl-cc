@@ -5,7 +5,7 @@ load("@rules_python//python:defs.bzl", "py_test")
 py_test(
     name = "sha256_test",
     srcs = ["sha256_test.py"],
-    data = ["@openssl"],
+    data = ["//:openssl"],
     deps = ["@rules_python//python/runfiles"],
 )
 
