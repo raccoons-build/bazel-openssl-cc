@@ -165,21 +165,17 @@ def main(
         )
 
         copy_from_here_to(
-            "MODULE.test.bazel",
-            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "MODULE.bazel")),
-        )
-
-        with open(pathlib.Path(os.path.join(overlay_dir, ".bazelignore")), "w") as f:
-            f.write("test_bazel_build\n")
-
-        copy_from_here_to(
             "BUILD.test.bazel",
             pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "BUILD.bazel")),
         )
         copy_from_here_to(
-            "sha256_test.py",
-            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "sha256_test.py")),
-            executable=True,
+            "sha256_test.cc",
+            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "sha256_test.cc")),
+        )
+
+        copy_from_here_to(
+            "build_test.cc",
+            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "build_test.cc")),
         )
 
         with open(pathlib.Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
