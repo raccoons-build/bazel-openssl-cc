@@ -191,6 +191,8 @@ def get_architecture(platform: str):
 
 
 def get_tar_platform(platform: str):
+    if platform == ARMV7:
+        return "armv4"
     # For now we just return platform but we want this
     # in case we change how they are output
     return platform
