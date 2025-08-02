@@ -9,6 +9,7 @@ import sys
 from common import (
     download_openssl,
     generated_files,
+    get_extra_config,
     get_extra_tar_options,
     get_make_command,
     get_platforms,
@@ -30,7 +31,7 @@ def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
         openssl_info,
     ):
         for platform in get_platforms(operating_system):
-            write_config_file(openssl_dir, platform)
+            write_config_file(openssl_dir, platform, get_extra_config(platform))
             start_configure_list = get_start_configure_list(operating_system, platform)
             subprocess.check_call(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
@@ -108,13 +109,14 @@ def get_files_to_tar(openssl_dir: str):
     return list(sorted(all_files_to_tar))
 
 
-def write_config_file(openssl_dir, platform):
+def write_config_file(openssl_dir, platform, extra_config):
     with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
         f.write(
             f"""(
     'openssl_config' => {{
         inherit_from => [ "{platform}" ],
         dso_scheme   => undef,
+        {extra_config}
     }}
 );
 """

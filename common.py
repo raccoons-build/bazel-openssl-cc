@@ -15,10 +15,11 @@ MAC_ARM64 = "darwin64-arm64-cc"
 MAC_X86 = "darwin64-x86_64-cc"
 LINUX_ARM64 = "linux-aarch64"
 LINUX_X86 = "linux-x86_64-clang"
+LINUX_ARMV7 = "linux-armv4"
 WINDOWS_ARM64 = "VC-WIN64-CLANGASM-ARM"
 WINDOWS_X86 = "VC-WIN64A-masm"
 
-linux_platforms = [LINUX_ARM64, LINUX_X86]
+linux_platforms = [LINUX_ARM64, LINUX_ARMV7, LINUX_X86]
 
 mac_platforms = [MAC_ARM64, MAC_X86]
 
@@ -135,6 +136,13 @@ def get_start_configure_list(os: str, platform: str):
         return ["./Configure"]
     else:
         raise ValueError(f"Unknown os: {os}")
+
+
+def get_extra_config(platform: str):
+    if platform == LINUX_ARMV7:
+        return 'cflags => [ "-march=armv7-a" ],'
+    else:
+        return ""
 
 
 def get_extra_tar_options(os: str):
