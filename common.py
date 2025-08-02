@@ -31,6 +31,7 @@ all_platforms = unix_platforms + windows_platforms
 
 x86_64_platforms = [MAC_X86, LINUX_X86, WINDOWS_X86]
 arm64_platforms = [MAC_ARM64, LINUX_ARM64, WINDOWS_ARM64]
+armv7_platforms = [LINUX_ARMV7]
 
 # Used for generation and testing on a pull request.
 WINDOWS = "windows"
@@ -38,6 +39,7 @@ UNIX = "unix"
 LINUX = "linux"
 MAC = "mac"
 ARM64 = "arm64"
+ARMV7 = "armv4"
 X86_64 = "x86_64"
 # Used for release flow.
 ALL = "all"
@@ -182,6 +184,8 @@ def get_architecture(platform: str):
         return ARM64
     elif platform in x86_64_platforms:
         return X86_64
+    elif platform in armv7_platforms:
+        return ARMV7
     else:
         raise ValueError(f"Unknown platform: {platform}")
 
