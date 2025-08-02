@@ -8,6 +8,7 @@ import platform
 import shutil
 import subprocess
 from contextlib import contextmanager
+import sys
 
 openssl_version = "3.3.1"
 
@@ -199,10 +200,15 @@ def get_tar_platform(platform: str):
 
 
 def get_dir_to_copy(root: str, platform: str):
-    return os.path.join(
+    arch_parent = os.path.join(
         root,
         f"{get_simple_platform(platform)}_unzipped",
         get_specific_common_platform(platform),
+    )
+    print("List of arch-specific directories: {}".format(",".join(os.listdir(arch_parent))), file=sys.stderr)
+
+    return os.path.join(
+        arch_parent,
         get_architecture(platform),
         "tmp",
     )
