@@ -1,19 +1,20 @@
 """Move files from one path to an output directory specified through a series of dicts
 """
 
-def _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
+def _get_inputs_and_commands(mv_file, srcs_map, ctx, outdir, is_windows):
     """Gets the input files and the commands to run
 
     Args:
         mv_file: The move file to use on nix
-        call_to_script: the formatted string to do replace on
         srcs_map: map of sources to the outputs
         ctx: the current context
         outdir: the output directory
+        is_windows: Whether or not the exec platform is windows.
     Returns:
         input_files: The input files to the run_shell
         copy_calls: The structured commands to run
     """
+    call_to_script = """{script_path} {outdir} {file} {prefix_to_strip}"""
 
     copy_calls = []
     for (tgt, prefix) in srcs_map.items():
@@ -22,12 +23,24 @@ def _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
             output_prefix = ctx.attr.outs_prefix_map[tgt]
 
         for file in tgt[DefaultInfo].files.to_list():
+            script_path = mv_file.path
+            outdir_path = outdir.path if not output_prefix else "{}/{}".format(outdir.path, output_prefix.lstrip("/"))
+            file_path = file.path
+            prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix)
+
+            # Update file paths
+            if is_windows:
+                script_path = script_path.replace("/", "\\")
+                outdir_path = outdir_path.replace("/", "\\")
+                file_path = file_path.replace("/", "\\")
+                prefix_to_strip = prefix_to_strip.replace("/", "\\")
+
             copy_calls.append(
                 call_to_script.format(
-                    script_path = mv_file.path,
-                    outdir = outdir.path if not output_prefix else "{}/{}".format(outdir.path, output_prefix),
-                    file = file.path,
-                    prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix),
+                    script_path = script_path,
+                    outdir = outdir_path,
+                    file = file_path,
+                    prefix_to_strip = prefix_to_strip,
                 ),
             )
     mv_file_list = []
@@ -40,12 +53,21 @@ def _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir):
 
     return input_files, copy_calls
 
-def _collate_into_directory_impl(ctx):
-    out = "{}_out".format(ctx.attr.name)
-    outdir = ctx.actions.declare_directory(out)
-    mv_file = ctx.file._move_file_script
+_WINDOWS_TEMPLATE = """\
+@ECHO OFF
+{}
+"""
 
-    call_to_script = """{script_path} {outdir} {file} {prefix_to_strip}"""
+_UNIX_TEMPLATE = """\
+#!/usr/bin/env bash
+# TODO: https://github.com/raccoons-build/bazel-openssl-cc/issues/37
+# set -euo pipefail
+{}
+"""
+
+def _collate_into_directory_impl(ctx):
+    outdir = ctx.actions.declare_directory("{}_out".format(ctx.attr.name))
+    mv_file = ctx.file._move_file_script
 
     srcs_map = dict(ctx.attr.srcs_prefix_map)
 
@@ -57,18 +79,32 @@ def _collate_into_directory_impl(ctx):
     }
     srcs_map.update(implicit_srcs_from_outs)
 
-    input_files, copy_calls = _get_inputs_and_commands(mv_file, call_to_script, srcs_map, ctx, outdir)
+    is_windows = ctx.executable._move_file_script.basename.endswith(".bat")
+    input_files, copy_calls = _get_inputs_and_commands(mv_file, srcs_map, ctx, outdir, is_windows)
 
-    ctx.actions.run_shell(
-        inputs = input_files,
-        outputs = [outdir],
-        command = "\n".join(copy_calls),
-        mnemonic = "CopyFilesToDir",
-        progress_message = "Copying files to directory",
+    action_runner = ctx.actions.declare_file("{}.action_runner.{}".format(ctx.label.name, "bat" if is_windows else "sh"))
+    template = _WINDOWS_TEMPLATE if is_windows else _UNIX_TEMPLATE
+    ctx.actions.write(
+        output = action_runner,
+        content = template.format("\n".join(copy_calls)),
+        is_executable = True,
     )
-    runfiles = ctx.runfiles(files = [outdir])
 
-    return [DefaultInfo(files = depset([outdir]), runfiles = runfiles)]
+    ctx.actions.run(
+        inputs = input_files,
+        executable = action_runner,
+        outputs = [outdir],
+        mnemonic = "OpenSSLCopyFilesToDir",
+        progress_message = "Copying files to directory",
+        use_default_shell_env = True,
+    )
+
+    return [
+        DefaultInfo(
+            files = depset([outdir]),
+            runfiles = ctx.runfiles(files = [outdir]),
+        ),
+    ]
 
 collate_into_directory = rule(
     implementation = _collate_into_directory_impl,
@@ -86,7 +122,7 @@ collate_into_directory = rule(
             allow_single_file = True,
             executable = True,
             cfg = "exec",
-            default = "@openssl-generated-overlay//:move_file_and_strip_prefix.sh",
+            default = "@openssl-generated-overlay//:move_file_and_strip_prefix",
         ),
     },
 )

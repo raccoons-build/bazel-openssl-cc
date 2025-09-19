@@ -1,3 +1,28 @@
-startup --windows_enable_symlinks
+###############################################################################
+## Bazel Configuration Flags
+##
+## `.bazelrc` is a Bazel configuration file.
+## https://bazel.build/docs/best-practices#bazelrc-file
+###############################################################################
 
-build --enable_runfiles
+# https://github.com/bazelbuild/bazel/issues/8195
+build --incompatible_disallow_empty_glob=true
+
+# https://github.com/bazelbuild/bazel/issues/12821
+build --nolegacy_external_runfiles
+
+# https://github.com/bazelbuild/bazel/issues/23043.
+build --incompatible_autoload_externally=
+
+# Avoid building runfile links which can be slow for runfiles heavy rules like Python.
+build --nobuild_runfile_links
+
+###############################################################################
+## Custom user flags
+##
+## This should always be the last thing in the `.bazelrc` file to ensure
+## consistent behavior when setting flags in that file as `.bazelrc` files are
+## evaluated top to bottom.
+###############################################################################
+
+try-import %workspace%/user.bazelrc
