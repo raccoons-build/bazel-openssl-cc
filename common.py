@@ -8,6 +8,7 @@ import platform
 import shutil
 import subprocess
 from contextlib import contextmanager
+import sys
 
 openssl_version = "3.3.1"
 
@@ -15,10 +16,11 @@ MAC_ARM64 = "darwin64-arm64-cc"
 MAC_X86 = "darwin64-x86_64-cc"
 LINUX_ARM64 = "linux-aarch64"
 LINUX_X86 = "linux-x86_64-clang"
+LINUX_ARMV7 = "linux-armv4"
 WINDOWS_ARM64 = "VC-WIN64-CLANGASM-ARM"
 WINDOWS_X86 = "VC-WIN64A-masm"
 
-linux_platforms = [LINUX_ARM64, LINUX_X86]
+linux_platforms = [LINUX_ARM64, LINUX_ARMV7, LINUX_X86]
 
 mac_platforms = [MAC_ARM64, MAC_X86]
 
@@ -30,6 +32,7 @@ all_platforms = unix_platforms + windows_platforms
 
 x86_64_platforms = [MAC_X86, LINUX_X86, WINDOWS_X86]
 arm64_platforms = [MAC_ARM64, LINUX_ARM64, WINDOWS_ARM64]
+armv7_platforms = [LINUX_ARMV7]
 
 # Used for generation and testing on a pull request.
 WINDOWS = "windows"
@@ -37,6 +40,7 @@ UNIX = "unix"
 LINUX = "linux"
 MAC = "mac"
 ARM64 = "arm64"
+ARMV7 = "armv4"
 X86_64 = "x86_64"
 # Used for release flow.
 ALL = "all"
@@ -137,6 +141,13 @@ def get_start_configure_list(os: str, platform: str):
         raise ValueError(f"Unknown os: {os}")
 
 
+def get_extra_config(platform: str):
+    if platform == LINUX_ARMV7:
+        return 'cflags => [ "-march=armv7-a" ],'
+    else:
+        return ""
+
+
 def get_extra_tar_options(os: str):
     all_tar_options = ["--owner", "root", "--group", "wheel", "--mtime=UTC 1980-01-01"]
     if os == WINDOWS:
@@ -174,21 +185,30 @@ def get_architecture(platform: str):
         return ARM64
     elif platform in x86_64_platforms:
         return X86_64
+    elif platform in armv7_platforms:
+        return ARMV7
     else:
         raise ValueError(f"Unknown platform: {platform}")
 
 
 def get_tar_platform(platform: str):
+    if platform == ARMV7:
+        return "armv4"
     # For now we just return platform but we want this
     # in case we change how they are output
     return platform
 
 
 def get_dir_to_copy(root: str, platform: str):
-    return os.path.join(
+    arch_parent = os.path.join(
         root,
         f"{get_simple_platform(platform)}_unzipped",
         get_specific_common_platform(platform),
+    )
+    print("List of arch-specific directories: {}".format(",".join(os.listdir(arch_parent))), file=sys.stderr)
+
+    return os.path.join(
+        arch_parent,
         get_architecture(platform),
         "tmp",
     )
