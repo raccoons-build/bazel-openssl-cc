@@ -1,1 +1,3 @@
+# Git ignore patterns.
 /*venv*
+__pycache__

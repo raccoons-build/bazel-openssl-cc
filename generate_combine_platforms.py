@@ -1,13 +1,14 @@
 import argparse
 import json
 import os
-import pathlib
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from collections import defaultdict
+from pathlib import Path
+from textwrap import dedent
 from typing import Dict
 
 from common import (
@@ -24,7 +25,7 @@ from common import (
 )
 
 
-def replace_backslashes_in_paths(string):
+def replace_backslashes_in_paths(string: str) -> str:
     """Replaces single backslashes with double backslashes in paths within a string."""
 
     def replace_match(match):
@@ -44,15 +45,15 @@ def main(
     release_tar_url_template: str,
     operating_system: str,
     openssl_tar_path: str,
-):
-    openssl_module_dir = pathlib.Path(os.path.join(bcr_dir, "modules", "openssl"))
-    out_dir = pathlib.Path(os.path.join(openssl_module_dir, tag))
-    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
+) -> None:
+    openssl_module_dir = Path(os.path.join(bcr_dir, "modules", "openssl"))
+    out_dir = Path(os.path.join(openssl_module_dir, tag))
+    overlay_dir = Path(os.path.join(out_dir, "overlay"))
 
-    copy_from_here_to("presubmit.yml", pathlib.Path(os.path.join(out_dir, "presubmit.yml")))
+    copy_from_here_to("presubmit.yml", Path(os.path.join(out_dir, "presubmit.yml")))
 
-    openssl_tar_root = pathlib.Path(openssl_tar_path)
-    openssl_version_dir = pathlib.Path(os.path.join(openssl_tar_root, f"openssl-{openssl_version}"))
+    openssl_tar_root = Path(openssl_tar_path)
+    openssl_version_dir = Path(os.path.join(openssl_tar_root, f"openssl-{openssl_version}"))
 
     generated_path_to_platform_to_contents = defaultdict(dict)
     platform_to_perl_output = {}
@@ -67,24 +68,27 @@ def main(
             shutil.rmtree(openssl_version_dir)
         shutil.move(dir_to_copy_with_version, openssl_tar_root)
 
-        with open(pathlib.Path(os.path.join(openssl_version_dir, "openssl_info.json")), "r") as fp:
+        with open(Path(os.path.join(openssl_version_dir, "openssl_info.json")), "r") as fp:
             openssl_info = json.load(fp)
             for generated_file in generated_files:
-                with open(pathlib.Path(os.path.join(openssl_version_dir, generated_file)), "r") as f:
+                with open(Path(os.path.join(openssl_version_dir, generated_file)), "r") as f:
                     content = f.read()
                 generated_path_to_platform_to_contents[generated_file][platform] = content
             simple_platform = get_simple_platform(platform)
-            platform_to_perl_output[platform] = subprocess.check_output(
+            proc_result = subprocess.run(
                 [
                     "perl",
                     "-I.",
                     "-l",
                     "-Mconfigdata",
-                    pathlib.Path(os.path.join(os.path.dirname(__file__), "extract_srcs.pl")),
+                    str(Path(__file__).parent / "extract_srcs.pl"),
                     simple_platform,
                 ],
                 cwd=openssl_version_dir,
-            ).decode("utf-8")
+                stdout=subprocess.PIPE,
+                check=True,
+            )
+            platform_to_perl_output[platform] = proc_result.stdout.decode("utf-8")
 
         # Since we run this script multiple times we need to put the files back where they came from
         shutil.move(openssl_version_dir, dir_to_copy)
@@ -103,12 +107,12 @@ def main(
         ) in generated_path_to_platform_to_contents.items():
             if len(set(platform_to_contents.values())) == 1:
                 os.makedirs(
-                    os.path.dirname(pathlib.Path(os.path.join(output_tar_dir, path))),
+                    os.path.dirname(Path(os.path.join(output_tar_dir, path))),
                     exist_ok=True,
                 )
                 shutil.copyfile(
-                    pathlib.Path(os.path.join(platform_independent_dir_with_version, path)),
-                    pathlib.Path(os.path.join(output_tar_dir, path)),
+                    Path(os.path.join(platform_independent_dir_with_version, path)),
+                    Path(os.path.join(output_tar_dir, path)),
                 )
                 platform_independent_generated_files.append(path)
             else:
@@ -126,60 +130,74 @@ def main(
                     path: generated_path_to_platform_to_contents.get(path).get(platform)
                     for path in platform_specific_generated_paths
                 },
-                pathlib.Path(buildifier_path),
+                Path(buildifier_path),
             )
 
         copy_from_here_to(
             "BUILD.openssl.bazel",
-            pathlib.Path(os.path.join(overlay_dir, "BUILD.bazel")),
+            Path(os.path.join(overlay_dir, "BUILD.bazel")),
         )
-        copy_from_here_to("utils.bzl", pathlib.Path(os.path.join(overlay_dir, "utils.bzl")))
+        copy_from_here_to("utils.bzl", Path(os.path.join(overlay_dir, "utils.bzl")))
         copy_from_here_to(
             "collate_into_directory.bzl",
-            pathlib.Path(os.path.join(output_tar_dir, "collate_into_directory.bzl")),
+            Path(os.path.join(output_tar_dir, "collate_into_directory.bzl")),
         )
         copy_from_here_to(
             "perl_genrule.bzl",
-            pathlib.Path(os.path.join(output_tar_dir, "perl_genrule.bzl")),
+            Path(os.path.join(output_tar_dir, "perl_genrule.bzl")),
         )
         copy_from_here_to(
             ".bazelrc",
-            pathlib.Path(os.path.join(output_tar_dir, ".bazelrc")),
+            Path(os.path.join(output_tar_dir, ".bazelrc")),
         )
         copy_from_here_to(
             "move_file_and_strip_prefix.sh",
-            pathlib.Path(os.path.join(output_tar_dir, "move_file_and_strip_prefix.sh")),
+            Path(os.path.join(output_tar_dir, "move_file_and_strip_prefix.sh")),
             executable=True,
         )
         copy_from_here_to(
-            "perl_generate_file.sh",
-            pathlib.Path(os.path.join(output_tar_dir, "perl_generate_file.sh")),
+            "move_file_and_strip_prefix.bat",
+            Path(os.path.join(output_tar_dir, "move_file_and_strip_prefix.bat")),
             executable=True,
         )
-        with open(pathlib.Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
+        with open(Path(os.path.join(output_tar_dir, "common.bzl")), "w") as f:
             f.write(f"COMMON_GENERATED_FILES = {json.dumps(platform_independent_generated_files)}\n")
 
         copy_from_here_to(
             "BUILD.configs.bazel",
-            pathlib.Path(os.path.join(overlay_dir, "configs", "BUILD.bazel")),
+            Path(os.path.join(overlay_dir, "configs", "BUILD.bazel")),
         )
 
         copy_from_here_to(
             "BUILD.test.bazel",
-            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "BUILD.bazel")),
+            Path(os.path.join(overlay_dir, "test_bazel_build", "BUILD.bazel")),
         )
         copy_from_here_to(
             "sha256_test.cc",
-            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "sha256_test.cc")),
+            Path(os.path.join(overlay_dir, "test_bazel_build", "sha256_test.cc")),
         )
 
         copy_from_here_to(
             "build_test.cc",
-            pathlib.Path(os.path.join(overlay_dir, "test_bazel_build", "build_test.cc")),
+            Path(os.path.join(overlay_dir, "test_bazel_build", "build_test.cc")),
         )
 
-        with open(pathlib.Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
-            f.write('exports_files(glob(["**"]))\n')
+        with open(Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
+            f.write(
+                dedent(
+                    """\
+                exports_files(glob(["**"]))
+
+                filegroup(
+                    name = "move_file_and_strip_prefix",
+                    srcs = select({
+                        "@platforms//os:windows": ["move_file_and_strip_prefix.bat"],
+                        "//conditions:default": ["move_file_and_strip_prefix.sh"],
+                    }),
+                )
+                """
+                )
+            )
 
         files_to_tar = list(sorted(os.listdir(output_tar_dir)))
         tar = "gtar" if sys.platform == "darwin" else "tar"
@@ -212,10 +230,11 @@ def write_module_files(
     overlay_archive_url: str,
     overlay_archive_integrity: str,
 ):
-    module_bazel_path = pathlib.Path(os.path.join(out_dir, "MODULE.bazel"))
+    module_bazel_path = Path(os.path.join(out_dir, "MODULE.bazel"))
     with open(module_bazel_path, "w") as f:
         f.write(
-            f"""module(
+            f"""\
+module(
     name = "openssl",
     version = "{tag}",
     # We use overlay, which requires at least 7.2.1
@@ -226,9 +245,10 @@ def write_module_files(
     compatibility_level = 3030100,
 )
 
-bazel_dep(name = "platforms", version = "0.0.11")
-bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.4")
 bazel_dep(name = "rules_perl", version = "0.4.1")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -241,24 +261,24 @@ http_archive(
         )
     overlay_module_path = os.path.join(out_dir, "overlay", "MODULE.bazel")
     if not os.path.exists(overlay_module_path):
-        os.symlink("../MODULE.bazel", pathlib.Path(overlay_module_path))
+        os.symlink("../MODULE.bazel", Path(overlay_module_path))
 
 
 def write_source_json(out_dir: str, openssl_info: Dict):
     overlay_info = {}
-    overlay_dir = pathlib.Path(os.path.join(out_dir, "overlay"))
+    overlay_dir = Path(os.path.join(out_dir, "overlay"))
     for root, _, files in os.walk(overlay_dir):
         for file in files:
-            full_path = pathlib.Path(os.path.join(root, file))
+            full_path = Path(os.path.join(root, file))
             overlay_relative_path = os.path.relpath(full_path, overlay_dir)
             overlay_info[overlay_relative_path] = integrity_hash(full_path)
     openssl_info["overlay"] = overlay_info
-    with open(pathlib.Path(os.path.join(out_dir, "source.json")), "w") as f:
+    with open(Path(os.path.join(out_dir, "source.json")), "w") as f:
         f.write(json.dumps(openssl_info, indent="    ", sort_keys=True) + "\n")
 
 
 def write_config_file(openssl_dir, platform):
-    with open(pathlib.Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
+    with open(Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
         f.write(
             f"""(
     'openssl_config' => {{
@@ -292,14 +312,14 @@ OPENSSL_VERSION = "{openssl_version}"
 
 GEN_FILES = {json_dump}
 """
-    path = pathlib.Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
-    with open(pathlib.Path(path), "w") as f:
+    path = Path(os.path.join(overlay_dir, f"constants-{platform}.bzl"))
+    with open(Path(path), "w") as f:
         f.write(out)
-    subprocess.check_call([pathlib.Path(buildifier_path), pathlib.Path(path)])
+    subprocess.check_call([Path(buildifier_path), Path(path)])
 
 
 def add_to_metadata(openssl_module_dir, tag):
-    metadata_path = pathlib.Path(os.path.join(openssl_module_dir, "metadata.json"))
+    metadata_path = Path(os.path.join(openssl_module_dir, "metadata.json"))
     with open(metadata_path, "r") as f:
         content = json.load(f)
     content["versions"].append(tag)

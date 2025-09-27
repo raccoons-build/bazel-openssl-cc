@@ -37,8 +37,8 @@ def generate_single_command(binary, assembly_flavor, src, out, ctx):
     out_files.append(out_file)
     return commands, src_files, out_files
 
-def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes, ctx):
-    """Generate commands needed to produces outs from sources. 
+def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes, ctx, is_windows):
+    """Generate commands needed to produces outs from sources.
 
     Args:
         binary: The binary to run
@@ -46,10 +46,10 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         srcs_to_outs: The main sources to outputs dict
         srcs_to_outs_dupes: The secondary sources to outputs dict
         ctx: The bazel rule context
+        is_windows: Whether or not the exec platform is windows.
     Returns:
-        The commands joined on comma, the source files and the output files
+        The commands, the source files and the output files
     """
-
     commands = []
     out_files = []
     src_files = []
@@ -63,10 +63,22 @@ def generate_commands(binary, assembly_flavor, srcs_to_outs, srcs_to_outs_dupes,
         commands = commands + intermediate_commands
         out_files = out_files + intermediate_out_files
         src_files = src_files + intermediate_src_files
-    if ctx.attr.is_unix:
-        return ",".join(commands), src_files, out_files
-    else:
-        return ";".join(commands), src_files, out_files
+
+    if is_windows:
+        commands = [c.replace("/", "\\") for c in commands]
+
+    return commands, src_files, out_files
+
+_WINDOWS_TEMPLATE = """\
+@ECHO OFF
+{}
+"""
+
+_UNIX_TEMPLATE = """\
+#!/usr/bin/env bash
+set -euo pipefail
+{}
+"""
 
 def _perl_genrule_impl(ctx):
     cc_toolchain = find_cc_toolchain(ctx)
@@ -84,65 +96,72 @@ def _perl_genrule_impl(ctx):
         ),
     }
 
-    # On Unix we want to use rules_perl version
-    binary_invocation = "perl"
-    if ctx.attr.is_unix:
-        binary_invocation = ctx.attr._perl_toolchain[platform_common.ToolchainInfo].perl_runtime.interpreter.path
+    perl_interpreter = ctx.attr._perl_toolchain[platform_common.ToolchainInfo].perl_runtime.interpreter
+    is_windows = perl_interpreter.basename.endswith((".exe", ".bat", ".ps1"))
     additional_srcs = combine_list_of_lists([src.files.to_list() for src in ctx.attr.additional_srcs])
 
-    commands_joined, srcs_as_files, outs_as_files = generate_commands(binary_invocation, ctx.attr.assembly_flavor, ctx.attr.srcs_to_outs, ctx.attr.srcs_to_outs_dupes, ctx)
+    commands, srcs_as_files, outs_as_files = generate_commands(
+        perl_interpreter.path,
+        ctx.attr.assembly_flavor,
+        ctx.attr.srcs_to_outs,
+        ctx.attr.srcs_to_outs_dupes,
+        ctx,
+        is_windows,
+    )
+
+    action_runner = ctx.actions.declare_file("{}.action_runner.{}".format(ctx.label.name, "bat" if is_windows else "sh"))
+    template = _WINDOWS_TEMPLATE if is_windows else _UNIX_TEMPLATE
+    ctx.actions.write(
+        output = action_runner,
+        content = template.format("\n".join(commands)),
+        is_executable = True,
+    )
+
     outs_as_files_paths = [out.path for out in outs_as_files]
     srcs_as_files_paths = [src.path for src in srcs_as_files]
-    perl_generate_file = ctx.file._perl_generate_file
-    if ctx.attr.is_unix:
-        ctx.actions.run(
-            inputs = depset(direct = srcs_as_files + additional_srcs + [ctx.attr._perl_toolchain[platform_common.ToolchainInfo].perl_runtime.interpreter], transitive = [ctx.attr._perl_toolchain[platform_common.ToolchainInfo].perl_runtime.runtime]),
-            outputs = outs_as_files,
-            executable = perl_generate_file,
-            arguments = [commands_joined],
-            env = env,
-            mnemonic = "GenerateAssemblyFromPerlScripts",
-            progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
-            tools = cc_toolchain.all_files,
-        )
-    else:
-        ctx.actions.run_shell(
-            inputs = srcs_as_files + additional_srcs,
-            outputs = outs_as_files,
-            command = commands_joined,
-            env = env,
-            mnemonic = "GenerateAssemblyFromPerlScriptsOnWindows",
-            progress_message = "Generating files {} from scripts {} on Windows".format(outs_as_files_paths, srcs_as_files_paths),
-            tools = cc_toolchain.all_files,
-            use_default_shell_env = True,
-        )
 
-    cc_info = CcInfo(
-        compilation_context = cc_common.create_compilation_context(direct_private_headers = outs_as_files),
+    ctx.actions.run(
+        inputs = depset(direct = srcs_as_files + additional_srcs),
+        outputs = outs_as_files,
+        executable = action_runner,
+        env = env,
+        mnemonic = "OpenSSLGenerateAssemblyFromPerlScripts",
+        progress_message = "Generating files {} from scripts {}".format(outs_as_files_paths, srcs_as_files_paths),
+        tools = depset(
+            direct = [perl_interpreter],
+            transitive = [cc_toolchain.all_files, ctx.attr._perl_toolchain[platform_common.ToolchainInfo].perl_runtime.runtime],
+        ),
     )
-    ret = [DefaultInfo(files = depset(outs_as_files)), cc_info]
-    return ret
+
+    return [
+        DefaultInfo(
+            files = depset(outs_as_files),
+        ),
+        CcInfo(
+            compilation_context = cc_common.create_compilation_context(
+                direct_private_headers = outs_as_files,
+            ),
+        ),
+    ]
 
 perl_genrule = rule(
     implementation = _perl_genrule_impl,
     doc = "Generate files using perl.",
     attrs = {
-        # Additional sources needed by the generation scripts.
-        "additional_srcs": attr.label_list(allow_files = True, doc = "List of other input files used by the main input files."),
-        # We specify what assemby flavor to use based on os and architecture.
-        "assembly_flavor": attr.string(doc = "What flavor to use for assembly generation."),
-        # We need to know what os this is running on.
-        "is_unix": attr.bool(doc = "Whether this is mac or linux or not."),
-        # The dict of srcs to their outs.
-        "srcs_to_outs": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files from their source script."),
-        # The dicts of srcs to their outs when they are dupes from the first dict.
-        "srcs_to_outs_dupes": attr.label_keyed_string_dict(allow_files = True, doc = "Dict of input to output files where the source is dupe from the first dict."),
-        # Script that handles the file generation and existence check. Only used on nix.
-        "_perl_generate_file": attr.label(
-            allow_single_file = True,
-            executable = True,
-            cfg = "exec",
-            default = "@openssl-generated-overlay//:perl_generate_file.sh",
+        "additional_srcs": attr.label_list(
+            doc = "List of other input files used by the main input files.",
+            allow_files = True,
+        ),
+        "assembly_flavor": attr.string(
+            doc = "What flavor to use for assembly generation.",
+        ),
+        "srcs_to_outs": attr.label_keyed_string_dict(
+            doc = "Dict of input to output files from their source script.",
+            allow_files = True,
+        ),
+        "srcs_to_outs_dupes": attr.label_keyed_string_dict(
+            doc = "Dict of input to output files where the source is dupe from the first dict.",
+            allow_files = True,
         ),
         "_perl_toolchain": attr.label(
             cfg = "exec",

@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -29,14 +30,12 @@ cc_library(
     deps = ["@openssl//:ssl"],
 )
 
-genrule(
+write_file(
     name = "generate_includes_bh",
-    outs = ["includes_bh.cpp"],
-    cmd = """cat >$@ <<'EOF'
-#include <openssl/bn.h>
-EOF
-""",
-    cmd_ps = """
-    New-Item -Path "$@" -ItemType File -Value "#include <openssl/bn.h>"
-""",
+    out = "includes_bh.cpp",
+    content = [
+        "#include <openssl/bn.h>",
+        "",
+    ],
+    newline = "unix",
 )

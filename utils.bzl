@@ -34,8 +34,8 @@ def parse_perlasm_gen(perlasm_gen):
             continue
         elif len(split_by_space) != 6:
             fail("Line {} not six parts".format(line))
-        tool = fix_path_for_windows_in_str(remove_extra_chars(split_by_space[2]))
-        out = fix_path_for_windows_in_str(remove_extra_chars(split_by_space[5]))
+        tool = remove_extra_chars(split_by_space[2])
+        out = remove_extra_chars(split_by_space[5])
         perlasm_tools.append(tool)
         perlasm_outs.append(out)
 
@@ -84,30 +84,6 @@ def dedupe(lst):
             final_lst.append(thing)
 
     return final_lst
-
-def fix_paths_for_windows(path_lst):
-    """Replace the \\ with / on Windows.
-
-        We need them to be the opposite way when writing the generated bzl files on Windows.
-        But when we use the files we need to fix the paths.
-        Args:
-            path_lst: The list of paths to fix.
-        Return:
-            The fixed path list.
-    """
-    return [fix_path_for_windows_in_str(path) for path in path_lst]
-
-def fix_path_for_windows_in_str(str):
-    """Replace the \\ with / on Windows.
-
-        We need them to be the opposite way when writing the generated bzl files on Windows.
-        But when we use the files we need to fix the paths.
-        Args:
-            str: The string to fix.
-        Return:
-            The fixed string.
-    """
-    return str.replace("\\", "/")
 
 def remove_dupes(lst_one, lst_two):
     """Remove dupes from list one that exist in list two

@@ -9,6 +9,12 @@ our %config;
 
 my %perlasm;
 
+sub normalize_path {
+    my ($path) = @_;
+    $path =~ s{\\}{/}g;
+    return $path;
+}
+
 sub get_recursive_srcs_of_one {
     my ($value, %seen, %excludes) = @_;
     my %result;
@@ -35,16 +41,6 @@ sub get_recursive_srcs_of_one {
     return(%result);
 }
 
-sub gather_libcrypto_srcs {
-    my %srcs = get_recursive_srcs_of_one("libcrypto", "libcrypto");
-    return(%srcs);
-}
-
-sub gather_libssl_srcs {
-    my %seen;
-    my $all = get_recursive_srcs_of_one("libssl", "libssl", %seen);
-}
-
 sub get_recursive_defines {
     my ($target, %excludes) = @_;
     my %defines;
@@ -66,7 +62,7 @@ my %excludes = %libcrypto_srcs;
 my %libssl_srcs = get_recursive_srcs_of_one("libssl", (), %excludes);
 %excludes = (%excludes, %libssl_srcs);
 my %openssl_app_srcs;
-# On Windows we need to modify the path since the configdata file 
+# On Windows we need to modify the path since the configdata file
 # will be using different paths delimitters.
 if (@ARGV[0] eq "windows") {
     %openssl_app_srcs = get_recursive_srcs_of_one("apps\\openssl", (), %excludes);
@@ -82,7 +78,7 @@ print "LIBCRYPTO_SRCS = [";
 foreach (sort keys %libcrypto_srcs) {
     my $src = $_;
     if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
-        print '    "' . $src . '",';
+        print '    "' . normalize_path($src) . '",';
     }
     if (exists($unified_info{generate}->{$src})) {
         if ($src =~ m/.*\.c$/ or $src =~m/.*\.h$/) {
@@ -98,14 +94,14 @@ print "]\n";
 print "LIBSSL_SRCS = [";
 foreach my $src (sort keys %libssl_srcs) {
     if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
-        print '    "' . $src . '",';
+        print '    "' . normalize_path($src) . '",';
     }
 }
 print "]\n";
 print "OPENSSL_APP_SRCS = [";
 foreach my $src (sort keys %openssl_app_srcs) {
     if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
-        print '    "' . $src . '",';
+        print '    "' . normalize_path($src) . '",';
     }
 }
 print "]\n";
@@ -128,7 +124,7 @@ foreach (sort keys %perlasm) {
         push(@cmdlinebits, @{$generation}[1,]);
     }
     my $cmdline = join(" ", @cmdlinebits);
-    print "\$(PERL) \$(location @{$generation}[0]) " . $cmdline . " \$(location $_);";
+    print "\$(PERL) \$(execpath " . normalize_path(@{$generation}[0]) . ") " . $cmdline . " \$(execpath " . normalize_path($_) . ");";
 }
 print '"""';
 print "\n";

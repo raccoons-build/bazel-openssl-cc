@@ -61,7 +61,6 @@ jobs:
         uses: actions/checkout@v4.2.2
         with:
           repository: illicitonion/bazel-central-registry
-          token: ${{ secrets.BCR_GITHUB_TOKEN }}
           path: bazel-central-registry
           ref: refs/heads/main
       - name: Download windows overlay and openssl files
@@ -131,7 +130,12 @@ jobs:
           name: bcr.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo -e 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel && bazel test --verbose_failures --sandbox_debug -s --registry="file:///tmp/bazel-central-registry" @openssl//...
+      - run:
+          mkdir workspace &&
+          cd workspace &&
+          echo 8.0.0 > .bazelversion &&
+          echo -e 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel &&
+          bazel test --verbose_failures --sandbox_debug --subcommands --registry="file:///tmp/bazel-central-registry" @openssl//...
   pr-test-windows:
     strategy:
       matrix:
