@@ -60,8 +60,7 @@ _WINDOWS_TEMPLATE = """\
 
 _UNIX_TEMPLATE = """\
 #!/usr/bin/env bash
-# TODO: https://github.com/raccoons-build/bazel-openssl-cc/issues/37
-# set -euo pipefail
+set -euo pipefail
 {}
 """
 
