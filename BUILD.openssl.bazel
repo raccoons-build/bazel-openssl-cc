@@ -490,9 +490,11 @@ filegroup(
     srcs = COMMON_GENERATED_FILES + [":generate-platform-specific-files"],
 )
 
+_COMMON_GENERATED_HEADERS = [f for f in COMMON_GENERATED_FILES if f.endswith(".h")]
+
 filegroup(
     name = "generated-headers",
-    srcs = [f for f in COMMON_GENERATED_FILES + _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")],
+    srcs = _COMMON_GENERATED_HEADERS + [f for f in _DARWIN_ARM64_GEN_FILES.keys() if f.endswith(".h")],
 )
 
 [
@@ -557,7 +559,10 @@ collate_into_directory(
         ":ssl": "external/{}".format(_REPO_NAME),
     } | {
         k: "external/{}".format(_REPO_NAME)
-        for k in glob(["include/openssl/*.h"])
+        for k in glob(
+            ["include/openssl/*.h"],
+            exclude = _COMMON_GENERATED_HEADERS,
+        )
     },
     visibility = ["//visibility:public"],
 )
