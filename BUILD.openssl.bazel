@@ -391,9 +391,7 @@ cc_library(
     # as only some of them are picked up.
     srcs = ALL_LIBCRYPTO_SRCS + [":perlasm_genfiles"],
     hdrs = ALL_LIBCRYPTO_HDRS,
-    additional_compiler_inputs = [
-        ":generated-headers",
-    ] + glob(
+    additional_compiler_inputs = glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
         ["providers/implementations/**/*.c"],
