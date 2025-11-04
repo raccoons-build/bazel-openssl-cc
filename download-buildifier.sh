@@ -21,5 +21,5 @@ case "$(uname)" in
     ;;
 esac
 
-curl --fail -L -o "${out_file}" "https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-${suffix}"
+curl --fail -L -o "${out_file}" "https://github.com/bazelbuild/buildtools/releases/download/v8.2.1/buildifier-${suffix}"
 chmod 0755 "${out_file}"
