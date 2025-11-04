@@ -148,18 +148,14 @@ ALL_OPENSSL_APP_SRCS = COMMON_OPENSSL_APP_SRCS + select({
 })
 
 OPENSSL_APP_NIX_COPTS = [
-    "-iquote",
-    "$(BINDIR)/external/{}/apps".format(_REPO_NAME),
-    "-iquote",
-    "external/{}/apps".format(_REPO_NAME),
-    "-iquote",
-    "external/{}/apps/include".format(_REPO_NAME),
 ]
 
 OPENSSL_APP_WINDOWS_COPTS = [
-    "/I$(BINDIR)/external/{}/apps".format(_REPO_NAME),
-    "/Iexternal/{}/apps".format(_REPO_NAME),
-    "/Iexternal/{}/apps/include".format(_REPO_NAME),
+]
+
+OPENSSL_APP_INCLUDES = [
+    "apps",
+    "apps/include",
 ]
 
 OPENSSL_APP_NIX_LINKOPTS = [
@@ -205,11 +201,9 @@ COMMON_OPENSSL_COPTS = [
     "//conditions:default": [],
 }) + select({
     "//configs:windows_arm64": [
-        "/Iexternal/{}/include".format(_REPO_NAME),
         "/VERBOSE",
     ],
     "//configs:windows_x64": [
-        "/Iexternal/{}/include".format(_REPO_NAME),
         "/VERBOSE",
     ],
     "//conditions:default": [
@@ -218,8 +212,6 @@ COMMON_OPENSSL_COPTS = [
         # to do this.
         "-Wa,--noexecstack",
         "-Wno-unused-command-line-argument",
-        "-I",
-        "external/{}/include".format(_REPO_NAME),
     ],
 })
 
@@ -239,6 +231,7 @@ cc_binary(
         "//conditions:default": OPENSSL_APP_NIX_COPTS,
     }),
     defines = COMMON_OPENSSL_DEFINES,
+    includes = OPENSSL_APP_INCLUDES,
     linkopts = select({
         "//configs:windows_arm64": OPENSSL_APP_WINDOWS_LINKOPTS,
         "//configs:windows_x64": OPENSSL_APP_WINDOWS_LINKOPTS,
@@ -257,7 +250,7 @@ WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS, WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES
 WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = parse_perlasm_gen(_WINDOWS_X86_64_PERLASM_GEN)
 
 PERLASM_TOOLS = glob(
-    ["crypto/perlasm/*.pl"],
+    include = ["crypto/perlasm/*.pl"],
     exclude = COMMON_GENERATED_FILES,
 )
 
@@ -349,30 +342,16 @@ EXISTING_LIBCRYPTO_HDRS = glob(
 )
 
 LIBCRYPTO_NIX_COPTS = [
-    "-iquote",
-    "external/{}/providers/implementations/macs".format(_REPO_NAME),
-    "-iquote",
-    "external/{}/providers/implementations/include".format(_REPO_NAME),
-    "-iquote",
-    "external/{}/providers/common/include".format(_REPO_NAME),
-    "-iquote",
-    "$(BINDIR)/external/{}/providers/common/include".format(_REPO_NAME),
-    "-iquote",
-    "$(BINDIR)/external/{}/crypto".format(_REPO_NAME),
-    "-iquote",
-    "external/{}/crypto".format(_REPO_NAME),
-    "-I",
-    "external/{}/providers/implementations/include".format(_REPO_NAME),
 ]
 
 LIBCRYPTO_WINDOWS_COPTS = [
-    "/Iexternal/{}/providers/implementations/macs".format(_REPO_NAME),
-    "/Iexternal/{}/providers/implementations/include".format(_REPO_NAME),
-    "/Iexternal/{}/providers/common/include".format(_REPO_NAME),
-    "/I$(BINDIR)/external/{}/providers/common/include".format(_REPO_NAME),
-    "/I$(BINDIR)/external/{}/crypto".format(_REPO_NAME),
-    "/Iexternal/{}/crypto".format(_REPO_NAME),
-    "/Iexternal/{}/providers/implementations/include".format(_REPO_NAME),
+]
+
+LIBCRYPTO_INCLUDES = [
+    "providers/implementations/macs",
+    "providers/implementations/include",
+    "providers/common/include",
+    "crypto",
 ]
 
 ALL_LIBCRYPTO_HDRS = EXISTING_LIBCRYPTO_HDRS + [":generated-headers"]
@@ -394,7 +373,7 @@ cc_library(
     additional_compiler_inputs = glob(
         # There are some .c files that are conditionally included textually, we want them to be
         # available
-        ["providers/implementations/**/*.c"],
+        include = ["providers/implementations/**/*.c"],
         exclude = COMMON_GENERATED_FILES,
     ),
     # To make sure downstream targets add the right copts to be able to include the headers.
@@ -420,7 +399,7 @@ cc_library(
     defines = COMMON_OPENSSL_DEFINES,
     includes = [
         "include",
-    ] + select({
+    ] + LIBCRYPTO_INCLUDES + select({
         "//configs:windows_arm64": LIBCRYPTO_WINDOWS_INCLUDES,
         "//configs:windows_x64": LIBCRYPTO_WINDOWS_INCLUDES,
         "//conditions:default": [],
@@ -449,9 +428,9 @@ ALL_LIBSSL_SRCS = COMMON_LIBSSL_SRCS + select({
     "//configs:windows_x64": _WINDOWS_X86_64_LIBSSL_SRCS,
 })
 
-EXISTING_LIBSSL_HDRS = glob(
-    ["include/openssl/*.h"],
-)
+EXISTING_LIBSSL_HDRS = glob([
+    "include/openssl/*.h",
+])
 
 ALL_LIBSSL_HDRS = EXISTING_LIBSSL_HDRS + [":generated-headers"]
 
@@ -560,7 +539,7 @@ collate_into_directory(
     } | {
         k: "external/{}".format(_REPO_NAME)
         for k in glob(
-            ["include/openssl/*.h"],
+            include = ["include/openssl/*.h"],
             exclude = _COMMON_GENERATED_HEADERS,
         )
     },
