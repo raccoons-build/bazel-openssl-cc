@@ -8,20 +8,68 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict
+from typing import NamedTuple
 
 from common import (
+    GENERATED_FILES,
     LINUX_X86,
-    all_platforms,
+    OPENSSL_VERSION,
     copy_from_here_to,
-    generated_files,
     get_dir_to_copy,
     get_extra_tar_options,
     get_platforms,
     get_simple_platform,
     integrity_hash,
-    openssl_version,
 )
+
+
+class PerlData(NamedTuple):
+    """Platform-specific data extracted from OpenSSL configuration."""
+
+    libcrypto_srcs: list[str]
+    libcrypto_hdrs: list[str]
+    libcrypto_generated_srcs: list[str]
+    libcrypto_generated_hdrs: list[str]
+    libssl_srcs: list[str]
+    libssl_hdrs: list[str]
+    libssl_generated_srcs: list[str]
+    libssl_generated_hdrs: list[str]
+    openssl_app_srcs: list[str]
+    openssl_app_hdrs: list[str]
+    openssl_app_generated_srcs: list[str]
+    openssl_app_generated_hdrs: list[str]
+    perlasm_outs: list[str]
+    perlasm_tools: list[str]
+    perlasm_gen_commands: list[str]
+    libcrypto_defines: list[str]
+    libssl_defines: list[str]
+    openssl_app_defines: list[str]
+    openssl_defines: list[str]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, list[str]]) -> "PerlData":
+        """Create PerlData from a dictionary, deduplicating and sorting list fields."""
+        return cls(
+            libcrypto_srcs=data["libcrypto_srcs"],
+            libcrypto_hdrs=data["libcrypto_hdrs"],
+            libcrypto_generated_srcs=data["libcrypto_generated_srcs"],
+            libcrypto_generated_hdrs=data["libcrypto_generated_hdrs"],
+            libssl_srcs=data["libssl_srcs"],
+            libssl_hdrs=data["libssl_hdrs"],
+            libssl_generated_srcs=data["libssl_generated_srcs"],
+            libssl_generated_hdrs=data["libssl_generated_hdrs"],
+            openssl_app_srcs=data["openssl_app_srcs"],
+            openssl_app_hdrs=data["openssl_app_hdrs"],
+            openssl_app_generated_srcs=data["openssl_app_generated_srcs"],
+            openssl_app_generated_hdrs=data["openssl_app_generated_hdrs"],
+            perlasm_outs=sorted(set(data["perlasm_outs"])),
+            perlasm_tools=sorted(set(data["perlasm_tools"])),
+            perlasm_gen_commands=sorted(set(data["perlasm_gen_commands"])),
+            libcrypto_defines=sorted(set(data["libcrypto_defines"])),
+            libssl_defines=sorted(set(data["libssl_defines"])),
+            openssl_app_defines=sorted(set(data["openssl_app_defines"])),
+            openssl_defines=sorted(set(data["openssl_defines"])),
+        )
 
 
 def main(
@@ -37,27 +85,21 @@ def main(
     out_dir = Path(os.path.join(openssl_module_dir, tag))
     overlay_dir = Path(os.path.join(out_dir, "overlay"))
 
-    copy_from_here_to("presubmit.yml", Path(os.path.join(out_dir, "presubmit.yml")))
+    copy_from_here_to("presubmit.yml", out_dir / "presubmit.yml")
 
     openssl_tar_root = Path(openssl_tar_path)
-    openssl_version_dir = openssl_tar_root / f"openssl-{openssl_version}"
+    openssl_version_dir = openssl_tar_root / f"openssl-{OPENSSL_VERSION}"
 
-    generated_path_to_platform_to_contents = defaultdict(dict)
-    platform_to_perl_data = {}
-    for platform in get_platforms(operating_system):
-        perl_data, generated_file_contents, openssl_info = extract_platform_data(
-            openssl_tar_root, openssl_version_dir, platform
-        )
-
-        platform_to_perl_data[platform] = perl_data
-        for generated_file, content in generated_file_contents.items():
-            generated_path_to_platform_to_contents[generated_file][platform] = content
+    platform_to_perl_data, generated_path_to_platform_to_contents, openssl_info = extract_all_platforms_data(
+        openssl_tar_root, openssl_version_dir, operating_system
+    )
 
     # Since we moved all the platform specific folders away. Use a representative folder to grab the
     # platform independent files.
     platform_independent_dir = get_dir_to_copy(openssl_tar_root, LINUX_X86)
-    platform_independent_dir_with_version = os.path.join(platform_independent_dir, f"openssl-{openssl_version}")
-    with tempfile.TemporaryDirectory() as output_tar_dir:
+    platform_independent_dir_with_version = os.path.join(platform_independent_dir, f"openssl-{OPENSSL_VERSION}")
+    with tempfile.TemporaryDirectory() as output_tar_dir_str:
+        output_tar_dir = Path(output_tar_dir_str)
         platform_independent_generated_files = []
         platform_specific_generated_paths = []
 
@@ -82,16 +124,15 @@ def main(
         common_generated_srcs = sorted([f for f in platform_independent_generated_files if f.endswith(".c")])
         common_generated_hdrs = sorted([f for f in platform_independent_generated_files if f.endswith(".h")])
 
-        # We need to write constants for ALL platforms not just the ones we are configuring openssl
-        # for so the BUILD file imports work
-        for platform in all_platforms:
+        # Write constants for the platforms we configured
+        for platform in platform_to_perl_data.keys():
             write_platform_specific_constants(
-                output_tar_dir,
-                openssl_version,
+                str(output_tar_dir),
+                OPENSSL_VERSION,
                 platform,
-                platform_to_perl_data.get(platform),
+                platform_to_perl_data[platform],
                 {
-                    path: generated_path_to_platform_to_contents.get(path).get(platform)
+                    path: generated_path_to_platform_to_contents[path][platform]
                     for path in platform_specific_generated_paths
                 },
                 common_generated_srcs,
@@ -100,52 +141,52 @@ def main(
 
         copy_from_here_to(
             "BUILD.openssl.bazel",
-            Path(os.path.join(overlay_dir, "BUILD.bazel")),
+            overlay_dir / "BUILD.bazel",
         )
-        copy_from_here_to("utils.bzl", Path(os.path.join(overlay_dir, "utils.bzl")))
+        copy_from_here_to("utils.bzl", overlay_dir / "utils.bzl")
         copy_from_here_to(
             "collate_into_directory.bzl",
-            Path(os.path.join(output_tar_dir, "collate_into_directory.bzl")),
+            output_tar_dir / "collate_into_directory.bzl",
         )
         copy_from_here_to(
             "perl_genrule.bzl",
-            Path(os.path.join(output_tar_dir, "perl_genrule.bzl")),
+            output_tar_dir / "perl_genrule.bzl",
         )
         copy_from_here_to(
             ".bazelrc",
-            Path(os.path.join(output_tar_dir, ".bazelrc")),
+            output_tar_dir / ".bazelrc",
         )
         copy_from_here_to(
             "move_file_and_strip_prefix.sh",
-            Path(os.path.join(output_tar_dir, "move_file_and_strip_prefix.sh")),
+            output_tar_dir / "move_file_and_strip_prefix.sh",
             executable=True,
         )
         copy_from_here_to(
             "move_file_and_strip_prefix.bat",
-            Path(os.path.join(output_tar_dir, "move_file_and_strip_prefix.bat")),
+            output_tar_dir / "move_file_and_strip_prefix.bat",
             executable=True,
         )
 
         copy_from_here_to(
             "BUILD.configs.bazel",
-            Path(os.path.join(overlay_dir, "configs", "BUILD.bazel")),
+            overlay_dir / "configs" / "BUILD.bazel",
         )
 
         copy_from_here_to(
             "BUILD.test.bazel",
-            Path(os.path.join(overlay_dir, "test_bazel_build", "BUILD.bazel")),
+            overlay_dir / "test_bazel_build" / "BUILD.bazel",
         )
         copy_from_here_to(
             "sha256_test.cc",
-            Path(os.path.join(overlay_dir, "test_bazel_build", "sha256_test.cc")),
+            overlay_dir / "test_bazel_build" / "sha256_test.cc",
         )
 
         copy_from_here_to(
             "build_test.cc",
-            Path(os.path.join(overlay_dir, "test_bazel_build", "build_test.cc")),
+            overlay_dir / "test_bazel_build" / "build_test.cc",
         )
 
-        with open(Path(os.path.join(output_tar_dir, "BUILD.bazel")), "w") as f:
+        with (output_tar_dir / "BUILD.bazel").open("w") as f:
             f.write(
                 dedent(
                     """\
@@ -173,7 +214,7 @@ def main(
         extra_tar_options = get_extra_tar_options(operating_system)
         subprocess.run(
             [tar] + extra_tar_options + ["-czf", overlay_tar_path] + files_to_tar,
-            cwd=output_tar_dir,
+            cwd=str(output_tar_dir),
             check=True,
         )
 
@@ -181,7 +222,7 @@ def main(
             out_dir,
             tag,
             release_tar_url_template.format(tag=tag),
-            integrity_hash(overlay_tar_path),
+            integrity_hash(Path(overlay_tar_path)),
         )
 
         write_source_json(out_dir, openssl_info)
@@ -189,17 +230,17 @@ def main(
     add_to_metadata(openssl_module_dir, tag)
 
 
-def ignore_files(dir, files):
+def ignore_files(dir: str, files: list[str]) -> list[str]:
     # Some unneeded files cause permissions issues
     return [file for file in files if str(file).endswith((".rev", ".idx"))]
 
 
 def write_module_files(
-    out_dir: str,
-    tag: int,
+    out_dir: Path,
+    tag: str,
     overlay_archive_url: str,
     overlay_archive_integrity: str,
-):
+) -> None:
     module_bazel_path = Path(os.path.join(out_dir, "MODULE.bazel"))
     with open(module_bazel_path, "w") as f:
         f.write(
@@ -229,36 +270,65 @@ http_archive(
 )
 """
         )
-    overlay_module_path = os.path.join(out_dir, "overlay", "MODULE.bazel")
-    if not os.path.exists(overlay_module_path):
-        os.symlink("../MODULE.bazel", Path(overlay_module_path))
+    overlay_module_path = out_dir / "overlay/MODULE.bazel"
+    if not overlay_module_path.exists():
+        os.symlink("../MODULE.bazel", overlay_module_path)
 
 
-def write_source_json(out_dir: str, openssl_info: Dict):
-    overlay_info = {}
-    overlay_dir = Path(os.path.join(out_dir, "overlay"))
+def write_source_json(out_dir: Path, openssl_info: dict[str, str | dict[str, str]]) -> None:
+    overlay_info: dict[str, str] = {}
+    overlay_dir = out_dir / "overlay"
     for root, _, files in os.walk(overlay_dir):
         for file in files:
             full_path = Path(os.path.join(root, file))
             overlay_relative_path = os.path.relpath(full_path, overlay_dir)
             overlay_info[overlay_relative_path] = integrity_hash(full_path)
     openssl_info["overlay"] = overlay_info
-    with open(Path(os.path.join(out_dir, "source.json")), "w") as f:
+    with (out_dir / "source.json").open("w") as f:
         f.write(json.dumps(openssl_info, indent="    ", sort_keys=True) + "\n")
+
+
+def extract_all_platforms_data(
+    openssl_tar_root: Path,
+    openssl_version_dir: Path,
+    operating_system: str,
+) -> tuple[dict[str, PerlData], dict[str, dict[str, str]], dict[str, str | dict[str, str]]]:
+    """Extract data for all platforms in the operating system.
+
+    Returns:
+        tuple of (platform_to_perl_data, generated_path_to_platform_to_contents, openssl_info)
+    """
+    platform_to_perl_data: dict[str, PerlData] = {}
+    generated_path_to_platform_to_contents: dict[str, dict[str, str]] = defaultdict(dict)
+    openssl_info: dict[str, str | dict[str, str]] = {}
+
+    for platform in get_platforms(operating_system):
+        perl_data, generated_file_contents, platform_openssl_info = extract_platform_data(
+            openssl_tar_root, openssl_version_dir, platform
+        )
+
+        platform_to_perl_data[platform] = perl_data
+        for generated_file, content in generated_file_contents.items():
+            generated_path_to_platform_to_contents[generated_file][platform] = content
+
+        # Store openssl_info from the last platform (they should all be the same)
+        openssl_info = platform_openssl_info
+
+    return platform_to_perl_data, generated_path_to_platform_to_contents, openssl_info
 
 
 def extract_platform_data(
     openssl_tar_root: Path,
     openssl_version_dir: Path,
     platform: str,
-) -> tuple[Dict, Dict[str, str], Dict]:
+) -> tuple[PerlData, dict[str, str], dict[str, str | dict[str, str]]]:
     """Extract platform-specific data by running Perl script and reading generated files.
 
     Returns:
         tuple of (perl_data, generated_file_contents, openssl_info)
     """
     dir_to_copy = get_dir_to_copy(openssl_tar_root, platform)
-    dir_to_copy_with_version = dir_to_copy / f"openssl-{openssl_version}"
+    dir_to_copy_with_version = dir_to_copy / f"openssl-{OPENSSL_VERSION}"
 
     # Move platform-specific directory to root
     if openssl_version_dir.exists():
@@ -272,7 +342,7 @@ def extract_platform_data(
 
         # Read generated files
         generated_file_contents = {}
-        for generated_file in generated_files:
+        for generated_file in GENERATED_FILES:
             with (openssl_version_dir / generated_file).open("r") as f:
                 generated_file_contents[generated_file] = f.read()
 
@@ -291,7 +361,8 @@ def extract_platform_data(
             stdout=subprocess.PIPE,
             check=True,
         )
-        perl_data = json.loads(proc_result.stdout.decode("utf-8"))
+        perl_data_dict = json.loads(proc_result.stdout.decode("utf-8"))
+        perl_data = PerlData.from_dict(perl_data_dict)
 
         return perl_data, generated_file_contents, openssl_info
     finally:
@@ -299,7 +370,7 @@ def extract_platform_data(
         shutil.move(openssl_version_dir, dir_to_copy)
 
 
-def write_config_file(openssl_dir, platform):
+def write_config_file(openssl_dir: Path, platform: str) -> None:
     with open(Path(os.path.join(openssl_dir, "config.conf")), "w") as f:
         f.write(
             f"""(
@@ -354,18 +425,18 @@ def write_platform_specific_constants(
     overlay_dir: str,
     openssl_version: str,
     platform: str,
-    perl_data: dict[str, list[str] | dict[str, str]],
-    platform_specific_generated_files: Dict[str, str],
+    perl_data: PerlData,
+    platform_specific_generated_files: dict[str, str],
     common_generated_srcs: list[str],
     common_generated_hdrs: list[str],
 ) -> None:
     # Build the srcs/hdrs by combining regular and generated files
-    libcrypto_srcs = perl_data["libcrypto_srcs"] + [":" + s for s in perl_data["libcrypto_generated_srcs"]]
-    libcrypto_hdrs = perl_data["libcrypto_hdrs"] + [":" + h for h in perl_data["libcrypto_generated_hdrs"]]
-    libssl_srcs = perl_data["libssl_srcs"] + [":" + s for s in perl_data["libssl_generated_srcs"]]
-    libssl_hdrs = perl_data["libssl_hdrs"] + [":" + h for h in perl_data["libssl_generated_hdrs"]]
-    openssl_app_srcs = perl_data["openssl_app_srcs"] + [":" + s for s in perl_data["openssl_app_generated_srcs"]]
-    openssl_app_hdrs = perl_data["openssl_app_hdrs"] + [":" + h for h in perl_data["openssl_app_generated_hdrs"]]
+    libcrypto_srcs = perl_data.libcrypto_srcs + [":" + s for s in perl_data.libcrypto_generated_srcs]
+    libcrypto_hdrs = perl_data.libcrypto_hdrs + [":" + h for h in perl_data.libcrypto_generated_hdrs]
+    libssl_srcs = perl_data.libssl_srcs + [":" + s for s in perl_data.libssl_generated_srcs]
+    libssl_hdrs = perl_data.libssl_hdrs + [":" + h for h in perl_data.libssl_generated_hdrs]
+    openssl_app_srcs = perl_data.openssl_app_srcs + [":" + s for s in perl_data.openssl_app_generated_srcs]
+    openssl_app_hdrs = perl_data.openssl_app_hdrs + [":" + h for h in perl_data.openssl_app_generated_hdrs]
 
     # Add common generated sources (with ":" prefix) if not already present
     # Create sets of existing items to check for duplicates (created once and reused)
@@ -501,13 +572,13 @@ def write_platform_specific_constants(
         libssl_hdrs=json.dumps(sorted(set(libssl_hdrs)), indent=indent),
         openssl_app_srcs=json.dumps(sorted(set(openssl_app_srcs)), indent=indent),
         openssl_app_hdrs=json.dumps(sorted(set(openssl_app_hdrs)), indent=indent),
-        perlasm_outs=json.dumps(sorted(set(perl_data["perlasm_outs"])), indent=indent),
-        perlasm_tools=json.dumps(sorted(set(perl_data["perlasm_tools"])), indent=indent),
-        perlasm_gen=json.dumps(sorted(set(perl_data["perlasm_gen_commands"])), indent=indent),
-        libcrypto_defines=json.dumps(sorted(set(perl_data["libcrypto_defines"])), indent=indent),
-        libssl_defines=json.dumps(sorted(set(perl_data["libssl_defines"])), indent=indent),
-        openssl_app_defines=json.dumps(sorted(set(perl_data["openssl_app_defines"])), indent=indent),
-        openssl_defines=json.dumps(sorted(set(perl_data["openssl_defines"])), indent=indent),
+        perlasm_outs=json.dumps(perl_data.perlasm_outs, indent=indent),
+        perlasm_tools=json.dumps(perl_data.perlasm_tools, indent=indent),
+        perlasm_gen=json.dumps(perl_data.perlasm_gen_commands, indent=indent),
+        libcrypto_defines=json.dumps(perl_data.libcrypto_defines, indent=indent),
+        libssl_defines=json.dumps(perl_data.libssl_defines, indent=indent),
+        openssl_app_defines=json.dumps(perl_data.openssl_app_defines, indent=indent),
+        openssl_defines=json.dumps(perl_data.openssl_defines, indent=indent),
         common_generated_files=json.dumps(sorted(common_generated_srcs + common_generated_hdrs), indent=indent),
         gen_files=json.dumps(platform_specific_generated_files, indent=indent, sort_keys=True),
     )
@@ -517,7 +588,7 @@ def write_platform_specific_constants(
         f.write(out)
 
 
-def add_to_metadata(openssl_module_dir, tag):
+def add_to_metadata(openssl_module_dir: Path, tag: str) -> None:
     metadata_path = Path(os.path.join(openssl_module_dir, "metadata.json"))
     with open(metadata_path, "r") as f:
         content = json.load(f)

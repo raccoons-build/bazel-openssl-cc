@@ -3,14 +3,14 @@
 import base64
 import hashlib
 import os
-import pathlib
 import platform
 import shutil
 import subprocess
-from pathlib import Path
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Generator
 
-openssl_version = "3.3.1"
+OPENSSL_VERSION = "3.3.1"
 
 MAC_ARM64 = "darwin64-arm64-cc"
 MAC_X86 = "darwin64-x86_64-cc"
@@ -19,18 +19,18 @@ LINUX_X86 = "linux-x86_64-clang"
 WINDOWS_ARM64 = "VC-WIN64-CLANGASM-ARM"
 WINDOWS_X86 = "VC-WIN64A-masm"
 
-linux_platforms = [LINUX_ARM64, LINUX_X86]
+LINUX_PLATFORMS = [LINUX_ARM64, LINUX_X86]
 
-mac_platforms = [MAC_ARM64, MAC_X86]
+MAC_PLATFORMS = [MAC_ARM64, MAC_X86]
 
-unix_platforms = linux_platforms + mac_platforms
+UNIX_PLATFORMS = LINUX_PLATFORMS + MAC_PLATFORMS
 
-windows_platforms = [WINDOWS_ARM64, WINDOWS_X86]
+WINDOWS_PLATFORMS = [WINDOWS_ARM64, WINDOWS_X86]
 
-all_platforms = unix_platforms + windows_platforms
+ALL_PLATFORMS = UNIX_PLATFORMS + WINDOWS_PLATFORMS
 
-x86_64_platforms = [MAC_X86, LINUX_X86, WINDOWS_X86]
-arm64_platforms = [MAC_ARM64, LINUX_ARM64, WINDOWS_ARM64]
+PLATFORMS_X86_64 = [MAC_X86, LINUX_X86, WINDOWS_X86]
+PLATFORMS_ARM64 = [MAC_ARM64, LINUX_ARM64, WINDOWS_ARM64]
 
 # Used for generation and testing on a pull request.
 WINDOWS = "windows"
@@ -43,7 +43,7 @@ X86_64 = "x86_64"
 ALL = "all"
 
 
-generated_srcs = [
+GENERATED_SRCS = [
     "apps/progs.c",
     "crypto/params_idx.c",
     "providers/common/der/der_digests_gen.c",
@@ -55,7 +55,7 @@ generated_srcs = [
     "providers/common/der/der_wrap_gen.c",
 ]
 
-generated_hdrs = [
+GENERATED_HDRS = [
     "apps/progs.h",
     "crypto/buildinf.h",
     "include/crypto/bn_conf.h",
@@ -97,21 +97,21 @@ generated_hdrs = [
     "providers/common/include/prov/der_wrap.h",
 ]
 
-generated_files = generated_srcs + generated_hdrs
+GENERATED_FILES = GENERATED_SRCS + GENERATED_HDRS
 
 
-def get_platforms(os: str):
+def get_platforms(os: str) -> list[str]:
     if os == WINDOWS:
-        return windows_platforms
+        return WINDOWS_PLATFORMS
     elif os == UNIX:
-        return unix_platforms
+        return UNIX_PLATFORMS
     elif os == ALL:
-        return all_platforms
+        return ALL_PLATFORMS
     else:
         raise ValueError(f"Unknown os: {os}")
 
 
-def get_make_command(os: str):
+def get_make_command(os: str) -> str:
     if os == WINDOWS:
         return "nmake"
     elif os == UNIX:
@@ -122,15 +122,15 @@ def get_make_command(os: str):
         raise ValueError(f"Unknown os: {os}")
 
 
-def get_start_configure_list(os: str, platform: str):
+def get_start_configure_list(os: str, platform: str) -> list[str]:
     if os == WINDOWS:
-        if platform in windows_platforms:
+        if platform in WINDOWS_PLATFORMS:
             # On Windows we don't  use any assembly because the assembler is mismatched
             # between MSVC with Bazel and MSVC with OpenSSL.
             # See https://github.com/rustls/boringssl/blob/018edfaaaeea43bf35a16e9f7ba24510c0c003bb/util/util.bzl#L149
             # for the inspiration.
             return ["perl", "Configure", "no-asm"]
-        elif platform in unix_platforms:
+        elif platform in UNIX_PLATFORMS:
             # If we are generating unix on Windows (don't know why we would) we need to keep assembly.
             return ["perl", "Configure"]
         else:
@@ -143,7 +143,7 @@ def get_start_configure_list(os: str, platform: str):
         raise ValueError(f"Unknown os: {os}")
 
 
-def get_extra_tar_options(os: str):
+def get_extra_tar_options(os: str) -> list[str]:
     all_tar_options = ["--owner", "root", "--group", "wheel", "--mtime=UTC 1980-01-01"]
     if os == WINDOWS:
         return []
@@ -155,36 +155,36 @@ def get_extra_tar_options(os: str):
         raise ValueError(f"Unknown os: {os}")
 
 
-def get_simple_platform(platform: str):
-    if platform in windows_platforms:
+def get_simple_platform(platform: str) -> str:
+    if platform in WINDOWS_PLATFORMS:
         return WINDOWS
-    elif platform in unix_platforms:
+    elif platform in UNIX_PLATFORMS:
         return UNIX
     else:
         raise ValueError(f"Unknown platform: {platform}")
 
 
-def get_specific_common_platform(platform: str):
-    if platform in windows_platforms:
+def get_specific_common_platform(platform: str) -> str:
+    if platform in WINDOWS_PLATFORMS:
         return WINDOWS
-    elif platform in linux_platforms:
+    elif platform in LINUX_PLATFORMS:
         return LINUX
-    elif platform in mac_platforms:
+    elif platform in MAC_PLATFORMS:
         return MAC
     else:
         raise ValueError(f"Unknown platform: {platform}")
 
 
-def get_architecture(platform: str):
-    if platform in arm64_platforms:
+def get_architecture(platform: str) -> str:
+    if platform in PLATFORMS_ARM64:
         return ARM64
-    elif platform in x86_64_platforms:
+    elif platform in PLATFORMS_X86_64:
         return X86_64
     else:
         raise ValueError(f"Unknown platform: {platform}")
 
 
-def get_tar_platform(platform: str):
+def get_tar_platform(platform: str) -> str:
     # For now we just return platform but we want this
     # in case we change how they are output
     return platform
@@ -203,22 +203,22 @@ def get_dir_to_copy(root: Path, platform: str) -> Path:
 
 
 @contextmanager
-def download_openssl(version: str, simple_platform: str):
+def download_openssl(version: str, simple_platform: str) -> Generator[tuple[Path, dict[str, str]], None, None]:
     prefix_dir = f"openssl-{version}"
-    tempdir = ""
+    tempdir: Path
     try:
-        tempdir = "/tmp"
+        tempdir = Path("/tmp")
         if simple_platform == WINDOWS:
-            tempdir = "C:/tmp"
-        if not os.path.exists(tempdir):
-            os.makedirs(tempdir)
-        tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
+            tempdir = Path("C:/tmp")
+        if not tempdir.exists():
+            tempdir.mkdir(exist_ok=True, parents=True)
+        tar_path = tempdir / "openssl.tar.gz"
         url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
         subprocess.run(
-            ["curl", "--fail", "-L", "-o", tar_path, url],
+            ["curl", "--fail", "-L", "-o", str(tar_path), url],
             check=True,
         )
-        subprocess.run(["tar", "xzf", tar_path], cwd=tempdir, check=True)
+        subprocess.run(["tar", "xzf", str(tar_path)], cwd=tempdir, check=True)
 
         openssl_info = {
             "url": url,
@@ -226,32 +226,33 @@ def download_openssl(version: str, simple_platform: str):
             "strip_prefix": prefix_dir,
         }
 
-        yield pathlib.Path(os.path.join(tempdir, prefix_dir)), openssl_info
+        yield (tempdir / prefix_dir), openssl_info
     # On Windows this step can fail and we need to retry. But first clean things up.
     except Exception as e:
-        cleanup(prefix_dir, tempdir)
+        cleanup(Path(prefix_dir), tempdir)
         raise e
 
 
-def cleanup(prefix_dir: str, tempdir: str):
-    if os.path.exists(prefix_dir):
+def cleanup(prefix_dir: Path, tempdir: Path) -> None:
+    if prefix_dir.exists():
         shutil.rmtree(prefix_dir, ignore_errors=True)
-    if os.path.exists(tempdir):
+    if tempdir.exists():
         shutil.rmtree(tempdir, ignore_errors=True)
 
 
-def integrity_hash(path: str) -> str:
+def integrity_hash(path: Path) -> str:
     algo = "sha256"
-    with open(pathlib.Path(path).resolve(), "rb") as f:
+    with path.open("rb") as f:
         digest = hashlib.file_digest(f, algo).digest()
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
 
-def copy_from_here_to(local_path: str, dst: str, executable: bool = False):
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    shutil.copyfile(pathlib.Path(os.path.join(os.path.dirname(__file__), local_path)), dst)
+def copy_from_here_to(local_path: str, dst: Path, executable: bool = False) -> None:
+    dst.parent.mkdir(exist_ok=True, parents=True)
+    current_file = Path(__file__).parent
+    shutil.copyfile(current_file / local_path, dst)
     if executable:
-        if platform.system == "Windows":
+        if platform.system() == "Windows":
             os.access(dst, os.R_OK | os.W_OK | os.X_OK)
         else:
             os.chmod(dst, 0o755)
