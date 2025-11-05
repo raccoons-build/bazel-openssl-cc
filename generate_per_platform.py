@@ -32,7 +32,7 @@ def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
         for platform in get_platforms(operating_system):
             write_config_file(openssl_dir, platform)
             start_configure_list = get_start_configure_list(operating_system, platform)
-            subprocess.check_call(
+            subprocess.run(
                 # no-dynamic-engine to prevent loading shared libraries at runtime.
                 start_configure_list
                 + [
@@ -42,14 +42,16 @@ def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
                     "no-dynamic-engine",
                 ],
                 cwd=openssl_dir,
+                check=True,
             )
             make_command = get_make_command(operating_system)
-            subprocess.check_call(
+            subprocess.run(
                 [make_command] + generated_files,
                 cwd=openssl_dir,
                 # SOURCE_DATE_EPOCH lets us put a deterministic value in the DATE in generated headers
                 # it needs to be non-zero
                 env=dict(os.environ) | {"SOURCE_DATE_EPOCH": "443779200"},
+                check=True,
             )
 
             # Write out the openssl_info to be used later
@@ -66,7 +68,10 @@ def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
             platform_tar_files.append(platform_openssl_tar_path)
 
             # Just grab everything.
-            subprocess.check_call([tar] + extra_tar_options + ["-czf", platform_openssl_tar_path, openssl_dir])
+            subprocess.run(
+                [tar] + extra_tar_options + ["-czf", platform_openssl_tar_path, openssl_dir],
+                check=True,
+            )
 
     tar = "gtar" if sys.platform == "darwin" else "tar"
     extra_tar_options = get_extra_tar_options(operating_system)
@@ -74,7 +79,10 @@ def main(openssl_tar_path: str, operating_system: str, github_ref_name: str):
     all_openssl_tar_path = os.path.join(openssl_tar_path, f"{version}.bcr.wip.{operating_system}.tar.gz")
 
     # Just zip up every platform zip file
-    subprocess.check_call([tar] + extra_tar_options + ["-czf", all_openssl_tar_path] + platform_tar_files)
+    subprocess.run(
+        [tar] + extra_tar_options + ["-czf", all_openssl_tar_path] + platform_tar_files,
+        check=True,
+    )
 
 
 def move_files(openssl_dir: str, files):

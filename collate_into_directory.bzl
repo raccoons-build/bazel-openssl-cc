@@ -121,7 +121,7 @@ collate_into_directory = rule(
             allow_single_file = True,
             executable = True,
             cfg = "exec",
-            default = "@openssl-generated-overlay//:move_file_and_strip_prefix",
+            default = Label("@openssl-generated-overlay//:move_file_and_strip_prefix"),
         ),
     },
 )

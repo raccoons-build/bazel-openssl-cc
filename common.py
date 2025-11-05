@@ -7,6 +7,7 @@ import pathlib
 import platform
 import shutil
 import subprocess
+from pathlib import Path
 from contextlib import contextmanager
 
 openssl_version = "3.3.1"
@@ -42,11 +43,21 @@ X86_64 = "x86_64"
 ALL = "all"
 
 
-generated_files = [
+generated_srcs = [
     "apps/progs.c",
+    "crypto/params_idx.c",
+    "providers/common/der/der_digests_gen.c",
+    "providers/common/der/der_dsa_gen.c",
+    "providers/common/der/der_ec_gen.c",
+    "providers/common/der/der_ecx_gen.c",
+    "providers/common/der/der_rsa_gen.c",
+    "providers/common/der/der_sm2_gen.c",
+    "providers/common/der/der_wrap_gen.c",
+]
+
+generated_hdrs = [
     "apps/progs.h",
     "crypto/buildinf.h",
-    "crypto/params_idx.c",
     "include/crypto/bn_conf.h",
     "include/crypto/dso_conf.h",
     "include/internal/param_names.h",
@@ -77,13 +88,6 @@ generated_files = [
     "include/openssl/x509.h",
     "include/openssl/x509_vfy.h",
     "include/openssl/x509v3.h",
-    "providers/common/der/der_digests_gen.c",
-    "providers/common/der/der_dsa_gen.c",
-    "providers/common/der/der_ec_gen.c",
-    "providers/common/der/der_ecx_gen.c",
-    "providers/common/der/der_rsa_gen.c",
-    "providers/common/der/der_sm2_gen.c",
-    "providers/common/der/der_wrap_gen.c",
     "providers/common/include/prov/der_digests.h",
     "providers/common/include/prov/der_dsa.h",
     "providers/common/include/prov/der_ec.h",
@@ -92,6 +96,8 @@ generated_files = [
     "providers/common/include/prov/der_sm2.h",
     "providers/common/include/prov/der_wrap.h",
 ]
+
+generated_files = generated_srcs + generated_hdrs
 
 
 def get_platforms(os: str):
@@ -184,13 +190,15 @@ def get_tar_platform(platform: str):
     return platform
 
 
-def get_dir_to_copy(root: str, platform: str):
-    return os.path.join(
-        root,
-        f"{get_simple_platform(platform)}_unzipped",
-        get_specific_common_platform(platform),
-        get_architecture(platform),
-        "tmp",
+def get_dir_to_copy(root: Path, platform: str) -> Path:
+    return Path(
+        os.path.join(
+            root,
+            f"{get_simple_platform(platform)}_unzipped",
+            get_specific_common_platform(platform),
+            get_architecture(platform),
+            "tmp",
+        )
     )
 
 
@@ -206,10 +214,11 @@ def download_openssl(version: str, simple_platform: str):
             os.makedirs(tempdir)
         tar_path = pathlib.Path(os.path.join(tempdir, "openssl.tar.gz"))
         url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
-        subprocess.check_call(
+        subprocess.run(
             ["curl", "--fail", "-L", "-o", tar_path, url],
+            check=True,
         )
-        subprocess.check_call(["tar", "xzf", tar_path], cwd=tempdir)
+        subprocess.run(["tar", "xzf", tar_path], cwd=tempdir, check=True)
 
         openssl_info = {
             "url": url,
