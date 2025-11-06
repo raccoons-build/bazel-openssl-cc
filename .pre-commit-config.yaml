@@ -5,6 +5,18 @@ repos:
   hooks:
   - id: ruff
   - id: ruff-format
+# isort for Python import sorting
+- repo: https://github.com/pycqa/isort
+  rev: 5.13.2
+  hooks:
+  - id: isort
+    args: ["--profile", "black"]
+# mypy for Python type checking
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.13.0
+  hooks:
+  - id: mypy
+    additional_dependencies: []
 # Buildifier is great.
 - repo: https://github.com/warchant/pre-commit-buildifier
   rev: f8ce12ccaf29ba79d19c6a9d0643471372a8ba0f
