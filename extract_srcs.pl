@@ -27,9 +27,13 @@ sub get_recursive_srcs_of_one {
     $seen{$value} = ();
     my $srcs = $unified_info{sources}->{$value};
     my $deps = $unified_info{depends}->{$value};
-    if (not ($srcs or $deps)) {
+    # Add source files (.c, .h, .S, .s, .asm) to the result
+    # We want to capture all actual source files in the dependency tree
+    if ($value =~ m/\.(c|h|S|s|asm|inc)$/) {
         $result{$value} = ();
-    } elsif ($value =~ m/^.*\.c/) {
+    }
+    # Also add terminal nodes (files with no sources or deps)
+    if (not ($srcs or $deps)) {
         $result{$value} = ();
     }
     foreach my $s (@$srcs) {
@@ -74,48 +78,179 @@ my %libcrypto_defines = get_recursive_defines("libcrypto");
 my %libssl_defines = get_recursive_defines("libssl", ("libcrypto", 1));
 my %openssl_app_defines = get_recursive_defines("apps/openssl", ("libcrypto", 1, "libssl", 1));
 
-print "LIBCRYPTO_SRCS = [";
-foreach (sort keys %libcrypto_srcs) {
-    my $src = $_;
-    if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
-        print '    "' . normalize_path($src) . '",';
-    }
+# Collect all generated files for libcrypto
+my %libcrypto_generated_srcs;
+my %libcrypto_generated_hdrs;
+foreach my $src (keys %libcrypto_srcs) {
     if (exists($unified_info{generate}->{$src})) {
-        if ($src =~ m/.*\.c$/ or $src =~m/.*\.h$/) {
-            # FIXME -- it would be nice to generate build file magic to generate these files but for
-            # now it is in the script that pulls the tar
-        } else {
+        if ($src =~ m/.*\.c$/) {
+            $libcrypto_generated_srcs{$src} = ();
+        } elsif ($src =~ m/.*\.h$/) {
+            $libcrypto_generated_hdrs{$src} = ();
+        } elsif (not ($src =~ m/^.*\.asn1/ or $src =~ m/^.*\.pm/)) {
             $perlasm{$src} = ${unified_info{generate}->{$src}};
         }
     }
 }
-print "]\n";
 
-print "LIBSSL_SRCS = [";
+# Build data structures for JSON output
+my @libcrypto_srcs_list;
+my @libcrypto_generated_srcs_list;
+my @libcrypto_hdrs_list;
+my @libcrypto_generated_hdrs_list;
+
+# Separate LIBCRYPTO into sources (.c) and headers (.h)
+foreach (sort keys %libcrypto_srcs) {
+    my $src = $_;
+    # Skip generated files - they'll be added separately
+    if (exists($unified_info{generate}->{$src}) and ($src =~ m/.*\.c$/ or $src =~ m/.*\.h$/)) {
+        next;
+    }
+    if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
+        if ($src =~ m/.*\.c$/ or $src =~ m/.*\.S$/ or $src =~ m/.*\.s$/ or $src =~ m/.*\.asm$/) {
+            push(@libcrypto_srcs_list, normalize_path($src));
+        }
+    }
+}
+# Add generated .c files
+foreach (sort keys %libcrypto_generated_srcs) {
+    push(@libcrypto_generated_srcs_list, normalize_path($_));
+}
+
+foreach (sort keys %libcrypto_srcs) {
+    my $src = $_;
+    # Skip generated files - they'll be added separately
+    if (exists($unified_info{generate}->{$src}) and ($src =~ m/.*\.c$/ or $src =~ m/.*\.h$/)) {
+        next;
+    }
+    if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
+        if ($src =~ m/.*\.h$/ or $src =~ m/.*\.inc$/) {
+            push(@libcrypto_hdrs_list, normalize_path($src));
+        }
+    }
+}
+# Add generated .h files
+foreach (sort keys %libcrypto_generated_hdrs) {
+    push(@libcrypto_generated_hdrs_list, normalize_path($_));
+}
+
+# Collect all generated files for libssl
+my %libssl_generated_srcs;
+my %libssl_generated_hdrs;
+foreach my $src (keys %libssl_srcs) {
+    if (exists($unified_info{generate}->{$src})) {
+        if ($src =~ m/.*\.c$/) {
+            $libssl_generated_srcs{$src} = ();
+        } elsif ($src =~ m/.*\.h$/) {
+            $libssl_generated_hdrs{$src} = ();
+        }
+    }
+}
+
+# Build data structures for JSON output
+my @libssl_srcs_list;
+my @libssl_generated_srcs_list;
+my @libssl_hdrs_list;
+my @libssl_generated_hdrs_list;
+
+# Separate LIBSSL into sources (.c) and headers (.h)
 foreach my $src (sort keys %libssl_srcs) {
+    # Skip generated files - they'll be added separately
+    if (exists($unified_info{generate}->{$src}) and ($src =~ m/.*\.c$/ or $src =~ m/.*\.h$/)) {
+        next;
+    }
     if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
-        print '    "' . normalize_path($src) . '",';
+        if ($src =~ m/.*\.c$/ or $src =~ m/.*\.S$/ or $src =~ m/.*\.s$/ or $src =~ m/.*\.asm$/) {
+            push(@libssl_srcs_list, normalize_path($src));
+        }
     }
 }
-print "]\n";
-print "OPENSSL_APP_SRCS = [";
+# Add generated .c files
+foreach (sort keys %libssl_generated_srcs) {
+    push(@libssl_generated_srcs_list, normalize_path($_));
+}
+
+foreach my $src (sort keys %libssl_srcs) {
+    # Skip generated files - they'll be added separately
+    if (exists($unified_info{generate}->{$src}) and ($src =~ m/.*\.c$/ or $src =~ m/.*\.h$/)) {
+        next;
+    }
+    if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
+        if ($src =~ m/.*\.h$/ or $src =~ m/.*\.inc$/) {
+            push(@libssl_hdrs_list, normalize_path($src));
+        }
+    }
+}
+# Add generated .h files
+foreach (sort keys %libssl_generated_hdrs) {
+    push(@libssl_generated_hdrs_list, normalize_path($_));
+}
+
+# Collect all generated files for openssl_app
+my %openssl_app_generated_srcs;
+my %openssl_app_generated_hdrs;
+foreach my $src (keys %openssl_app_srcs) {
+    if (exists($unified_info{generate}->{$src})) {
+        if ($src =~ m/.*\.c$/) {
+            $openssl_app_generated_srcs{$src} = ();
+        } elsif ($src =~ m/.*\.h$/) {
+            $openssl_app_generated_hdrs{$src} = ();
+        }
+    }
+}
+
+# Build data structures for JSON output
+my @openssl_app_srcs_list;
+my @openssl_app_generated_srcs_list;
+my @openssl_app_hdrs_list;
+my @openssl_app_generated_hdrs_list;
+
+# Separate OPENSSL_APP into sources (.c) and headers (.h)
 foreach my $src (sort keys %openssl_app_srcs) {
+    # Skip generated files - they'll be added separately
+    if (exists($unified_info{generate}->{$src}) and ($src =~ m/.*\.c$/ or $src =~ m/.*\.h$/)) {
+        next;
+    }
     if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
-        print '    "' . normalize_path($src) . '",';
+        if ($src =~ m/.*\.c$/ or $src =~ m/.*\.S$/ or $src =~ m/.*\.s$/ or $src =~ m/.*\.asm$/) {
+            push(@openssl_app_srcs_list, normalize_path($src));
+        }
     }
 }
-print "]\n";
-print "PERLASM_OUTS = [";
+# Add generated .c files
+foreach (sort keys %openssl_app_generated_srcs) {
+    push(@openssl_app_generated_srcs_list, normalize_path($_));
+}
+
+foreach my $src (sort keys %openssl_app_srcs) {
+    # Skip generated files - they'll be added separately
+    if (exists($unified_info{generate}->{$src}) and ($src =~ m/.*\.c$/ or $src =~ m/.*\.h$/)) {
+        next;
+    }
+    if (not $src =~ m/^.*\.asn1/ and not $src =~ m/^.*\.pm/) {
+        if ($src =~ m/.*\.h$/ or $src =~ m/.*\.inc$/) {
+            push(@openssl_app_hdrs_list, normalize_path($src));
+        }
+    }
+}
+# Add generated .h files
+foreach (sort keys %openssl_app_generated_hdrs) {
+    push(@openssl_app_generated_hdrs_list, normalize_path($_));
+}
+
+# Build perlasm data structures
+my @perlasm_outs;
+my @perlasm_tools;
+my @perlasm_gen_commands;
+
 foreach (sort keys %perlasm) {
-    print '    "' . $_ . '",';
+    push(@perlasm_outs, $_);
 }
-print "]\n";
-print "PERLASM_TOOLS = [";
+
 foreach (sort values %perlasm) {
-    print '    "' . @{$_}[0] . '",';
+    push(@perlasm_tools, @{$_}[0]);
 }
-print "]\n";
-print 'PERLASM_GEN = """';
+
 foreach (sort keys %perlasm) {
     my $generation = $perlasm{$_};
     my @cmdlinebits;
@@ -124,28 +259,25 @@ foreach (sort keys %perlasm) {
         push(@cmdlinebits, @{$generation}[1,]);
     }
     my $cmdline = join(" ", @cmdlinebits);
-    print "\$(PERL) \$(execpath " . normalize_path(@{$generation}[0]) . ") " . $cmdline . " \$(execpath " . normalize_path($_) . ");";
+    my $cmd = "\$(PERL) \$(execpath " . normalize_path(@{$generation}[0]) . ") " . $cmdline . " \$(execpath " . normalize_path($_) . ");";
+    push(@perlasm_gen_commands, $cmd);
 }
-print '"""';
-print "\n";
 
-print "LIBCRYPTO_DEFINES = [";
+# Build defines lists
+my @libcrypto_defines_list;
 foreach my $def (sort keys %libcrypto_defines) {
-    print '    "-D'.$def.'",';
+    push(@libcrypto_defines_list, "-D" . $def);
 }
-print "]";
 
-print "LIBSSL_DEFINES = [";
+my @libssl_defines_list;
 foreach my $def (sort keys %libssl_defines) {
-    print '    "-D'.$def.'",';
+    push(@libssl_defines_list, "-D" . $def);
 }
-print "]";
 
-print "OPENSSL_APP_DEFINES = [";
+my @openssl_app_defines_list;
 foreach my $def (sort keys %openssl_app_defines) {
-    print '    "-D'.$def.'",';
+    push(@openssl_app_defines_list, "-D" . $def);
 }
-print "]";
 
 my @defines;
 if (exists $target{defines}) {
@@ -161,8 +293,33 @@ if (exists $config{openssl_other_defines}) {
     push @defines, @{$config{openssl_other_defines}}
 }
 
-print "OPENSSL_DEFINES = [";
+my @openssl_defines_list;
 foreach (sort @defines) {
-    print '    "-D', $_, '",';
+    push(@openssl_defines_list, "-D" . $_);
 }
-print "]\n";
+
+# Output all data as JSON
+use JSON::PP;
+my $json = JSON::PP->new->utf8->canonical->pretty;
+my %output_data = (
+    libcrypto_srcs => \@libcrypto_srcs_list,
+    libcrypto_generated_srcs => \@libcrypto_generated_srcs_list,
+    libcrypto_hdrs => \@libcrypto_hdrs_list,
+    libcrypto_generated_hdrs => \@libcrypto_generated_hdrs_list,
+    libssl_srcs => \@libssl_srcs_list,
+    libssl_generated_srcs => \@libssl_generated_srcs_list,
+    libssl_hdrs => \@libssl_hdrs_list,
+    libssl_generated_hdrs => \@libssl_generated_hdrs_list,
+    openssl_app_srcs => \@openssl_app_srcs_list,
+    openssl_app_generated_srcs => \@openssl_app_generated_srcs_list,
+    openssl_app_hdrs => \@openssl_app_hdrs_list,
+    openssl_app_generated_hdrs => \@openssl_app_generated_hdrs_list,
+    perlasm_outs => \@perlasm_outs,
+    perlasm_tools => \@perlasm_tools,
+    perlasm_gen_commands => \@perlasm_gen_commands,
+    libcrypto_defines => \@libcrypto_defines_list,
+    libssl_defines => \@libssl_defines_list,
+    openssl_app_defines => \@openssl_app_defines_list,
+    openssl_defines => \@openssl_defines_list,
+);
+print $json->encode(\%output_data);
