@@ -247,7 +247,7 @@ module(
 
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_cc", version = "0.2.4")
-bazel_dep(name = "rules_perl", version = "0.4.1")
+bazel_dep(name = "rules_perl", version = "0.5.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")

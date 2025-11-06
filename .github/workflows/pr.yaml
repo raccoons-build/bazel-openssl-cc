@@ -105,6 +105,7 @@ jobs:
           if-no-files-found: error
   pr-test-unix:
     strategy:
+      fail-fast: false
       matrix:
         os:
           # x86 but doesn't work right now
@@ -115,6 +116,10 @@ jobs:
           - ubuntu-latest
           # arm64
           - ubuntu-24.04-arm
+        bazel:
+          - 7.x
+          - 8.x
+          - rolling
     needs:
       - pr-merge-generate
     runs-on: ${{ matrix.os }}
@@ -133,16 +138,27 @@ jobs:
       - run:
           mkdir workspace &&
           cd workspace &&
-          echo 8.0.0 > .bazelversion &&
-          echo -e 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel &&
+          echo ${{ matrix.bazel }} > .bazelversion &&
+          echo -e 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
+      - run:
+          cd workspace &&
+          bazel cquery --registry="file:///tmp/bazel-central-registry" @openssl//... --output=build
+      - run:
+          cd workspace &&
           bazel test --verbose_failures --sandbox_debug --subcommands --registry="file:///tmp/bazel-central-registry" @openssl//...
   pr-test-windows:
     strategy:
+      fail-fast: false
       matrix:
         os:
           # No arm64 small hosted runners.
           # So we only use x86
           - windows-latest
+        bazel:
+          - 7.x
+          - 8.x
+          # TODO: https://github.com/raccoons-build/bazel-openssl-cc/issues/42
+          # - rolling
     needs:
       - pr-merge-generate
     runs-on: ${{ matrix.os }}
@@ -179,8 +195,17 @@ jobs:
       # since we never need to modify where to look for the overlay.
       - name: Update hash in source.json
         run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
-      - run: mkdir workspace && cd workspace && echo 8.0.0 > .bazelversion && echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
-      - run: cd workspace && bazel test --verbose_failures --sandbox_debug -s --registry="file:///C:/bazel-central-registry" @openssl//...
+      - run:
+          mkdir workspace &&
+          cd workspace &&
+          echo ${{ matrix.bazel }} > .bazelversion &&
+          echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
+      - run:
+          cd workspace &&
+          bazel cquery --registry="file:///C:/bazel-central-registry" @openssl//... --output=build
+      - run:
+          cd workspace &&
+          bazel test --verbose_failures --sandbox_debug --subcommands --registry="file:///C:/bazel-central-registry" @openssl//...
 
   pre-commit:
     runs-on: ubuntu-latest
