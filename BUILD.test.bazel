@@ -12,8 +12,9 @@ cc_test(
     }),
     data = ["@openssl"],
     env = {
-        "OPENSSL": "$(rootpath @openssl)",
+        "OPENSSL": "$(rlocationpath @openssl)",
     },
+    deps = ["@rules_cc//cc/runfiles"],
 )
 
 cc_test(
