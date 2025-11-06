@@ -236,6 +236,24 @@ COMMON_OPENSSL_COPTS = [
 ] + select({
     "//configs:linux_aarch64": ["-mno-outline-atomics"],
     "//conditions:default": [],
+}) + select({
+    "//configs:windows_arm64": [
+        # Windows-specific flags can go here if needed
+    ],
+    "//configs:windows_x64": [
+        # Windows-specific flags can go here if needed
+    ],
+    "//conditions:default": [
+        # As described in https://github.com/openssl/openssl/issues/4575, OpenSSL doesn't mark its
+        # assembly files as not requiring an executable stack. Pass --noexecstack to the assembler
+        # to do this.
+        "-Wa,--noexecstack",
+        "-Wno-unused-command-line-argument",
+
+        # If someone wants to link with -fPIC, the objects they're linking need to have been built with it.
+        # Add this flag so that people can choose to link that way if they want to.
+        "-fPIC",
+    ],
 })
 
 cc_binary(
