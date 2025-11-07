@@ -10,7 +10,6 @@ matrix:
   bazel:
   - 7.x
   - 8.x
-  - rolling
 tasks:
   verify_targets:
     name: Build and test
