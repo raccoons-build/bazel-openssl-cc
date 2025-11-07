@@ -271,8 +271,9 @@ http_archive(
 """
         )
     overlay_module_path = out_dir / "overlay/MODULE.bazel"
-    if not overlay_module_path.exists():
-        os.symlink("../MODULE.bazel", overlay_module_path)
+    if overlay_module_path.exists():
+        overlay_module_path.unlink()
+    shutil.copy2(module_bazel_path, overlay_module_path)
 
 
 def write_source_json(out_dir: Path, openssl_info: dict[str, str | dict[str, str]]) -> None:
