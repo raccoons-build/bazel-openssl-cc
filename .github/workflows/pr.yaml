@@ -16,8 +16,8 @@ jobs:
     - name: Upload intermediate unix overlay and openssl files
       uses: actions/upload-artifact@v4
       with:
-        name: 3.3.1.bcr.wip.unix.tar.gz
-        path: /tmp/3.3.1.bcr.wip.unix.tar.gz
+        name: 3.5.4.bcr.wip.unix.tar.gz
+        path: /tmp/3.5.4.bcr.wip.unix.tar.gz
         if-no-files-found: error
   pr-generate-windows:
     runs-on: windows-latest
@@ -46,8 +46,8 @@ jobs:
     - name: Upload intermediate windows overlay and openssl files
       uses: actions/upload-artifact@v4
       with:
-        name: 3.3.1.bcr.wip.windows.tar.gz
-        path: C:/3.3.1.bcr.wip.windows.tar.gz
+        name: 3.5.4.bcr.wip.windows.tar.gz
+        path: C:/3.5.4.bcr.wip.windows.tar.gz
         if-no-files-found: error
   pr-merge-generate:
     runs-on: ubuntu-latest
@@ -66,36 +66,36 @@ jobs:
       - name: Download windows overlay and openssl files
         uses: actions/download-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.windows.tar.gz
+          name: 3.5.4.bcr.wip.windows.tar.gz
           path: /tmp/windows/
-      - run: (cd /tmp && mkdir /tmp/windows_unzipped && tar -xzvf /tmp/windows/3.3.1.bcr.wip.windows.tar.gz -C /tmp/windows_unzipped)
-      - run: mkdir -p /tmp/windows_unzipped/windows/x86_64 && tar -xzvf /tmp/windows_unzipped/3.3.1.bcr.wip.VC-WIN64A-masm.tar.gz -C /tmp/windows_unzipped/windows/x86_64
-      - run: mkdir -p /tmp/windows_unzipped/windows/arm64 && tar -xzvf /tmp/windows_unzipped/3.3.1.bcr.wip.VC-WIN64-CLANGASM-ARM.tar.gz -C /tmp/windows_unzipped/windows/arm64
+      - run: (cd /tmp && mkdir /tmp/windows_unzipped && tar -xzvf /tmp/windows/3.5.4.bcr.wip.windows.tar.gz -C /tmp/windows_unzipped)
+      - run: mkdir -p /tmp/windows_unzipped/windows/x86_64 && tar -xzvf /tmp/windows_unzipped/3.5.4.bcr.wip.VC-WIN64A-masm.tar.gz -C /tmp/windows_unzipped/windows/x86_64
+      - run: mkdir -p /tmp/windows_unzipped/windows/arm64 && tar -xzvf /tmp/windows_unzipped/3.5.4.bcr.wip.VC-WIN64-CLANGASM-ARM.tar.gz -C /tmp/windows_unzipped/windows/arm64
       # We need to replace the `C:/tmp` strings with `/tmp` throughout the files so that the incldues do not break
       - run: find /tmp/windows_unzipped -type f -exec sed -i 's|C:/tmp|/tmp|g' {} +
       - name: Download unix overlay and openssl files
         uses: actions/download-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.unix.tar.gz
+          name: 3.5.4.bcr.wip.unix.tar.gz
           path: /tmp/unix/
-      - run: (cd /tmp && mkdir /tmp/unix_unzipped && tar -xzvf /tmp/unix/3.3.1.bcr.wip.unix.tar.gz -C /tmp/unix_unzipped && mkdir /tmp/unix_unzipped/linux && mkdir /tmp/unix_unzipped/mac)
-      - run: mkdir -p /tmp/unix_unzipped/linux/x86_64 && tar -xzvf /tmp/unix_unzipped/tmp/3.3.1.bcr.wip.linux-x86_64-clang.tar.gz -C /tmp/unix_unzipped/linux/x86_64
-      - run: mkdir -p /tmp/unix_unzipped/linux/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/3.3.1.bcr.wip.linux-aarch64.tar.gz -C /tmp/unix_unzipped/linux/arm64
-      - run: mkdir -p /tmp/unix_unzipped/mac/x86_64 && tar -xzvf /tmp/unix_unzipped/tmp/3.3.1.bcr.wip.darwin64-x86_64-cc.tar.gz -C /tmp/unix_unzipped/mac/x86_64
-      - run: mkdir -p /tmp/unix_unzipped/mac/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/3.3.1.bcr.wip.darwin64-arm64-cc.tar.gz -C /tmp/unix_unzipped/mac/arm64
+      - run: (cd /tmp && mkdir /tmp/unix_unzipped && tar -xzvf /tmp/unix/3.5.4.bcr.wip.unix.tar.gz -C /tmp/unix_unzipped && mkdir /tmp/unix_unzipped/linux && mkdir /tmp/unix_unzipped/mac)
+      - run: mkdir -p /tmp/unix_unzipped/linux/x86_64 && tar -xzvf /tmp/unix_unzipped/tmp/3.5.4.bcr.wip.linux-x86_64-clang.tar.gz -C /tmp/unix_unzipped/linux/x86_64
+      - run: mkdir -p /tmp/unix_unzipped/linux/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/3.5.4.bcr.wip.linux-aarch64.tar.gz -C /tmp/unix_unzipped/linux/arm64
+      - run: mkdir -p /tmp/unix_unzipped/mac/x86_64 && tar -xzvf /tmp/unix_unzipped/tmp/3.5.4.bcr.wip.darwin64-x86_64-cc.tar.gz -C /tmp/unix_unzipped/mac/x86_64
+      - run: mkdir -p /tmp/unix_unzipped/mac/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/3.5.4.bcr.wip.darwin64-arm64-cc.tar.gz -C /tmp/unix_unzipped/mac/arm64
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - run: ./download-buildifier.sh
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.3.1.bcr.wip.tar.gz --openssl_tar_path=/tmp/ --tag=3.3.1.bcr.wip --release_tar_url_template=file:///tmp/3.3.1.bcr.wip.tar.gz --buildifier=/tmp/buildifier.exe
+      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/3.5.4.bcr.wip.tar.gz --openssl_tar_path=/tmp/ --tag=3.5.4.bcr.wip --release_tar_url_template=file:///tmp/3.5.4.bcr.wip.tar.gz --buildifier=/tmp/buildifier.exe
       - run: tar czf bcr.tar.gz bazel-central-registry
       - name: Upload overlay
         uses: actions/upload-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.tar.gz
-          path: /tmp/3.3.1.bcr.wip.tar.gz
+          name: 3.5.4.bcr.wip.tar.gz
+          path: /tmp/3.5.4.bcr.wip.tar.gz
           if-no-files-found: error
       - name: Upload bcr
         uses: actions/upload-artifact@v4
@@ -127,7 +127,7 @@ jobs:
       - name: Download Unix overlay
         uses: actions/download-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.tar.gz
+          name: 3.5.4.bcr.wip.tar.gz
           path: /tmp/
       - name: Download Unix bcr
         uses: actions/download-artifact@v4
@@ -139,7 +139,7 @@ jobs:
           mkdir workspace &&
           cd workspace &&
           echo ${{ matrix.bazel }} > .bazelversion &&
-          echo -e 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
+          echo -e 'bazel_dep(name = "openssl", version = "3.5.4.bcr.wip")' > MODULE.bazel
       - run:
           cd workspace &&
           bazel cquery --registry="file:///tmp/bazel-central-registry" @openssl//... --output=build
@@ -168,7 +168,7 @@ jobs:
       - name: Download Windows overlay
         uses: actions/download-artifact@v4
         with:
-          name: 3.3.1.bcr.wip.tar.gz
+          name: 3.5.4.bcr.wip.tar.gz
           path: C:\
       - name: Download Windows bcr
         uses: actions/download-artifact@v4
@@ -183,7 +183,7 @@ jobs:
       - name: Modify MODULE.bazel files
         shell: pwsh
         run: |
-         Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip' | ForEach-Object {
+         Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\3.5.4.bcr.wip' | ForEach-Object {
               $content = Get-Content $_.FullName
 
               # Replace the file path
@@ -194,12 +194,12 @@ jobs:
       # Need to replace checksum for the MODULE.bazel file since it will be different now that we modified it. This is not an issue in prod
       # since we never need to modify where to look for the overlay.
       - name: Update hash in source.json
-        run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.3.1.bcr.wip\source.json
+        run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\3.5.4.bcr.wip\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\3.5.4.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.5.4.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\3.5.4.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\3.5.4.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.5.4.bcr.wip\source.json
       - run:
           mkdir workspace &&
           cd workspace &&
           echo ${{ matrix.bazel }} > .bazelversion &&
-          echo 'bazel_dep(name = "openssl", version = "3.3.1.bcr.wip")' > MODULE.bazel
+          echo 'bazel_dep(name = "openssl", version = "3.5.4.bcr.wip")' > MODULE.bazel
       - run:
           cd workspace &&
           bazel cquery --registry="file:///C:/bazel-central-registry" @openssl//... --output=build
