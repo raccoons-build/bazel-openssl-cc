@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-OPENSSL_VERSION = "3.3.1"
+OPENSSL_VERSION = "3.5.4"
 
 MAC_ARM64 = "darwin64-arm64-cc"
 MAC_X86 = "darwin64-x86_64-cc"
