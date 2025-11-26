@@ -390,6 +390,7 @@ LIBCRYPTO_INCLUDES = [
     "providers/implementations/macs",
     "providers/implementations/include",
     "providers/common/include",
+    "providers/fips/include",
     "crypto",
 ]
 
