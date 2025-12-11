@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator
 
-OPENSSL_VERSION = "3.3.1"
+OPENSSL_VERSION = "3.5.4"
 
 MAC_ARM64 = "darwin64-arm64-cc"
 MAC_X86 = "darwin64-x86_64-cc"
@@ -50,7 +50,9 @@ GENERATED_SRCS = [
     "providers/common/der/der_dsa_gen.c",
     "providers/common/der/der_ec_gen.c",
     "providers/common/der/der_ecx_gen.c",
+    "providers/common/der/der_ml_dsa_gen.c",
     "providers/common/der/der_rsa_gen.c",
+    "providers/common/der/der_slh_dsa_gen.c",
     "providers/common/der/der_sm2_gen.c",
     "providers/common/der/der_wrap_gen.c",
 ]
@@ -66,6 +68,7 @@ GENERATED_HDRS = [
     "include/openssl/bio.h",
     "include/openssl/cmp.h",
     "include/openssl/cms.h",
+    "include/openssl/comp.h",
     "include/openssl/conf.h",
     "include/openssl/configuration.h",
     "include/openssl/core_names.h",
@@ -86,13 +89,16 @@ GENERATED_HDRS = [
     "include/openssl/ssl.h",
     "include/openssl/ui.h",
     "include/openssl/x509.h",
+    "include/openssl/x509_acert.h",
     "include/openssl/x509_vfy.h",
     "include/openssl/x509v3.h",
     "providers/common/include/prov/der_digests.h",
     "providers/common/include/prov/der_dsa.h",
     "providers/common/include/prov/der_ec.h",
     "providers/common/include/prov/der_ecx.h",
+    "providers/common/include/prov/der_ml_dsa.h",
     "providers/common/include/prov/der_rsa.h",
+    "providers/common/include/prov/der_slh_dsa.h",
     "providers/common/include/prov/der_sm2.h",
     "providers/common/include/prov/der_wrap.h",
 ]
