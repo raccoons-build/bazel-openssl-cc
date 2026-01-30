@@ -429,6 +429,11 @@ cc_library(
         "//conditions:default": LIBCRYPTO_NIX_COPTS,
     }),
     defines = COMMON_OPENSSL_DEFINES,
+    features = select({
+        "//configs:windows_arm64": ["system_include_paths"],
+        "//configs:windows_x64": ["system_include_paths"],
+        "//conditions:default": [],
+    }),
     includes = [
         "include",
     ] + LIBCRYPTO_INCLUDES + select({
