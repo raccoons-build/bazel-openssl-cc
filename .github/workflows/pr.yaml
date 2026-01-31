@@ -119,6 +119,7 @@ jobs:
         bazel:
           - 7.x
           - 8.x
+          - 9.x
           - rolling
     needs:
       - pr-merge-generate
@@ -160,8 +161,8 @@ jobs:
         bazel:
           - 7.x
           - 8.x
-          # TODO: https://github.com/raccoons-build/bazel-openssl-cc/issues/42
-          # - rolling
+          - 9.x
+          - rolling
     needs:
       - pr-merge-generate
     runs-on: ${{ matrix.os }}
