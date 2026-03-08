@@ -1,76 +1,40 @@
 """Move files from one path to an output directory specified through a series of dicts
 """
 
-def _get_inputs_and_commands(mv_file, srcs_map, ctx, outdir, is_windows):
-    """Gets the input files and the commands to run
+def _build_manifest_content(srcs_map, ctx, outdir):
+    """Builds the manifest content for the collate_into_directory binary.
 
     Args:
-        mv_file: The move file to use on nix
-        srcs_map: map of sources to the outputs
-        ctx: the current context
-        outdir: the output directory
-        is_windows: Whether or not the exec platform is windows.
+        srcs_map: map of sources to the prefix to strip.
+        ctx: the current context.
+        outdir: the output directory.
     Returns:
-        input_files: The input files to the run_shell
-        copy_calls: The structured commands to run
+        input_files: depset of input files.
+        manifest_content: tab-separated manifest string (dest_dir\\tfile\\tprefix per line).
     """
-    call_to_script = """{script_path} {outdir} {file} {prefix_to_strip}"""
-
-    copy_calls = []
+    manifest_lines = []
     for (tgt, prefix) in srcs_map.items():
         output_prefix = None
         if tgt in ctx.attr.outs_prefix_map:
             output_prefix = ctx.attr.outs_prefix_map[tgt]
 
         for file in tgt[DefaultInfo].files.to_list():
-            script_path = mv_file.path
             outdir_path = outdir.path if not output_prefix else "{}/{}".format(outdir.path, output_prefix.lstrip("/"))
-            file_path = file.path
             prefix_to_strip = prefix if not file.path.startswith(ctx.genfiles_dir.path) else "{}/{}".format(ctx.genfiles_dir.path, prefix)
 
-            # Update file paths
-            if is_windows:
-                script_path = script_path.replace("/", "\\")
-                outdir_path = outdir_path.replace("/", "\\")
-                file_path = file_path.replace("/", "\\")
-                prefix_to_strip = prefix_to_strip.replace("/", "\\")
+            manifest_lines.append("{}\t{}\t{}".format(outdir_path, file.path, prefix_to_strip))
 
-            copy_calls.append(
-                call_to_script.format(
-                    script_path = script_path,
-                    outdir = outdir_path,
-                    file = file_path,
-                    prefix_to_strip = prefix_to_strip,
-                ),
-            )
-    mv_file_list = []
-    if mv_file:
-        mv_file_list.append(mv_file)
     input_files = depset(
-        mv_file_list,
         transitive = [tgt[DefaultInfo].files for tgt in srcs_map.keys()],
     )
 
-    return input_files, copy_calls
-
-_WINDOWS_TEMPLATE = """\
-@ECHO OFF
-{}
-"""
-
-_UNIX_TEMPLATE = """\
-#!/usr/bin/env bash
-set -euo pipefail
-{}
-"""
+    return input_files, "\n".join(manifest_lines) + "\n"
 
 def _collate_into_directory_impl(ctx):
     outdir = ctx.actions.declare_directory("{}_out".format(ctx.attr.name))
-    mv_file = ctx.file._move_file_script
 
     srcs_map = dict(ctx.attr.srcs_prefix_map)
 
-    # If a user declares an output that is not in srcs, we still want to copy it.
     implicit_srcs_from_outs = {
         tgt: ""
         for (tgt, _) in ctx.attr.outs_prefix_map.items()
@@ -78,24 +42,21 @@ def _collate_into_directory_impl(ctx):
     }
     srcs_map.update(implicit_srcs_from_outs)
 
-    is_windows = ctx.executable._move_file_script.basename.endswith(".bat")
-    input_files, copy_calls = _get_inputs_and_commands(mv_file, srcs_map, ctx, outdir, is_windows)
+    input_files, manifest_content = _build_manifest_content(srcs_map, ctx, outdir)
 
-    action_runner = ctx.actions.declare_file("{}.action_runner.{}".format(ctx.label.name, "bat" if is_windows else "sh"))
-    template = _WINDOWS_TEMPLATE if is_windows else _UNIX_TEMPLATE
+    manifest = ctx.actions.declare_file("{}.manifest".format(ctx.label.name))
     ctx.actions.write(
-        output = action_runner,
-        content = template.format("\n".join(copy_calls)),
-        is_executable = True,
+        output = manifest,
+        content = manifest_content,
     )
 
     ctx.actions.run(
-        inputs = input_files,
-        executable = action_runner,
+        inputs = depset([manifest], transitive = [input_files]),
+        executable = ctx.executable._generator,
+        arguments = [manifest.path],
         outputs = [outdir],
         mnemonic = "OpenSSLCopyFilesToDir",
         progress_message = "Copying files to directory",
-        use_default_shell_env = True,
     )
 
     return [
@@ -117,11 +78,11 @@ collate_into_directory = rule(
             allow_files = True,
             doc = "Map from target that provides files to prefix to strip from those files.",
         ),
-        "_move_file_script": attr.label(
+        "_generator": attr.label(
             allow_single_file = True,
             executable = True,
             cfg = "exec",
-            default = Label("@openssl-generated-overlay//:move_file_and_strip_prefix"),
+            default = Label("@openssl-generated-overlay//:collate_into_directory"),
         ),
     },
 )

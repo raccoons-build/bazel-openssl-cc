@@ -75,8 +75,8 @@ _WINDOWS_TEMPLATE = """\
 """
 
 _UNIX_TEMPLATE = """\
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 {}
 """
 
