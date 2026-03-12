@@ -80,7 +80,6 @@ GENERATED_HDRS = [
     "include/openssl/fipskey.h",
     "include/openssl/lhash.h",
     "include/openssl/ocsp.h",
-    "include/openssl/opensslconf.h",
     "include/openssl/opensslv.h",
     "include/openssl/pkcs12.h",
     "include/openssl/pkcs7.h",

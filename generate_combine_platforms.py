@@ -157,13 +157,8 @@ def main(
             output_tar_dir / ".bazelrc",
         )
         copy_from_here_to(
-            "move_file_and_strip_prefix.sh",
-            output_tar_dir / "move_file_and_strip_prefix.sh",
-            executable=True,
-        )
-        copy_from_here_to(
-            "move_file_and_strip_prefix.bat",
-            output_tar_dir / "move_file_and_strip_prefix.bat",
+            "collate_into_directory.cc",
+            output_tar_dir / "collate_into_directory.cc",
             executable=True,
         )
 
@@ -190,13 +185,16 @@ def main(
             f.write(
                 dedent(
                     """\
+                load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
                 exports_files(glob(["**"]))
 
-                filegroup(
-                    name = "move_file_and_strip_prefix",
-                    srcs = select({
-                        "@platforms//os:windows": ["move_file_and_strip_prefix.bat"],
-                        "//conditions:default": ["move_file_and_strip_prefix.sh"],
+                cc_binary(
+                    name = "collate_into_directory",
+                    srcs = ["collate_into_directory.cc"],
+                    copts = select({
+                        "@rules_cc//cc/compiler:msvc-cl": ["/std:c++17"],
+                        "//conditions:default": ["-std=c++17"],
                     }),
                 )
                 """

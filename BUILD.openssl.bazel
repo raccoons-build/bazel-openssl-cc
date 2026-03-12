@@ -151,6 +151,7 @@ CRYPTO_TEXTUAL_HDRS = [
         "crypto/LPdir_win.c",
         "crypto/LPdir_win32.c",
         "crypto/LPdir_wince.c",
+        "engines/e_capi_err.c",
         "ms/applink.c",
         "ms/uplink.h",
     ],
@@ -340,9 +341,7 @@ OTHER_LIBCRYPTO_WINDOWS_HDRS = [
     "engines/e_capi_err.h",
 ]
 
-OTHER_LIBCRYPTO_WINDOWS_SRCS = [
-    "engines/e_capi_err.c",
-]
+OTHER_LIBCRYPTO_WINDOWS_SRCS = []
 
 ALL_LIBCRYPTO_HDRS = COMMON_LIBCRYPTO_HDRS + select({
     "//configs:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_HDRS,
@@ -429,11 +428,6 @@ cc_library(
         "//conditions:default": LIBCRYPTO_NIX_COPTS,
     }),
     defines = COMMON_OPENSSL_DEFINES,
-    features = select({
-        "//configs:windows_arm64": ["system_include_paths"],
-        "//configs:windows_x64": ["system_include_paths"],
-        "//conditions:default": [],
-    }),
     includes = [
         "include",
     ] + LIBCRYPTO_INCLUDES + select({
