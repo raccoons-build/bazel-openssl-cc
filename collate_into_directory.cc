@@ -24,9 +24,7 @@ int copy_file(const fs::path& dest_dir, const fs::path& file,
     fs::path target_dir = dest_dir / clean_filepath.parent_path();
 
     fs::create_directories(target_dir);
-    fs::copy(
-        fs::canonical(file), target_dir,
-        fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+    fs::copy(file, target_dir, fs::copy_options::overwrite_existing);
     return 0;
 }
 
