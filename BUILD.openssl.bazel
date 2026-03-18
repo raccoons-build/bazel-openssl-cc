@@ -1,295 +1,301 @@
-# This code is heavily based on the implementation in `dbx_build_tools`:
-#   Ref: https://github.com/dropbox/dbx_build_tools/blob/master/thirdparty/openssl/BUILD.openssl.tail
-
-load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("@openssl-generated-overlay//:collate_into_directory.bzl", "collate_into_directory")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_perl//perl:perl.bzl", "perl_binary", "perl_library")
+load("//:utils.bzl", "parse_perlasm_gen")
+load("//bazel:openssl_genrule.bzl", "openssl_perl_genrule")
+load("//bazel:perl_genrule.bzl", "perl_genrule")
 load(
-    "@openssl-generated-overlay//:constants-darwin64-arm64-cc.bzl",
-    _DARWIN_ARM64_COMMON_GENERATED_FILES = "COMMON_GENERATED_FILES",
-    _DARWIN_ARM64_GEN_FILES = "GEN_FILES",
-    _DARWIN_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
-    _DARWIN_ARM64_LIBCRYPTO_HDRS = "LIBCRYPTO_HDRS",
-    _DARWIN_ARM64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
-    _DARWIN_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
-    _DARWIN_ARM64_LIBSSL_HDRS = "LIBSSL_HDRS",
-    _DARWIN_ARM64_LIBSSL_SRCS = "LIBSSL_SRCS",
-    _DARWIN_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
-    _DARWIN_ARM64_OPENSSL_APP_HDRS = "OPENSSL_APP_HDRS",
-    _DARWIN_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
-    _DARWIN_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _NIX_ARM64_PERLASM_GEN = "PERLASM_GEN",
+    "//bazel/constants:android_arm64.bzl",
+    _ANDROID_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _ANDROID_ARM64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _ANDROID_ARM64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _ANDROID_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _ANDROID_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _ANDROID_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _ANDROID_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
 )
 load(
-    "@openssl-generated-overlay//:constants-darwin64-x86_64-cc.bzl",
-    _DARWIN_X86_64_COMMON_GENERATED_FILES = "COMMON_GENERATED_FILES",
-    _DARWIN_X86_64_GEN_FILES = "GEN_FILES",
+    "//bazel/constants:android_x86_64.bzl",
+    _ANDROID_X86_64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _ANDROID_X86_64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _ANDROID_X86_64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _ANDROID_X86_64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _ANDROID_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _ANDROID_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _ANDROID_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load("//bazel/constants:common.bzl", "COMMON_APP_SRCS", "COMMON_CRYPTO_SRCS", "COMMON_SSL_SRCS")
+load(
+    "//bazel/constants:darwin_arm64.bzl",
+    _DARWIN_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _DARWIN_ARM64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _DARWIN_ARM64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _DARWIN_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _DARWIN_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _DARWIN_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _DARWIN_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _DARWIN_ARM64_PERLASM_GEN = "PERLASM_GEN",
+)
+load(
+    "//bazel/constants:darwin_x86_64.bzl",
+    _DARWIN_X86_64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _DARWIN_X86_64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _DARWIN_X86_64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
     _DARWIN_X86_64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
-    _DARWIN_X86_64_LIBCRYPTO_HDRS = "LIBCRYPTO_HDRS",
-    _DARWIN_X86_64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
     _DARWIN_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
-    _DARWIN_X86_64_LIBSSL_HDRS = "LIBSSL_HDRS",
-    _DARWIN_X86_64_LIBSSL_SRCS = "LIBSSL_SRCS",
-    _DARWIN_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
-    _DARWIN_X86_64_OPENSSL_APP_HDRS = "OPENSSL_APP_HDRS",
-    _DARWIN_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
+    _DARWIN_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _DARWIN_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
 )
+load("//bazel/constants:features.bzl", "FEATURE_DEFINES", "openssl_feature_flags")
 load(
-    "@openssl-generated-overlay//:constants-linux-aarch64.bzl",
-    _LINUX_ARM64_COMMON_GENERATED_FILES = "COMMON_GENERATED_FILES",
-    _LINUX_ARM64_GEN_FILES = "GEN_FILES",
-    _LINUX_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
-    _LINUX_ARM64_LIBCRYPTO_HDRS = "LIBCRYPTO_HDRS",
-    _LINUX_ARM64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
-    _LINUX_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
-    _LINUX_ARM64_LIBSSL_HDRS = "LIBSSL_HDRS",
-    _LINUX_ARM64_LIBSSL_SRCS = "LIBSSL_SRCS",
-    _LINUX_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
-    _LINUX_ARM64_OPENSSL_APP_HDRS = "OPENSSL_APP_HDRS",
-    _LINUX_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
-    _LINUX_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    "//bazel/constants:freebsd_aarch64.bzl",
+    _FREEBSD_AARCH64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _FREEBSD_AARCH64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _FREEBSD_AARCH64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _FREEBSD_AARCH64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _FREEBSD_AARCH64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _FREEBSD_AARCH64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _FREEBSD_AARCH64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
 )
 load(
-    "@openssl-generated-overlay//:constants-linux-x86_64-clang.bzl",
-    _LINUX_X86_64_COMMON_GENERATED_FILES = "COMMON_GENERATED_FILES",
-    _LINUX_X86_64_GEN_FILES = "GEN_FILES",
+    "//bazel/constants:freebsd_x86_64.bzl",
+    _FREEBSD_X86_64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _FREEBSD_X86_64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _FREEBSD_X86_64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _FREEBSD_X86_64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _FREEBSD_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _FREEBSD_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _FREEBSD_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:ios_arm64.bzl",
+    _IOS_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _IOS_ARM64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _IOS_ARM64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _IOS_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _IOS_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _IOS_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _IOS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:linux_aarch64.bzl",
+    _LINUX_AARCH64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _LINUX_AARCH64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _LINUX_AARCH64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _LINUX_AARCH64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _LINUX_AARCH64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _LINUX_AARCH64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _LINUX_AARCH64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:linux_arm.bzl",
+    _LINUX_ARM_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _LINUX_ARM_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _LINUX_ARM_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _LINUX_ARM_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _LINUX_ARM_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _LINUX_ARM_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _LINUX_ARM_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:linux_ppc64le.bzl",
+    _LINUX_PPC64LE_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _LINUX_PPC64LE_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _LINUX_PPC64LE_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _LINUX_PPC64LE_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _LINUX_PPC64LE_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _LINUX_PPC64LE_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _LINUX_PPC64LE_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:linux_riscv64.bzl",
+    _LINUX_RISCV64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _LINUX_RISCV64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _LINUX_RISCV64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _LINUX_RISCV64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _LINUX_RISCV64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _LINUX_RISCV64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _LINUX_RISCV64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:linux_s390x.bzl",
+    _LINUX_S390X_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _LINUX_S390X_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _LINUX_S390X_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _LINUX_S390X_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _LINUX_S390X_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _LINUX_S390X_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _LINUX_S390X_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:linux_x86_64.bzl",
+    _LINUX_X86_64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _LINUX_X86_64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _LINUX_X86_64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
     _LINUX_X86_64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
-    _LINUX_X86_64_LIBCRYPTO_HDRS = "LIBCRYPTO_HDRS",
-    _LINUX_X86_64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
     _LINUX_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
-    _LINUX_X86_64_LIBSSL_HDRS = "LIBSSL_HDRS",
-    _LINUX_X86_64_LIBSSL_SRCS = "LIBSSL_SRCS",
-    _LINUX_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
-    _LINUX_X86_64_OPENSSL_APP_HDRS = "OPENSSL_APP_HDRS",
-    _LINUX_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
+    _LINUX_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _LINUX_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _NIX_X86_64_PERLASM_GEN = "PERLASM_GEN",
+    _LINUX_X86_64_PERLASM_GEN = "PERLASM_GEN",
 )
 load(
-    "@openssl-generated-overlay//:constants-VC-WIN64-CLANGASM-ARM.bzl",
-    _WINDOWS_ARM64_COMMON_GENERATED_FILES = "COMMON_GENERATED_FILES",
-    _WINDOWS_ARM64_GEN_FILES = "GEN_FILES",
+    "//bazel/constants:no_asm.bzl",
+    "NO_ASM_APP_EXTRA_SRCS",
+    "NO_ASM_CRYPTO_EXTRA_SRCS",
+    "NO_ASM_DEFINES",
+    "NO_ASM_SSL_EXTRA_SRCS",
+)
+load(
+    "//bazel/constants:windows_arm64.bzl",
+    _WINDOWS_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _WINDOWS_ARM64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _WINDOWS_ARM64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
     _WINDOWS_ARM64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
-    _WINDOWS_ARM64_LIBCRYPTO_HDRS = "LIBCRYPTO_HDRS",
-    _WINDOWS_ARM64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
     _WINDOWS_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
-    _WINDOWS_ARM64_LIBSSL_HDRS = "LIBSSL_HDRS",
-    _WINDOWS_ARM64_LIBSSL_SRCS = "LIBSSL_SRCS",
-    _WINDOWS_ARM64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
-    _WINDOWS_ARM64_OPENSSL_APP_HDRS = "OPENSSL_APP_HDRS",
-    _WINDOWS_ARM64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
+    _WINDOWS_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _WINDOWS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
     _WINDOWS_ARM64_PERLASM_GEN = "PERLASM_GEN",
 )
 load(
-    "@openssl-generated-overlay//:constants-VC-WIN64A-masm.bzl",
-    _WINDOWS_X86_64_COMMON_GENERATED_FILES = "COMMON_GENERATED_FILES",
-    _WINDOWS_X86_64_GEN_FILES = "GEN_FILES",
-    _WINDOWS_X86_64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
-    _WINDOWS_X86_64_LIBCRYPTO_HDRS = "LIBCRYPTO_HDRS",
-    _WINDOWS_X86_64_LIBCRYPTO_SRCS = "LIBCRYPTO_SRCS",
-    _WINDOWS_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
-    _WINDOWS_X86_64_LIBSSL_HDRS = "LIBSSL_HDRS",
-    _WINDOWS_X86_64_LIBSSL_SRCS = "LIBSSL_SRCS",
-    _WINDOWS_X86_64_OPENSSL_APP_DEFINES = "LIBSSL_DEFINES",
-    _WINDOWS_X86_64_OPENSSL_APP_HDRS = "OPENSSL_APP_HDRS",
-    _WINDOWS_X86_64_OPENSSL_APP_SRCS = "OPENSSL_APP_SRCS",
-    _WINDOWS_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _WINDOWS_X86_64_PERLASM_GEN = "PERLASM_GEN",
-)
-load("@openssl-generated-overlay//:perl_genrule.bzl", "perl_genrule")
-load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("//:utils.bzl", "get_repo_name", "parse_perlasm_gen", "remove_dupes")
-
-DARWIN_ARM64_COMMON_GENERATED_FILES = {
-    src: "@openssl-generated-overlay//:{}".format(src)
-    for src in _DARWIN_ARM64_COMMON_GENERATED_FILES
-}
-
-DARWIN_X86_64_COMMON_GENERATED_FILES = {
-    src: "@openssl-generated-overlay//:{}".format(src)
-    for src in _DARWIN_X86_64_COMMON_GENERATED_FILES
-}
-
-LINUX_ARM64_COMMON_GENERATED_FILES = {
-    src: "@openssl-generated-overlay//:{}".format(src)
-    for src in _LINUX_ARM64_COMMON_GENERATED_FILES
-}
-
-LINUX_X86_64_COMMON_GENERATED_FILES = {
-    src: "@openssl-generated-overlay//:{}".format(src)
-    for src in _LINUX_X86_64_COMMON_GENERATED_FILES
-}
-
-WINDOWS_ARM64_COMMON_GENERATED_FILES = {
-    src: "@openssl-generated-overlay//:{}".format(src)
-    for src in _WINDOWS_ARM64_COMMON_GENERATED_FILES
-}
-
-WINDOWS_X86_64_COMMON_GENERATED_FILES = {
-    src: "@openssl-generated-overlay//:{}".format(src)
-    for src in _WINDOWS_X86_64_COMMON_GENERATED_FILES
-}
-
-_COMMON_GENERATED_FILES_COMBINED = (
-    DARWIN_ARM64_COMMON_GENERATED_FILES | DARWIN_X86_64_COMMON_GENERATED_FILES | LINUX_ARM64_COMMON_GENERATED_FILES | LINUX_X86_64_COMMON_GENERATED_FILES | WINDOWS_ARM64_COMMON_GENERATED_FILES | WINDOWS_X86_64_COMMON_GENERATED_FILES
-).keys()
-
-_REPO_NAME = get_repo_name()
-
-CRYPTO_TEXTUAL_HDRS = [
-    "crypto/des/ncbc_enc.c",
-] + glob(
-    # There are some .c files that are conditionally included textually, we want them to be
-    # available
-    include = ["providers/implementations/**/*.c"],
-    exclude = _COMMON_GENERATED_FILES_COMBINED,
-) + select({
-    "@platforms//os:windows": [
-        "crypto/LPdir_win.c",
-        "crypto/LPdir_win32.c",
-        "crypto/LPdir_wince.c",
-        "engines/e_capi_err.c",
-        "ms/applink.c",
-        "ms/uplink.h",
-    ],
-    "//conditions:default": ["crypto/LPdir_unix.c"],
-})
-
-COMMON_OPENSSL_APP_HDRS = glob(
-    include = [
-        "apps/*.h",
-        "apps/include/*.h",
-        "include/internal/*.h",
-        "include/openssl/*.h",
-    ],
-    exclude = _COMMON_GENERATED_FILES_COMBINED,
+    "//bazel/constants:windows_x64.bzl",
+    _WINDOWS_X64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
+    _WINDOWS_X64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
+    _WINDOWS_X64_ASM_SSL_EXTRA = "ASM_SSL_EXTRA_SRCS",
+    _WINDOWS_X64_LIBCRYPTO_DEFINES = "LIBCRYPTO_DEFINES",
+    _WINDOWS_X64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
+    _WINDOWS_X64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
+    _WINDOWS_X64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _WINDOWS_X64_PERLASM_GEN = "PERLASM_GEN",
 )
 
-# Some source files are missing from OpenSSL metadata so we never pick them up.
-MISSING_OPENSSL_WINDOWS_SRCS = ["apps/lib/win32_init.c"]
+# --- Feature toggle flags (generated macro) ---
+openssl_feature_flags()
 
-ALL_OPENSSL_APP_HDRS = COMMON_OPENSSL_APP_HDRS + select({
-    "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_HDRS,
-    "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_HDRS,
-    "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_HDRS,
-    "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_HDRS,
-    "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_HDRS,
-    "//configs:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_HDRS,
-})
+# --- Perl tools for code generation ---
 
-ALL_OPENSSL_APP_SRCS = select({
-    "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
-    "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
-    "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
-    "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
-    "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_SRCS + MISSING_OPENSSL_WINDOWS_SRCS,
-    "//configs:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_SRCS + MISSING_OPENSSL_WINDOWS_SRCS,
-})
+perl_library(
+    name = "perl_utils",
+    srcs = glob(["util/perl/**/*.pm"]),
+    includes = ["util/perl"],
+    visibility = ["//:__subpackages__"],
+)
 
-OPENSSL_APP_NIX_COPTS = [
-]
-
-OPENSSL_APP_WINDOWS_COPTS = [
-]
-
-OPENSSL_APP_INCLUDES = [
-    "apps",
-    "apps/include",
-]
-
-OPENSSL_APP_NIX_LINKOPTS = [
-]
-
-OPENSSL_APP_WINDOWS_LINKOPTS = [
-    "-defaultlib:ws2_32.lib",
-    "-defaultlib:advapi32.lib",
-    "-defaultlib:user32.lib",
-    "-defaultlib:crypt32.lib",
-]
-
-COMMON_OPENSSL_WINDOWS_DEFINES = [
-    "_WINSOCKAPI_",
-    "OPENSSL_SYS_WINCE",
-    "WIN32_LEAN_AND_MEAN",
-]
-
-COMMON_OPENSSL_DEFINES = select({
-    "//configs:windows_arm64": COMMON_OPENSSL_WINDOWS_DEFINES,
-    "//configs:windows_x64": COMMON_OPENSSL_WINDOWS_DEFINES,
-    "//conditions:default": [],
-})
-
-COMMON_OPENSSL_COPTS = [
-    # This hardcoded path into the system mean we will find the system certs. Note Debian sets
-    # OPENSSLDIR=/usr/lib/ssl, but /usr/lib/ssl mostly consists of symlinks into /etc/ssl. We
-    # must set /etc/ssl here because some environments (e.g., YSS root filesystems) don't have
-    # /usr/lib/ssl at all.
-    "-DOPENSSLDIR=\\\"/etc/ssl\\\"",
-    # This is basically a no-op, since we've disabled dynamic loading of engines.
-    '-DENGINESDIR=\\"/usr/lib/engines-3.0\\"',
-    # also basically a no-op
-    "-DMODULESDIR=\\\"/dev/null\\\"",
-    "-DL_ENDIAN",
-    "-DOPENSSL_USE_NODELETE",
-] + select({
-    "//configs:linux_aarch64": ["-mno-outline-atomics"],
-    "//conditions:default": [],
-}) + select({
-    "//configs:windows_arm64": [
-        # Windows-specific flags can go here if needed
-    ],
-    "//configs:windows_x64": [
-        # Windows-specific flags can go here if needed
-    ],
-    "//conditions:default": [
-        # As described in https://github.com/openssl/openssl/issues/4575, OpenSSL doesn't mark its
-        # assembly files as not requiring an executable stack. Pass --noexecstack to the assembler
-        # to do this.
-        "-Wa,--noexecstack",
-        "-Wno-unused-command-line-argument",
-
-        # If someone wants to link with -fPIC, the objects they're linking need to have been built with it.
-        # Add this flag so that people can choose to link that way if they want to.
-        "-fPIC",
-    ],
-})
-
-cc_binary(
-    name = "openssl",
-    srcs = ALL_OPENSSL_APP_SRCS + ALL_OPENSSL_APP_HDRS,
-    copts = COMMON_OPENSSL_COPTS + select({
-        "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
-        "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
-        "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
-        "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
-        "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
-        "//configs:windows_x64": _WINDOWS_X86_64_OPENSSL_APP_DEFINES,
-    }) + select({
-        "//configs:windows_arm64": OPENSSL_APP_WINDOWS_COPTS,
-        "//configs:windows_x64": OPENSSL_APP_WINDOWS_COPTS,
-        "//conditions:default": OPENSSL_APP_NIX_COPTS,
+perl_library(
+    name = "configdata",
+    srcs = select({
+        "//configs:android_arm64": ["configdata/android_arm64/configdata.pm"],
+        "//configs:android_x86_64": ["configdata/android_x86_64/configdata.pm"],
+        "//configs:darwin_arm64": ["configdata/darwin_arm64/configdata.pm"],
+        "//configs:darwin_x86_64": ["configdata/darwin_x86_64/configdata.pm"],
+        "//configs:freebsd_aarch64": ["configdata/freebsd_aarch64/configdata.pm"],
+        "//configs:freebsd_x86_64": ["configdata/freebsd_x86_64/configdata.pm"],
+        "//configs:ios_arm64": ["configdata/ios_arm64/configdata.pm"],
+        "//configs:linux_aarch64": ["configdata/linux_aarch64/configdata.pm"],
+        "//configs:linux_arm": ["configdata/linux_arm/configdata.pm"],
+        "//configs:linux_ppc64le": ["configdata/linux_ppc64le/configdata.pm"],
+        "//configs:linux_riscv64": ["configdata/linux_riscv64/configdata.pm"],
+        "//configs:linux_s390x": ["configdata/linux_s390x/configdata.pm"],
+        "//configs:linux_x86_64": ["configdata/linux_x86_64/configdata.pm"],
+        "//configs:windows_arm64": ["configdata/windows_arm64/configdata.pm"],
+        "//configs:windows_x64": ["configdata/windows_x64/configdata.pm"],
+        "//conditions:default": ["configdata/no_asm/configdata.pm"],
     }),
-    defines = COMMON_OPENSSL_DEFINES,
-    includes = OPENSSL_APP_INCLUDES,
-    linkopts = select({
-        "//configs:windows_arm64": OPENSSL_APP_WINDOWS_LINKOPTS,
-        "//configs:windows_x64": OPENSSL_APP_WINDOWS_LINKOPTS,
-        "//conditions:default": OPENSSL_APP_NIX_LINKOPTS,
+    data = ["VERSION.dat"],
+    includes = select({
+        "//configs:android_arm64": ["configdata/android_arm64"],
+        "//configs:android_x86_64": ["configdata/android_x86_64"],
+        "//configs:darwin_arm64": ["configdata/darwin_arm64"],
+        "//configs:darwin_x86_64": ["configdata/darwin_x86_64"],
+        "//configs:freebsd_aarch64": ["configdata/freebsd_aarch64"],
+        "//configs:freebsd_x86_64": ["configdata/freebsd_x86_64"],
+        "//configs:ios_arm64": ["configdata/ios_arm64"],
+        "//configs:linux_aarch64": ["configdata/linux_aarch64"],
+        "//configs:linux_arm": ["configdata/linux_arm"],
+        "//configs:linux_ppc64le": ["configdata/linux_ppc64le"],
+        "//configs:linux_riscv64": ["configdata/linux_riscv64"],
+        "//configs:linux_s390x": ["configdata/linux_s390x"],
+        "//configs:linux_x86_64": ["configdata/linux_x86_64"],
+        "//configs:windows_arm64": ["configdata/windows_arm64"],
+        "//configs:windows_x64": ["configdata/windows_x64"],
+        "//conditions:default": ["configdata/no_asm"],
     }),
-    visibility = ["//visibility:public"],
-    deps = [":ssl"],
+    visibility = ["//:__subpackages__"],
 )
 
-NIX_ARM64_PERLASM_TOOLS_AND_OUTS, NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = parse_perlasm_gen(_NIX_ARM64_PERLASM_GEN)
+perl_library(
+    name = "der_codegen",
+    srcs = ["providers/common/der/oids_to_c.pm"],
+    data = glob(["providers/common/der/*.asn1"]),
+    includes = ["providers/common/der"],
+    visibility = ["//:__subpackages__"],
+)
 
-NIX_X86_64_PERLASM_TOOLS_AND_OUTS, NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = parse_perlasm_gen(_NIX_X86_64_PERLASM_GEN)
+perl_library(
+    name = "openssl_platform",
+    srcs = ["Configurations/platform.pm"] + glob(["Configurations/platform/*.pm"]),
+    includes = ["Configurations"],
+    visibility = ["//:__subpackages__"],
+    deps = [":configdata"],
+)
 
-WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS, WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = parse_perlasm_gen(_WINDOWS_ARM64_PERLASM_GEN)
+perl_library(
+    name = "text_template",
+    srcs = glob(["external/perl/Text-Template-1.56/lib/**/*.pm"]),
+    includes = ["external/perl/Text-Template-1.56/lib"],
+    visibility = ["//:__subpackages__"],
+)
 
-WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS, WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT = parse_perlasm_gen(_WINDOWS_X86_64_PERLASM_GEN)
+perl_library(
+    name = "external_perl",
+    data = ["external/perl/MODULES.txt"],
+    visibility = ["//:__subpackages__"],
+    deps = [":text_template"],
+)
+
+perl_binary(
+    name = "progs_gen",
+    srcs = ["apps/progs.pl"],
+    data = glob(["apps/*.c"]),
+    main = "apps/progs.pl",
+    perlopt = ["-Mconfigdata"],
+    deps = [
+        ":configdata",
+        ":perl_utils",
+    ],
+)
+
+perl_binary(
+    name = "mkbuildinf",
+    srcs = ["util/mkbuildinf.pl"],
+    main = "util/mkbuildinf.pl",
+)
+
+# --- Platform-independent generated files via Perl ---
+openssl_perl_genrule(name = "generated_hdrs")
+
+openssl_perl_genrule(name = "generated_srcs")
+
+filegroup(
+    name = "generated_app_hdrs",
+    srcs = [":generated_hdrs"],
+    output_group = "app",
+)
+
+filegroup(
+    name = "generated_app_srcs",
+    srcs = [":generated_srcs"],
+    output_group = "app",
+)
+
+# --- Assembly generation ---
+
+_NIX_ARM64_PERLASM, _NIX_ARM64_PERLASM_DUPES = parse_perlasm_gen(_DARWIN_ARM64_PERLASM_GEN)
+
+_NIX_X86_64_PERLASM, _NIX_X86_64_PERLASM_DUPES = parse_perlasm_gen(_LINUX_X86_64_PERLASM_GEN)
+
+_WIN_ARM64_PERLASM, _WIN_ARM64_PERLASM_DUPES = parse_perlasm_gen(_WINDOWS_ARM64_PERLASM_GEN)
+
+_WIN_X64_PERLASM, _WIN_X64_PERLASM_DUPES = parse_perlasm_gen(_WINDOWS_X64_PERLASM_GEN)
 
 PERLASM_TOOLS = glob(["crypto/perlasm/*.pl"])
 
@@ -297,30 +303,120 @@ perl_genrule(
     name = "perlasm_genfiles",
     additional_srcs = PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
     assembly_flavor = select({
+        "//configs:android_arm64": "linux64",
+        "//configs:android_x86_64": "elf",
         "//configs:darwin_arm64": "ios64",
         "//configs:darwin_x86_64": "macosx",
+        "//configs:freebsd_aarch64": "linux64",
+        "//configs:freebsd_x86_64": "elf",
+        "//configs:ios_arm64": "ios64",
         "//configs:linux_aarch64": "linux64",
         "//configs:linux_x86_64": "elf",
         "//configs:windows_arm64": "win64",
         "//configs:windows_x64": "masm",
+        "//conditions:default": "",
     }),
     srcs_to_outs = select({
-        "//configs:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "//configs:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
-        "//configs:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "//configs:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
-        "//configs:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS,
-        "//configs:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "//configs:android_arm64": _NIX_ARM64_PERLASM,
+        "//configs:android_x86_64": _NIX_X86_64_PERLASM,
+        "//configs:darwin_arm64": _NIX_ARM64_PERLASM,
+        "//configs:darwin_x86_64": _NIX_X86_64_PERLASM,
+        "//configs:freebsd_aarch64": _NIX_ARM64_PERLASM,
+        "//configs:freebsd_x86_64": _NIX_X86_64_PERLASM,
+        "//configs:ios_arm64": _NIX_ARM64_PERLASM,
+        "//configs:linux_aarch64": _NIX_ARM64_PERLASM,
+        "//configs:linux_x86_64": _NIX_X86_64_PERLASM,
+        "//configs:windows_arm64": _WIN_ARM64_PERLASM,
+        "//configs:windows_x64": _WIN_X64_PERLASM,
+        "//conditions:default": {},
     }),
     srcs_to_outs_dupes = select({
-        "//configs:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "//configs:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "//configs:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "//configs:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "//configs:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
-        "//configs:windows_x64": WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "//configs:android_arm64": _NIX_ARM64_PERLASM_DUPES,
+        "//configs:android_x86_64": _NIX_X86_64_PERLASM_DUPES,
+        "//configs:darwin_arm64": _NIX_ARM64_PERLASM_DUPES,
+        "//configs:darwin_x86_64": _NIX_X86_64_PERLASM_DUPES,
+        "//configs:freebsd_aarch64": _NIX_ARM64_PERLASM_DUPES,
+        "//configs:freebsd_x86_64": _NIX_X86_64_PERLASM_DUPES,
+        "//configs:ios_arm64": _NIX_ARM64_PERLASM_DUPES,
+        "//configs:linux_aarch64": _NIX_ARM64_PERLASM_DUPES,
+        "//configs:linux_x86_64": _NIX_X86_64_PERLASM_DUPES,
+        "//configs:windows_arm64": _WIN_ARM64_PERLASM_DUPES,
+        "//configs:windows_x64": _WIN_X64_PERLASM_DUPES,
+        "//conditions:default": {},
     }),
 )
+
+# --- Textual headers (files #included as C source) ---
+
+CRYPTO_TEXTUAL_HDRS = [
+    "crypto/des/ncbc_enc.c",
+] + glob(
+    include = ["providers/implementations/**/*.c"],
+) + select({
+    "@platforms//os:windows": [
+        "crypto/LPdir_win.c",
+        "crypto/LPdir_win32.c",
+        "crypto/LPdir_wince.c",
+        "crypto/bn/bn_asm.c",
+        "engines/e_capi_err.c",
+        "engines/e_capi_err.h",
+        "ms/applink.c",
+        "ms/uplink.h",
+    ],
+    "//conditions:default": ["crypto/LPdir_unix.c"],
+})
+
+# --- Compiler options ---
+
+COMMON_OPENSSL_COPTS = [
+    "-DOPENSSLDIR=\\\"/etc/ssl\\\"",
+    '-DENGINESDIR=\\"/usr/lib/engines-3.0\\"',
+    "-DMODULESDIR=\\\"/dev/null\\\"",
+    "-DL_ENDIAN",
+    "-DOPENSSL_USE_NODELETE",
+] + select({
+    "//configs:android_arm64": ["-mno-outline-atomics"],
+    "//configs:freebsd_aarch64": ["-mno-outline-atomics"],
+    "//configs:linux_aarch64": ["-mno-outline-atomics"],
+    "//conditions:default": [],
+}) + select({
+    "@platforms//os:windows": [],
+    "//conditions:default": [
+        "-Wa,--noexecstack",
+        "-Wno-unused-command-line-argument",
+        "-fPIC",
+    ],
+})
+
+COMMON_WINDOWS_DEFINES = [
+    "_WINSOCKAPI_",
+    "OPENSSL_SYS_WINCE",
+    "WIN32_LEAN_AND_MEAN",
+]
+
+COMMON_DEFINES = select({
+    "@platforms//os:windows": COMMON_WINDOWS_DEFINES,
+    "//conditions:default": [],
+})
+
+# --- Include paths ---
+
+LIBCRYPTO_INCLUDES = [
+    "include",
+    "providers/implementations/macs",
+    "providers/implementations/include",
+    "providers/common/include",
+    "providers/fips/include",
+    "crypto",
+]
+
+LIBCRYPTO_WINDOWS_INCLUDES = [
+    "ms",
+    "engines",
+    "crypto/bn",
+]
+
+# --- libcrypto ---
 
 COMMON_LIBCRYPTO_HDRS = glob(
     include = [
@@ -333,286 +429,182 @@ COMMON_LIBCRYPTO_HDRS = glob(
         "providers/*.inc",
         "providers/implementations/**/*.inc",
     ],
-    exclude = _COMMON_GENERATED_FILES_COMBINED,
 )
-
-# We miss some sources and headers when doing the normal extraction
-OTHER_LIBCRYPTO_WINDOWS_HDRS = [
-    "engines/e_capi_err.h",
-]
-
-OTHER_LIBCRYPTO_WINDOWS_SRCS = []
-
-ALL_LIBCRYPTO_HDRS = COMMON_LIBCRYPTO_HDRS + select({
-    "//configs:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_HDRS,
-    "//configs:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_HDRS,
-    "//configs:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_HDRS,
-    "//configs:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_HDRS,
-    "//configs:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_HDRS + OTHER_LIBCRYPTO_WINDOWS_HDRS,
-    "//configs:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_HDRS + OTHER_LIBCRYPTO_WINDOWS_HDRS,
-})
-
-ALL_LIBCRYPTO_SRCS = select({
-    "//configs:darwin_arm64": remove_dupes(
-        _DARWIN_ARM64_LIBCRYPTO_SRCS,
-        NIX_ARM64_PERLASM_TOOLS_AND_OUTS.values() + NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ),
-    "//configs:darwin_x86_64": remove_dupes(
-        _DARWIN_X86_64_LIBCRYPTO_SRCS,
-        NIX_X86_64_PERLASM_TOOLS_AND_OUTS.values() + NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ),
-    "//configs:linux_aarch64": remove_dupes(
-        _LINUX_ARM64_LIBCRYPTO_SRCS,
-        NIX_ARM64_PERLASM_TOOLS_AND_OUTS.values() + NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ),
-    "//configs:linux_x86_64": remove_dupes(
-        _LINUX_X86_64_LIBCRYPTO_SRCS,
-        NIX_X86_64_PERLASM_TOOLS_AND_OUTS.values() + NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ),
-    "//configs:windows_arm64": remove_dupes(
-        _WINDOWS_ARM64_LIBCRYPTO_SRCS,
-        WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS.values() + WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
-    "//configs:windows_x64": remove_dupes(
-        _WINDOWS_X86_64_LIBCRYPTO_SRCS,
-        WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS.values() + WINDOWS_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
-    ) + OTHER_LIBCRYPTO_WINDOWS_SRCS,
-})
-
-LIBCRYPTO_NIX_COPTS = [
-]
-
-LIBCRYPTO_WINDOWS_COPTS = [
-]
-
-LIBCRYPTO_INCLUDES = [
-    "providers/implementations/macs",
-    "providers/implementations/include",
-    "providers/common/include",
-    "providers/fips/include",
-    "crypto",
-]
-
-# Windows needs some additional include directories.
-LIBCRYPTO_WINDOWS_INCLUDES = [
-    "ms",
-    "engines",
-    "crypto/bn",
-    "crypto",
-]
 
 cc_library(
     name = "crypto",
-    # Some of the srcs are duplicated because we have to glob over the directories with missing files
-    # as only some of them are picked up.
-    srcs = ALL_LIBCRYPTO_SRCS + [":perlasm_genfiles"],
-    hdrs = ALL_LIBCRYPTO_HDRS,
-    # To make sure downstream targets add the right copts to be able to include the headers.
-    copts = COMMON_OPENSSL_COPTS + select({
-        "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
-        "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
-        "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
-        "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
-        "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
-        "//configs:windows_x64": _WINDOWS_X86_64_OPENSSL_DEFINES,
-    }) + select({
-        "//configs:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_DEFINES,
-        "//configs:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_DEFINES,
-        "//configs:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_DEFINES,
-        "//configs:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_DEFINES,
-        "//configs:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
-        "//configs:windows_x64": _WINDOWS_X86_64_LIBCRYPTO_DEFINES,
-    }) + select({
-        "//configs:windows_arm64": LIBCRYPTO_WINDOWS_COPTS,
-        "//configs:windows_x64": LIBCRYPTO_WINDOWS_COPTS,
-        "//conditions:default": LIBCRYPTO_NIX_COPTS,
+    srcs = COMMON_CRYPTO_SRCS + select({
+        "//configs:android_arm64": _ANDROID_ARM64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:android_x86_64": _ANDROID_X86_64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:darwin_arm64": _DARWIN_ARM64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:darwin_x86_64": _DARWIN_X86_64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:freebsd_aarch64": _FREEBSD_AARCH64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:freebsd_x86_64": _FREEBSD_X86_64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:ios_arm64": _IOS_ARM64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:linux_aarch64": _LINUX_AARCH64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:linux_arm": _LINUX_ARM_ASM_CRYPTO_EXTRA,
+        "//configs:linux_ppc64le": _LINUX_PPC64LE_ASM_CRYPTO_EXTRA,
+        "//configs:linux_riscv64": _LINUX_RISCV64_ASM_CRYPTO_EXTRA,
+        "//configs:linux_s390x": _LINUX_S390X_ASM_CRYPTO_EXTRA,
+        "//configs:linux_x86_64": _LINUX_X86_64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:windows_arm64": _WINDOWS_ARM64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:windows_x64": _WINDOWS_X64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//conditions:default": NO_ASM_CRYPTO_EXTRA_SRCS,
+    }) + [":generated_srcs"],
+    hdrs = COMMON_LIBCRYPTO_HDRS + [":generated_hdrs"],
+    copts = COMMON_OPENSSL_COPTS + FEATURE_DEFINES + select({
+        "//configs:android_arm64": _ANDROID_ARM64_OPENSSL_DEFINES + _ANDROID_ARM64_LIBCRYPTO_DEFINES,
+        "//configs:android_x86_64": _ANDROID_X86_64_OPENSSL_DEFINES + _ANDROID_X86_64_LIBCRYPTO_DEFINES,
+        "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES + _DARWIN_ARM64_LIBCRYPTO_DEFINES,
+        "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES + _DARWIN_X86_64_LIBCRYPTO_DEFINES,
+        "//configs:freebsd_aarch64": _FREEBSD_AARCH64_OPENSSL_DEFINES + _FREEBSD_AARCH64_LIBCRYPTO_DEFINES,
+        "//configs:freebsd_x86_64": _FREEBSD_X86_64_OPENSSL_DEFINES + _FREEBSD_X86_64_LIBCRYPTO_DEFINES,
+        "//configs:ios_arm64": _IOS_ARM64_OPENSSL_DEFINES + _IOS_ARM64_LIBCRYPTO_DEFINES,
+        "//configs:linux_aarch64": _LINUX_AARCH64_OPENSSL_DEFINES + _LINUX_AARCH64_LIBCRYPTO_DEFINES,
+        "//configs:linux_arm": _LINUX_ARM_OPENSSL_DEFINES + _LINUX_ARM_LIBCRYPTO_DEFINES,
+        "//configs:linux_ppc64le": _LINUX_PPC64LE_OPENSSL_DEFINES + _LINUX_PPC64LE_LIBCRYPTO_DEFINES,
+        "//configs:linux_riscv64": _LINUX_RISCV64_OPENSSL_DEFINES + _LINUX_RISCV64_LIBCRYPTO_DEFINES,
+        "//configs:linux_s390x": _LINUX_S390X_OPENSSL_DEFINES + _LINUX_S390X_LIBCRYPTO_DEFINES,
+        "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES + _LINUX_X86_64_LIBCRYPTO_DEFINES,
+        "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES + _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
+        "//configs:windows_x64": _WINDOWS_X64_OPENSSL_DEFINES + _WINDOWS_X64_LIBCRYPTO_DEFINES,
+        "//conditions:default": NO_ASM_DEFINES,
     }),
-    defines = COMMON_OPENSSL_DEFINES,
-    includes = [
-        "include",
-    ] + LIBCRYPTO_INCLUDES + select({
-        "//configs:windows_arm64": LIBCRYPTO_WINDOWS_INCLUDES,
-        "//configs:windows_x64": LIBCRYPTO_WINDOWS_INCLUDES,
+    defines = COMMON_DEFINES,
+    includes = LIBCRYPTO_INCLUDES + select({
+        "@platforms//os:windows": LIBCRYPTO_WINDOWS_INCLUDES,
         "//conditions:default": [],
     }),
-    linkopts = [
-        "-lc",
-        "-pthread",
-    ],
+    linkopts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": [
+            "-lc",
+            "-pthread",
+        ],
+    }),
     textual_hdrs = CRYPTO_TEXTUAL_HDRS,
     visibility = ["//visibility:public"],
 )
 
-COMMON_LIBSSL_HDRS = glob(
-    include = ["ssl/**/*.h"],
-    exclude = _COMMON_GENERATED_FILES_COMBINED,
-)
+# --- libssl ---
 
-ALL_LIBSSL_HDRS = COMMON_LIBSSL_HDRS + select({
-    "//configs:darwin_arm64": _DARWIN_ARM64_LIBSSL_HDRS,
-    "//configs:darwin_x86_64": _DARWIN_X86_64_LIBSSL_HDRS,
-    "//configs:linux_aarch64": _LINUX_ARM64_LIBSSL_HDRS,
-    "//configs:linux_x86_64": _LINUX_X86_64_LIBSSL_HDRS,
-    "//configs:windows_arm64": _WINDOWS_ARM64_LIBSSL_HDRS,
-    "//configs:windows_x64": _WINDOWS_X86_64_LIBSSL_HDRS,
-})
-
-ALL_LIBSSL_SRCS = select({
-    "//configs:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
-    "//configs:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
-    "//configs:linux_aarch64": _LINUX_ARM64_LIBSSL_SRCS,
-    "//configs:linux_x86_64": _LINUX_X86_64_LIBSSL_SRCS,
-    "//configs:windows_arm64": _WINDOWS_ARM64_LIBSSL_SRCS,
-    "//configs:windows_x64": _WINDOWS_X86_64_LIBSSL_SRCS,
-})
+COMMON_LIBSSL_HDRS = glob(include = ["ssl/**/*.h"])
 
 cc_library(
     name = "ssl",
-    srcs = ALL_LIBSSL_SRCS,
-    hdrs = ALL_LIBSSL_HDRS,
-    copts = COMMON_OPENSSL_COPTS + select({
-        "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
-        "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
-        "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
-        "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
-        "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
-        "//configs:windows_x64": _WINDOWS_X86_64_OPENSSL_DEFINES,
-    }) + select({
-        "//configs:darwin_arm64": _DARWIN_ARM64_LIBSSL_DEFINES,
-        "//configs:darwin_x86_64": _DARWIN_X86_64_LIBSSL_DEFINES,
-        "//configs:linux_aarch64": _LINUX_ARM64_LIBSSL_DEFINES,
-        "//configs:linux_x86_64": _LINUX_X86_64_LIBSSL_DEFINES,
-        "//configs:windows_arm64": _WINDOWS_ARM64_LIBSSL_DEFINES,
-        "//configs:windows_x64": _WINDOWS_X86_64_LIBSSL_DEFINES,
+    srcs = COMMON_SSL_SRCS + select({
+        "//configs:android_arm64": _ANDROID_ARM64_ASM_SSL_EXTRA,
+        "//configs:android_x86_64": _ANDROID_X86_64_ASM_SSL_EXTRA,
+        "//configs:darwin_arm64": _DARWIN_ARM64_ASM_SSL_EXTRA,
+        "//configs:darwin_x86_64": _DARWIN_X86_64_ASM_SSL_EXTRA,
+        "//configs:freebsd_aarch64": _FREEBSD_AARCH64_ASM_SSL_EXTRA,
+        "//configs:freebsd_x86_64": _FREEBSD_X86_64_ASM_SSL_EXTRA,
+        "//configs:ios_arm64": _IOS_ARM64_ASM_SSL_EXTRA,
+        "//configs:linux_aarch64": _LINUX_AARCH64_ASM_SSL_EXTRA,
+        "//configs:linux_arm": _LINUX_ARM_ASM_SSL_EXTRA,
+        "//configs:linux_ppc64le": _LINUX_PPC64LE_ASM_SSL_EXTRA,
+        "//configs:linux_riscv64": _LINUX_RISCV64_ASM_SSL_EXTRA,
+        "//configs:linux_s390x": _LINUX_S390X_ASM_SSL_EXTRA,
+        "//configs:linux_x86_64": _LINUX_X86_64_ASM_SSL_EXTRA,
+        "//configs:windows_arm64": _WINDOWS_ARM64_ASM_SSL_EXTRA,
+        "//configs:windows_x64": _WINDOWS_X64_ASM_SSL_EXTRA,
+        "//conditions:default": NO_ASM_SSL_EXTRA_SRCS,
     }),
-    defines = COMMON_OPENSSL_DEFINES,
-    # To make sure downstream targets add the right copts to be able to include the headers.
+    hdrs = COMMON_LIBSSL_HDRS,
+    copts = COMMON_OPENSSL_COPTS + FEATURE_DEFINES + select({
+        "//configs:android_arm64": _ANDROID_ARM64_OPENSSL_DEFINES + _ANDROID_ARM64_LIBSSL_DEFINES,
+        "//configs:android_x86_64": _ANDROID_X86_64_OPENSSL_DEFINES + _ANDROID_X86_64_LIBSSL_DEFINES,
+        "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES + _DARWIN_ARM64_LIBSSL_DEFINES,
+        "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES + _DARWIN_X86_64_LIBSSL_DEFINES,
+        "//configs:freebsd_aarch64": _FREEBSD_AARCH64_OPENSSL_DEFINES + _FREEBSD_AARCH64_LIBSSL_DEFINES,
+        "//configs:freebsd_x86_64": _FREEBSD_X86_64_OPENSSL_DEFINES + _FREEBSD_X86_64_LIBSSL_DEFINES,
+        "//configs:ios_arm64": _IOS_ARM64_OPENSSL_DEFINES + _IOS_ARM64_LIBSSL_DEFINES,
+        "//configs:linux_aarch64": _LINUX_AARCH64_OPENSSL_DEFINES + _LINUX_AARCH64_LIBSSL_DEFINES,
+        "//configs:linux_arm": _LINUX_ARM_OPENSSL_DEFINES + _LINUX_ARM_LIBSSL_DEFINES,
+        "//configs:linux_ppc64le": _LINUX_PPC64LE_OPENSSL_DEFINES + _LINUX_PPC64LE_LIBSSL_DEFINES,
+        "//configs:linux_riscv64": _LINUX_RISCV64_OPENSSL_DEFINES + _LINUX_RISCV64_LIBSSL_DEFINES,
+        "//configs:linux_s390x": _LINUX_S390X_OPENSSL_DEFINES + _LINUX_S390X_LIBSSL_DEFINES,
+        "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES + _LINUX_X86_64_LIBSSL_DEFINES,
+        "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES + _WINDOWS_ARM64_LIBSSL_DEFINES,
+        "//configs:windows_x64": _WINDOWS_X64_OPENSSL_DEFINES + _WINDOWS_X64_LIBSSL_DEFINES,
+        "//conditions:default": NO_ASM_DEFINES,
+    }),
+    defines = COMMON_DEFINES,
     includes = ["include"],
-    linkopts = ["-lc"],
+    linkopts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["-lc"],
+    }),
     visibility = ["//visibility:public"],
-    deps = [
-        ":crypto",
+    deps = [":crypto"],
+)
+
+# --- openssl CLI ---
+
+COMMON_APP_HDRS = glob(
+    include = [
+        "apps/*.h",
+        "apps/include/*.h",
+        "include/internal/*.h",
+        "include/openssl/*.h",
     ],
 )
 
-# Keep this filegroup for gen_dir target
-filegroup(
-    name = "generated-headers",
-    srcs = select({
-        "//configs:darwin_arm64": depset([
-            f
-            for f in _DARWIN_ARM64_LIBCRYPTO_HDRS + _DARWIN_ARM64_LIBSSL_HDRS + _DARWIN_ARM64_OPENSSL_APP_HDRS
-            if f.startswith(":")
-        ]).to_list(),
-        "//configs:darwin_x86_64": depset([
-            f
-            for f in _DARWIN_X86_64_LIBCRYPTO_HDRS + _DARWIN_X86_64_LIBSSL_HDRS + _DARWIN_X86_64_OPENSSL_APP_HDRS
-            if f.startswith(":")
-        ]).to_list(),
-        "//configs:linux_aarch64": depset([
-            f
-            for f in _LINUX_ARM64_LIBCRYPTO_HDRS + _LINUX_ARM64_LIBSSL_HDRS + _LINUX_ARM64_OPENSSL_APP_HDRS
-            if f.startswith(":")
-        ]).to_list(),
-        "//configs:linux_x86_64": depset([
-            f
-            for f in _LINUX_X86_64_LIBCRYPTO_HDRS + _LINUX_X86_64_LIBSSL_HDRS + _LINUX_X86_64_OPENSSL_APP_HDRS
-            if f.startswith(":")
-        ]).to_list(),
-        "//configs:windows_arm64": depset([
-            f
-            for f in _WINDOWS_ARM64_LIBCRYPTO_HDRS + _WINDOWS_ARM64_LIBSSL_HDRS + _WINDOWS_ARM64_OPENSSL_APP_HDRS
-            if f.startswith(":")
-        ]).to_list(),
-        "//configs:windows_x64": depset([
-            f
-            for f in _WINDOWS_X86_64_LIBCRYPTO_HDRS + _WINDOWS_X86_64_LIBSSL_HDRS + _WINDOWS_X86_64_OPENSSL_APP_HDRS
-            if f.startswith(":")
-        ]).to_list(),
+cc_binary(
+    name = "openssl",
+    srcs = COMMON_APP_SRCS + select({
+        "//configs:android_arm64": _ANDROID_ARM64_ASM_APP_EXTRA,
+        "//configs:android_x86_64": _ANDROID_X86_64_ASM_APP_EXTRA,
+        "//configs:darwin_arm64": _DARWIN_ARM64_ASM_APP_EXTRA,
+        "//configs:darwin_x86_64": _DARWIN_X86_64_ASM_APP_EXTRA,
+        "//configs:freebsd_aarch64": _FREEBSD_AARCH64_ASM_APP_EXTRA,
+        "//configs:freebsd_x86_64": _FREEBSD_X86_64_ASM_APP_EXTRA,
+        "//configs:ios_arm64": _IOS_ARM64_ASM_APP_EXTRA,
+        "//configs:linux_aarch64": _LINUX_AARCH64_ASM_APP_EXTRA,
+        "//configs:linux_arm": _LINUX_ARM_ASM_APP_EXTRA,
+        "//configs:linux_ppc64le": _LINUX_PPC64LE_ASM_APP_EXTRA,
+        "//configs:linux_riscv64": _LINUX_RISCV64_ASM_APP_EXTRA,
+        "//configs:linux_s390x": _LINUX_S390X_ASM_APP_EXTRA,
+        "//configs:linux_x86_64": _LINUX_X86_64_ASM_APP_EXTRA,
+        "//configs:windows_arm64": _WINDOWS_ARM64_ASM_APP_EXTRA + ["apps/lib/win32_init.c"],
+        "//configs:windows_x64": _WINDOWS_X64_ASM_APP_EXTRA + ["apps/lib/win32_init.c"],
+        "//conditions:default": NO_ASM_APP_EXTRA_SRCS,
+    }) + COMMON_APP_HDRS + [
+        ":generated_app_hdrs",
+        ":generated_app_srcs",
+    ],
+    copts = COMMON_OPENSSL_COPTS + FEATURE_DEFINES + select({
+        "//configs:android_arm64": _ANDROID_ARM64_OPENSSL_APP_DEFINES,
+        "//configs:android_x86_64": _ANDROID_X86_64_OPENSSL_APP_DEFINES,
+        "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
+        "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
+        "//configs:freebsd_aarch64": _FREEBSD_AARCH64_OPENSSL_APP_DEFINES,
+        "//configs:freebsd_x86_64": _FREEBSD_X86_64_OPENSSL_APP_DEFINES,
+        "//configs:ios_arm64": _IOS_ARM64_OPENSSL_APP_DEFINES,
+        "//configs:linux_aarch64": _LINUX_AARCH64_OPENSSL_APP_DEFINES,
+        "//configs:linux_arm": _LINUX_ARM_OPENSSL_APP_DEFINES,
+        "//configs:linux_ppc64le": _LINUX_PPC64LE_OPENSSL_APP_DEFINES,
+        "//configs:linux_riscv64": _LINUX_RISCV64_OPENSSL_APP_DEFINES,
+        "//configs:linux_s390x": _LINUX_S390X_OPENSSL_APP_DEFINES,
+        "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
+        "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
+        "//configs:windows_x64": _WINDOWS_X64_OPENSSL_APP_DEFINES,
+        "//conditions:default": [],
     }),
-)
-
-write_file(
-    name = "unused",
-    out = "unused.h",
-    content = [],
-    newline = "unix",
-    target_compatible_with = ["@platforms//:incompatible"],
-)
-
-[
-    copy_file(
-        name = "copy_generated_{}".format(src),
-        src = select({
-            "//configs:darwin_arm64": DARWIN_ARM64_COMMON_GENERATED_FILES.get(src, ":unused"),
-            "//configs:darwin_x86_64": DARWIN_X86_64_COMMON_GENERATED_FILES.get(src, ":unused"),
-            "//configs:linux_aarch64": LINUX_ARM64_COMMON_GENERATED_FILES.get(src, ":unused"),
-            "//configs:linux_x86_64": LINUX_X86_64_COMMON_GENERATED_FILES.get(src, ":unused"),
-            "//configs:windows_arm64": WINDOWS_ARM64_COMMON_GENERATED_FILES.get(src, ":unused"),
-            "//configs:windows_x64": WINDOWS_X86_64_COMMON_GENERATED_FILES.get(src, ":unused"),
-        }),
-        out = src,
-    )
-    for src in _COMMON_GENERATED_FILES_COMBINED
-]
-
-_PLATFORM_FILES = {
-    "//configs:darwin_arm64": _DARWIN_ARM64_GEN_FILES,
-    "//configs:darwin_x86_64": _DARWIN_X86_64_GEN_FILES,
-    "//configs:linux_aarch64": _LINUX_ARM64_GEN_FILES,
-    "//configs:linux_x86_64": _LINUX_X86_64_GEN_FILES,
-    "//configs:windows_arm64": _WINDOWS_ARM64_GEN_FILES,
-    "//configs:windows_x64": _WINDOWS_X86_64_GEN_FILES,
-}
-
-# Flatten all filenames into a set by collecting them into a dict
-_PLATFORM_ALL_FILE_NAMES = {
-    v: None
-    for inner in _PLATFORM_FILES.values()
-    for v in inner.keys()
-}.keys()
-
-[
-    write_file(
-        name = "gen_{}".format(
-            fname.replace("/", "_"),
-        ),
-        out = fname,
-        content = select({
-            cfg: [mapping.get(fname, "")]
-            for cfg, mapping in _PLATFORM_FILES.items()
-        }),
-        newline = "unix",
-    )
-    for fname in _PLATFORM_ALL_FILE_NAMES
-]
-
-filegroup(
-    name = "generate-platform-specific-files",
-    srcs = select({
-        cfg: [fname for fname in mapping.keys()]
-        for cfg, mapping in _PLATFORM_FILES.items()
+    defines = COMMON_DEFINES,
+    includes = [
+        "apps",
+        "apps/include",
+    ],
+    linkopts = select({
+        "@platforms//os:windows": [
+            "-defaultlib:ws2_32.lib",
+            "-defaultlib:advapi32.lib",
+            "-defaultlib:user32.lib",
+            "-defaultlib:crypt32.lib",
+        ],
+        "//conditions:default": [],
     }),
-)
-
-collate_into_directory(
-    name = "gen_dir",
-    outs_prefix_map = {
-        ":crypto": "lib/",
-        ":openssl": "bin/",
-        ":ssl": "lib/",
-    },
-    srcs_prefix_map = {
-        ":crypto": "external/{}".format(_REPO_NAME),
-        ":generated-headers": "external/{}".format(_REPO_NAME),
-        ":openssl": "external/{}".format(_REPO_NAME),
-        ":ssl": "external/{}".format(_REPO_NAME),
-    } | {
-        k: "external/{}".format(_REPO_NAME)
-        for k in glob(
-            include = ["include/openssl/*.h"],
-            exclude = _COMMON_GENERATED_FILES_COMBINED,
-        )
-    },
     visibility = ["//visibility:public"],
+    deps = [":ssl"],
 )

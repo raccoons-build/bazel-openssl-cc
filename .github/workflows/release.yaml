@@ -5,7 +5,7 @@ name: Release
     tags:
     - '*'
 jobs:
-  generate-unix:
+  generate:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repo
@@ -13,121 +13,47 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: "3.13"
-    - run: python3 generate_per_platform.py --os=unix --openssl_tar_path=/tmp/ --github_ref_name=${{github.ref_name}}
-    - name: Upload intermediate unix overlay and openssl files
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{github.ref_name}}.bcr.wip.unix.tar.gz
-        path: /tmp/${{github.ref_name}}.bcr.wip.unix.tar.gz
-        if-no-files-found: error
-  generate-windows:
-    runs-on: windows-latest
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4.2.2
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
-    - name: Run PowerShell command to increase path lengths
-      shell: pwsh
+    - name: Download OpenSSL source
       run: |
-        New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
-    - name: Setup nasm
-      uses: ilammy/setup-nasm@v1
-    - name: Preparing nmake
-      uses: ilammy/msvc-dev-cmd@v1
-    - name: Run git command for longer paths
-      run: git config --system core.longpaths true
-    - uses: nick-fields/retry@v2
+        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.5.5/openssl-3.5.5.tar.gz
+        tar xzf /tmp/openssl.tar.gz -C /tmp
+    - name: Checkout BCR
+      uses: actions/checkout@v4.2.2
       with:
-        timeout_minutes: 10
-        max_attempts: 3
-        command: python3 generate_per_platform.py --os=windows --openssl_tar_path=C:/ --github_ref_name=${{github.ref_name}}
-    - name: Upload intermediate windows overlay and openssl files
+        repository: illicitonion/bazel-central-registry
+        token: ${{ secrets.BCR_GITHUB_TOKEN }}
+        path: bazel-central-registry
+        ref: refs/heads/main
+    - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
+    - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
+    - run: ./download-buildifier.sh
+    - run: >
+        python3 generate_constants.py
+        --openssl_source_dir=/tmp/openssl-3.5.5
+        --output_dir=/tmp/overlay
+        --bcr_dir=$(pwd)/bazel-central-registry
+        --tag=${{github.ref_name}}
+        --buildifier=/tmp/buildifier.exe
+        --source_archive=/tmp/openssl.tar.gz
+    - run: tar czf bcr.tar.gz bazel-central-registry
+    - name: Upload bcr
       uses: actions/upload-artifact@v4
       with:
-        name: ${{github.ref_name}}.bcr.wip.windows.tar.gz
-        path: C:/${{github.ref_name}}.bcr.wip.windows.tar.gz
+        name: bcr.tar.gz
+        path: bcr.tar.gz
         if-no-files-found: error
-  merge-generate:
-    runs-on: ubuntu-latest
-    needs:
-      - generate-unix
-      - generate-windows
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4.2.2
-      - name: Checkout BCR
-        uses: actions/checkout@v4.2.2
-        with:
-          repository: illicitonion/bazel-central-registry
-          token: ${{ secrets.BCR_GITHUB_TOKEN }}
-          path: bazel-central-registry
-          ref: refs/heads/main
-      - name: Download windows overlay and openssl files
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{github.ref_name}}.bcr.wip.windows.tar.gz
-          path: /tmp/windows/
-      - run: (cd /tmp && mkdir /tmp/windows_unzipped && tar -xzvf /tmp/windows/${{github.ref_name}}.bcr.wip.windows.tar.gz -C /tmp/windows_unzipped)
-      - run: mkdir -p /tmp/windows_unzipped/windows/x86_64 && tar -xzvf /tmp/windows_unzipped/${{github.ref_name}}.bcr.wip.VC-WIN64A-masm.tar.gz -C /tmp/windows_unzipped/windows/x86_64
-      - run: mkdir -p /tmp/windows_unzipped/windows/arm64 && tar -xzvf /tmp/windows_unzipped/${{github.ref_name}}.bcr.wip.VC-WIN64-CLANGASM-ARM.tar.gz -C /tmp/windows_unzipped/windows/arm64
-      # We need to replace the `C:/tmp` strings with `/tmp` throughout the files so that the incldues do not break
-      - run: find /tmp/windows_unzipped -type f -exec sed -i 's|C:/tmp|/tmp|g' {} +
-      - name: Download unix overlay and openssl files
-        uses: actions/download-artifact@v4
-        with:
-          name:  ${{github.ref_name}}.bcr.wip.unix.tar.gz
-          path: /tmp/unix/
-      - run: (cd /tmp && mkdir /tmp/unix_unzipped && tar -xzvf /tmp/unix/${{github.ref_name}}.bcr.wip.unix.tar.gz -C /tmp/unix_unzipped && mkdir /tmp/unix_unzipped/linux && mkdir /tmp/unix_unzipped/mac)
-      - run: mkdir -p /tmp/unix_unzipped/linux/x86_64 && tar -xzvf /tmp/unix_unzipped/tmp/${{github.ref_name}}.bcr.wip.linux-x86_64-clang.tar.gz -C /tmp/unix_unzipped/linux/x86_64
-      - run: mkdir -p /tmp/unix_unzipped/linux/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/${{github.ref_name}}.bcr.wip.linux-aarch64.tar.gz -C /tmp/unix_unzipped/linux/arm64
-      - run: mkdir -p /tmp/unix_unzipped/mac/x86_64 && tar -xzvf /tmp/unix_unzipped/tmp/${{github.ref_name}}.bcr.wip.darwin64-x86_64-cc.tar.gz -C /tmp/unix_unzipped/mac/x86_64
-      - run: mkdir -p /tmp/unix_unzipped/mac/arm64 && tar -xzvf /tmp/unix_unzipped/tmp/${{github.ref_name}}.bcr.wip.darwin64-arm64-cc.tar.gz -C /tmp/unix_unzipped/mac/arm64
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - run: ./download-buildifier.sh
-      - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-      - run: python3 generate_combine_platforms.py --os=all --bcr_dir=$(pwd)/bazel-central-registry --overlay_tar_path=/tmp/${{github.ref_name}}.bcr.wip.tar.gz --openssl_tar_path=/tmp/ --tag=${{github.ref_name}} --buildifier=/tmp/buildifier.exe
-      - run: tar czf bcr.tar.gz bazel-central-registry
-      - name: Upload overlay
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{github.ref_name}}.bcr.wip.tar.gz
-          path: /tmp/${{github.ref_name}}.bcr.wip.tar.gz
-          if-no-files-found: error
-      - name: Upload bcr
-        uses: actions/upload-artifact@v4
-        with:
-          name: bcr.tar.gz
-          path: bcr.tar.gz
-          if-no-files-found: error
   release:
     runs-on: ubuntu-latest
     needs:
-      - merge-generate
+      - generate
     steps:
-      - name: Download overlay
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{github.ref_name}}.bcr.wip.tar.gz
-          path: /tmp/
       - name: Download bcr
         uses: actions/download-artifact@v4
         with:
           name: bcr.tar.gz
           path: /tmp/
       - run: tar xzf /tmp/bcr.tar.gz
-      - run: mv /tmp/${{github.ref_name}}.bcr.wip.tar.gz bazel-openssl-cc-${{github.ref_name}}.tar.gz
-      - run: sha256sum bazel-openssl-cc-${{github.ref_name}}.tar.gz
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
       - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            bazel-openssl-cc-${{github.ref_name}}.tar.gz
