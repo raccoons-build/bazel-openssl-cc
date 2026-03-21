@@ -7,6 +7,9 @@ per-template process-creation overhead on Windows. Uses redirect_stdout
 for single-output actions (mkbuildinf, progs).
 """
 
+# Fixed epoch for SOURCE_DATE_EPOCH to ensure reproducible timestamps.
+_HERMETIC_ENV = {"SOURCE_DATE_EPOCH": "443779200"}
+
 _DOFILE_HDR_TEMPLATES = {
     "include/crypto/bn_conf.h.in": "include/crypto/bn_conf.h",
     "include/crypto/dso_conf.h.in": "include/crypto/dso_conf.h",
@@ -109,7 +112,7 @@ def _run_progs(ctx, flag, out_path):
         tools = [
             ctx.attr._progs_gen[DefaultInfo].files_to_run,
         ],
-        env = {"SOURCE_DATE_EPOCH": "443779200"},
+        env = _HERMETIC_ENV,
         mnemonic = "OpenSSLProgs",
     )
     return out
@@ -136,6 +139,7 @@ def _openssl_gen_impl(ctx):
             tools = [
                 ctx.attr._mkbuildinf[DefaultInfo].files_to_run,
             ],
+            env = _HERMETIC_ENV,
             mnemonic = "OpenSSLBuildinf",
         )
 

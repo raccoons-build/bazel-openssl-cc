@@ -473,39 +473,6 @@ def write_constants_build(output_dir: Path) -> None:
     (output_dir / "BUILD.bazel").write_text("")
 
 
-def write_bazel_build(bazel_dir: Path) -> None:
-    """Write the BUILD.bazel for the bazel/ overlay package."""
-    content = """\
-load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-load("@rules_perl//perl:perl.bzl", "perl_binary")
-
-cc_binary(
-    name = "redirect_stdout",
-    srcs = ["redirect_stdout.cc"],
-    visibility = ["//:__pkg__"],
-)
-
-perl_binary(
-    name = "batch_dofile",
-    srcs = ["batch_dofile.pl"],
-    main = "batch_dofile.pl",
-    perlopt = [
-        "-Mconfigdata",
-        "-Moids_to_c",
-    ],
-    visibility = ["//:__pkg__"],
-    deps = [
-        "//:configdata",
-        "//:der_codegen",
-        "//:external_perl",
-        "//:openssl_platform",
-        "//:perl_utils",
-    ],
-)
-"""
-    (bazel_dir / "BUILD.bazel").write_text(content)
-
-
 # Features that should NOT be exposed as user-facing bool_flags.
 # Everything in @disablables not in this set gets a flag.
 _SKIP_DISABLABLES = frozenset(
@@ -625,9 +592,7 @@ def write_features_bzl(constants_dir: Path, features: list[str]) -> None:
     # openssl_feature_flags macro (creates bool_flag targets in root BUILD)
     lines.append("def openssl_feature_flags():\n")
     for feature in features:
-        lines.append(
-            f'    bool_flag(name = "no-{feature}", build_setting_default = False, visibility = ["//visibility:public"])\n'
-        )
+        lines.append(f'    bool_flag(name = "no-{feature}", build_setting_default = False)\n')
     lines.append("\n")
 
     # openssl_feature_config_settings macro (creates config_settings in configs/)
@@ -638,7 +603,7 @@ def write_features_bzl(constants_dir: Path, features: list[str]) -> None:
             f"    native.config_setting(\n"
             f'        name = "{setting}",\n'
             f'        flag_values = {{"//:no-{feature}": "True"}},\n'
-            f'        visibility = ["//:__subpackages__"],\n'
+            f'        visibility = ["//visibility:public"],\n'
             f"    )\n"
         )
 
@@ -702,7 +667,7 @@ def main(
     copy_from_here_to("openssl_genrule.bzl", overlay_dir / "bazel" / "openssl_genrule.bzl")
     copy_from_here_to("redirect_stdout.cc", overlay_dir / "bazel" / "redirect_stdout.cc")
     copy_from_here_to("batch_dofile.pl", overlay_dir / "bazel" / "batch_dofile.pl")
-    write_bazel_build(overlay_dir / "bazel")
+    copy_from_here_to("BUILD.bazel.bazel", overlay_dir / "bazel" / "BUILD.bazel")
     copy_from_here_to("utils.bzl", overlay_dir / "utils.bzl")
     copy_from_here_to("presubmit.yml", overlay_dir / "presubmit.yml")
 
