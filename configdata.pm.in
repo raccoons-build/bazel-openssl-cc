@@ -26,25 +26,30 @@ my $_repo_root = dirname(dirname(dirname(__FILE__)));
 
 # Read version from VERSION.dat (relative to source root)
 my %version_data;
-if (open(my $fh, '<', "$_repo_root/VERSION.dat")) {
-    while (<$fh>) {
-        chomp;
-        if (/^(\w+)=(.*)$/) {
-            my ($key, $val) = ($1, $2);
-            $val =~ s/^"(.*)"$/$1/;
-            $version_data{$key} = $val;
-        }
+open(my $fh, '<', "$_repo_root/VERSION.dat")
+    or die "Cannot open $_repo_root/VERSION.dat: $!";
+while (<$fh>) {
+    chomp;
+    if (/^(\w+)=(.*)$/) {
+        my ($key, $val) = ($1, $2);
+        $val =~ s/^"(.*)"$/$1/;
+        $version_data{$key} = $val;
     }
-    close($fh);
+}
+close($fh);
+
+for my $required (qw(MAJOR MINOR PATCH SHLIB_VERSION)) {
+    defined $version_data{$required}
+        or die "VERSION.dat missing required field: $required";
 }
 
-my $major = $version_data{MAJOR} // '3';
-my $minor = $version_data{MINOR} // '0';
-my $patch = $version_data{PATCH} // '0';
+my $major = $version_data{MAJOR};
+my $minor = $version_data{MINOR};
+my $patch = $version_data{PATCH};
 my $pre   = $version_data{PRE_RELEASE_TAG} // '';
 my $build_meta = $version_data{BUILD_METADATA} // '';
 my $release_date = $version_data{RELEASE_DATE} // '';
-my $shlib_version = $version_data{SHLIB_VERSION} // '3';
+my $shlib_version = $version_data{SHLIB_VERSION};
 my $version = "$major.$minor.$patch";
 my $full_version = $version . ($pre ? "-$pre" : "") . ($build_meta ? "+$build_meta" : "");
 

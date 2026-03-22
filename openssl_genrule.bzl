@@ -114,6 +114,7 @@ def _run_progs(ctx, flag, out_path):
         ],
         env = _HERMETIC_ENV,
         mnemonic = "OpenSSLProgs",
+        progress_message = "Generating %s" % out.short_path,
     )
     return out
 
@@ -141,6 +142,7 @@ def _openssl_gen_impl(ctx):
             ],
             env = _HERMETIC_ENV,
             mnemonic = "OpenSSLBuildinf",
+            progress_message = "Generating %s" % buildinf.short_path,
         )
 
         app_outs.append(_run_progs(ctx, "-H", "apps/progs.h"))
@@ -157,13 +159,25 @@ def _openssl_gen_impl(ctx):
 
 _openssl_gen = rule(
     implementation = _openssl_gen_impl,
+    doc = """Generates OpenSSL headers and sources from Perl templates at build time.
+
+In "hdrs" mode: processes .h.in dofile templates, generates crypto/buildinf.h,
+and produces apps/progs.h (in the "app" output group).
+
+In "srcs" mode: processes .c.in dofile templates and produces apps/progs.c
+(in the "app" output group).
+
+Template outputs go into DefaultInfo; app outputs go into OutputGroupInfo("app").""",
     attrs = {
         "mode": attr.string(
             mandatory = True,
             values = ["hdrs", "srcs"],
+            doc = "Generation mode: 'hdrs' for headers + buildinf + progs.h, " +
+                  "'srcs' for sources + progs.c.",
         ),
         "templates_map": attr.label_keyed_string_dict(
             allow_files = True,
+            doc = "Map of .in template file labels to their canonical output paths.",
         ),
         "_batch_dofile": attr.label(
             cfg = "exec",
@@ -188,14 +202,23 @@ _openssl_gen = rule(
     },
 )
 
-def openssl_perl_genrule(name, visibility = None):
+def openssl_perl_genrule(*, name, mode = None, **kwargs):
     """Generate platform-independent OpenSSL files from Perl templates.
 
     Args:
-        name: Must be "generated_hdrs" or "generated_srcs".
-        visibility: Visibility for the generated targets.
+        name: Target name.
+        mode: "hdrs" or "srcs". If None, inferred from name suffix.
+        **kwargs: Additional keyword arguments.
     """
-    if name == "generated_hdrs":
+    if mode == None:
+        if name.endswith("_hdrs"):
+            mode = "hdrs"
+        elif name.endswith("_srcs"):
+            mode = "srcs"
+        else:
+            fail("Cannot infer mode from name '{}'; pass mode explicitly".format(name))
+
+    if mode == "hdrs":
         templates = {}
         templates.update(_DOFILE_HDR_TEMPLATES)
         templates.update(_DOFILE_DER_HDR_TEMPLATES)
@@ -203,9 +226,9 @@ def openssl_perl_genrule(name, visibility = None):
             name = name,
             mode = "hdrs",
             templates_map = templates,
-            visibility = visibility,
+            **kwargs
         )
-    elif name == "generated_srcs":
+    elif mode == "srcs":
         templates = {}
         templates.update(_DOFILE_SRC_TEMPLATES)
         templates.update(_DOFILE_DER_SRC_TEMPLATES)
@@ -213,7 +236,7 @@ def openssl_perl_genrule(name, visibility = None):
             name = name,
             mode = "srcs",
             templates_map = templates,
-            visibility = visibility,
+            **kwargs
         )
     else:
-        fail("openssl_perl_genrule name must be 'generated_hdrs' or 'generated_srcs', got: " + name)
+        fail("mode must be 'hdrs' or 'srcs', got: " + mode)

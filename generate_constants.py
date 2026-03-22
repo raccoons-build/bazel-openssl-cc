@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, NamedTuple
@@ -26,12 +27,54 @@ from common import (
     MAC_PLATFORMS,
     NO_ASM_TARGET,
     OPENSSL_VERSION,
+    PLATFORM_CONSTRAINTS,
     WINDOWS_PLATFORMS,
     copy_from_here_to,
     get_configure_target,
     get_simple_config_name,
     integrity_hash,
+    script_dir,
 )
+
+
+def _resolve_from_rlocation(env_var: str) -> str | None:
+    """Resolve an executable from a ``*_RLOCATIONPATH`` env var via runfiles."""
+    rlocation = os.environ.get(env_var)
+    if rlocation:
+        runfiles_dir = os.environ.get("RUNFILES_DIR", "")
+        if runfiles_dir:
+            candidate = os.path.join(runfiles_dir, rlocation)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return candidate
+    return None
+
+
+def _resolve_perl(perl_flag: str | None) -> str:
+    """Determine the Perl interpreter path.
+
+    Precedence:
+      1. Explicit ``--perl`` flag
+      2. ``PERL_RLOCATIONPATH`` env var (set by the Bazel py_binary ``env``
+         attribute from the rules_perl toolchain) resolved via ``RUNFILES_DIR``
+      3. System ``perl`` from PATH
+    """
+    if perl_flag:
+        return perl_flag
+    return _resolve_from_rlocation("PERL_RLOCATIONPATH") or shutil.which("perl") or "perl"
+
+
+def _resolve_buildifier(buildifier_flag: str | None) -> str:
+    """Determine the buildifier path.
+
+    Precedence:
+      1. Explicit ``--buildifier`` flag (empty string means skip formatting)
+      2. ``BUILDIFIER_RLOCATIONPATH`` env var resolved via ``RUNFILES_DIR``
+      3. System ``buildifier`` from PATH
+      4. Empty string (skip formatting)
+    """
+    if buildifier_flag is not None:
+        return buildifier_flag
+    return _resolve_from_rlocation("BUILDIFIER_RLOCATIONPATH") or shutil.which("buildifier") or ""
 
 
 class ConfigHeaderData(NamedTuple):
@@ -124,7 +167,7 @@ class PlatformData(NamedTuple):
         return set(self.openssl_app_srcs)
 
 
-def run_configure(openssl_dir: Path, platform: str) -> None:
+def run_configure(openssl_dir: Path, platform: str, perl_path: str = "perl") -> None:
     """Run OpenSSL's Configure for a given target platform.
 
     We only need configdata.pm from this step. On non-Windows hosts,
@@ -139,7 +182,7 @@ def run_configure(openssl_dir: Path, platform: str) -> None:
 
     write_config_file(openssl_dir, platform)
 
-    configure_cmd = ["perl", "Configure"]
+    configure_cmd = [perl_path, "Configure"]
     if platform == NO_ASM_TARGET:
         configure_cmd += [
             "--config=config.conf",
@@ -219,18 +262,22 @@ def write_config_file(openssl_dir: Path, platform: str) -> None:
             )
 
 
-def extract_platform_data(openssl_dir: Path, platform: str) -> PlatformData:
+def extract_platform_data(
+    openssl_dir: Path,
+    platform: str,
+    perl_path: str = "perl",
+) -> PlatformData:
     """Run Configure and extract source lists for a platform."""
-    run_configure(openssl_dir, platform)
+    run_configure(openssl_dir, platform, perl_path=perl_path)
 
     simple_platform = "windows" if "WIN" in get_configure_target(platform) else "unix"
     proc = subprocess.run(
         [
-            "perl",
+            perl_path,
             "-I.",
             "-l",
             "-Mconfigdata",
-            str(Path(__file__).parent / "extract_srcs.pl"),
+            str(script_dir() / "extract_srcs.pl"),
             simple_platform,
         ],
         cwd=openssl_dir,
@@ -407,7 +454,8 @@ def _render_perl_list(items: tuple[str, ...] | list[str]) -> str:
     return f"[{inner}]"
 
 
-_CONFIGDATA_TEMPLATE = (Path(__file__).parent / "configdata.pm.in").read_text()
+def _configdata_template() -> str:
+    return (script_dir() / "configdata.pm.in").read_text()
 
 
 def _render_configdata_stub(profile: _ConfigProfile) -> str:
@@ -433,7 +481,7 @@ def _render_configdata_stub(profile: _ConfigProfile) -> str:
         "@@DISABLABLES@@": disablables_str,
     }
 
-    result = _CONFIGDATA_TEMPLATE
+    result = _configdata_template()
     for marker, value in replacements.items():
         result = result.replace(marker, value)
     return result
@@ -471,6 +519,421 @@ def generate_configdata_stubs(
 
 def write_constants_build(output_dir: Path) -> None:
     (output_dir / "BUILD.bazel").write_text("")
+
+
+# ---------------------------------------------------------------------------
+# Pre-generation: template processing, progs, buildinf, perlasm
+# ---------------------------------------------------------------------------
+
+# All dofile templates (combined from openssl_genrule.bzl constants).
+_ALL_DOFILE_TEMPLATES: dict[str, str] = {
+    # Header templates
+    "include/crypto/bn_conf.h.in": "include/crypto/bn_conf.h",
+    "include/crypto/dso_conf.h.in": "include/crypto/dso_conf.h",
+    "include/internal/param_names.h.in": "include/internal/param_names.h",
+    "include/openssl/asn1.h.in": "include/openssl/asn1.h",
+    "include/openssl/asn1t.h.in": "include/openssl/asn1t.h",
+    "include/openssl/bio.h.in": "include/openssl/bio.h",
+    "include/openssl/cmp.h.in": "include/openssl/cmp.h",
+    "include/openssl/cms.h.in": "include/openssl/cms.h",
+    "include/openssl/comp.h.in": "include/openssl/comp.h",
+    "include/openssl/conf.h.in": "include/openssl/conf.h",
+    "include/openssl/configuration.h.in": "include/openssl/configuration.h",
+    "include/openssl/core_names.h.in": "include/openssl/core_names.h",
+    "include/openssl/crmf.h.in": "include/openssl/crmf.h",
+    "include/openssl/crypto.h.in": "include/openssl/crypto.h",
+    "include/openssl/ct.h.in": "include/openssl/ct.h",
+    "include/openssl/err.h.in": "include/openssl/err.h",
+    "include/openssl/ess.h.in": "include/openssl/ess.h",
+    "include/openssl/fipskey.h.in": "include/openssl/fipskey.h",
+    "include/openssl/lhash.h.in": "include/openssl/lhash.h",
+    "include/openssl/ocsp.h.in": "include/openssl/ocsp.h",
+    "include/openssl/opensslv.h.in": "include/openssl/opensslv.h",
+    "include/openssl/pkcs12.h.in": "include/openssl/pkcs12.h",
+    "include/openssl/pkcs7.h.in": "include/openssl/pkcs7.h",
+    "include/openssl/safestack.h.in": "include/openssl/safestack.h",
+    "include/openssl/srp.h.in": "include/openssl/srp.h",
+    "include/openssl/ssl.h.in": "include/openssl/ssl.h",
+    "include/openssl/ui.h.in": "include/openssl/ui.h",
+    "include/openssl/x509.h.in": "include/openssl/x509.h",
+    "include/openssl/x509_acert.h.in": "include/openssl/x509_acert.h",
+    "include/openssl/x509_vfy.h.in": "include/openssl/x509_vfy.h",
+    "include/openssl/x509v3.h.in": "include/openssl/x509v3.h",
+    # DER header templates
+    "providers/common/include/prov/der_digests.h.in": "providers/common/include/prov/der_digests.h",
+    "providers/common/include/prov/der_dsa.h.in": "providers/common/include/prov/der_dsa.h",
+    "providers/common/include/prov/der_ec.h.in": "providers/common/include/prov/der_ec.h",
+    "providers/common/include/prov/der_ecx.h.in": "providers/common/include/prov/der_ecx.h",
+    "providers/common/include/prov/der_ml_dsa.h.in": "providers/common/include/prov/der_ml_dsa.h",
+    "providers/common/include/prov/der_rsa.h.in": "providers/common/include/prov/der_rsa.h",
+    "providers/common/include/prov/der_slh_dsa.h.in": "providers/common/include/prov/der_slh_dsa.h",
+    "providers/common/include/prov/der_sm2.h.in": "providers/common/include/prov/der_sm2.h",
+    "providers/common/include/prov/der_wrap.h.in": "providers/common/include/prov/der_wrap.h",
+    # Source templates
+    "crypto/params_idx.c.in": "crypto/params_idx.c",
+    # DER source templates
+    "providers/common/der/der_digests_gen.c.in": "providers/common/der/der_digests_gen.c",
+    "providers/common/der/der_dsa_gen.c.in": "providers/common/der/der_dsa_gen.c",
+    "providers/common/der/der_ec_gen.c.in": "providers/common/der/der_ec_gen.c",
+    "providers/common/der/der_ecx_gen.c.in": "providers/common/der/der_ecx_gen.c",
+    "providers/common/der/der_ml_dsa_gen.c.in": "providers/common/der/der_ml_dsa_gen.c",
+    "providers/common/der/der_rsa_gen.c.in": "providers/common/der/der_rsa_gen.c",
+    "providers/common/der/der_slh_dsa_gen.c.in": "providers/common/der/der_slh_dsa_gen.c",
+    "providers/common/der/der_sm2_gen.c.in": "providers/common/der/der_sm2_gen.c",
+    "providers/common/der/der_wrap_gen.c.in": "providers/common/der/der_wrap_gen.c",
+}
+
+# Templates whose output varies by platform (uses %config or %target values
+# that differ across configdata stubs).
+_PLATFORM_SPECIFIC_TEMPLATE_INPUTS: frozenset[str] = frozenset(
+    {
+        "include/openssl/configuration.h.in",
+        "include/crypto/bn_conf.h.in",
+        "include/crypto/dso_conf.h.in",
+    }
+)
+
+_HERMETIC_DOFILE_ENV = {
+    "SOURCE_DATE_EPOCH": "443779200",
+}
+
+# Perlasm flavor → source platform (whose perlasm_gen_commands define the
+# script set) and the config_names that consume this flavor.
+_PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
+    "elf": {
+        "source_platform": "linux-x86_64-clang",
+        "consumers": ["linux_x86_64", "android_x86_64", "freebsd_x86_64"],
+    },
+    "macosx": {
+        "source_platform": "linux-x86_64-clang",
+        "consumers": ["darwin_x86_64"],
+    },
+    "masm": {
+        "source_platform": "VC-WIN64A-masm",
+        "consumers": ["windows_x64"],
+    },
+    "ios64": {
+        "source_platform": "darwin64-arm64-cc",
+        "consumers": ["darwin_arm64", "ios_arm64"],
+    },
+    "linux64": {
+        "source_platform": "darwin64-arm64-cc",
+        "consumers": ["linux_aarch64", "android_arm64", "freebsd_aarch64"],
+    },
+    "win64": {
+        "source_platform": "VC-WIN64-CLANGASM-ARM",
+        "consumers": ["windows_arm64"],
+    },
+}
+
+# Windows assembly is generated at build time via perl_genrule (not
+# pre-generated) to ensure correct assembler probing.
+_WINDOWS_PERLASM_FLAVORS = frozenset({"masm", "win64"})
+
+
+def _place_configdata_in_source(
+    openssl_dir: Path,
+    overlay_configdata_dir: Path,
+    config_name: str,
+) -> Path:
+    """Copy a configdata stub into the OpenSSL source tree at the correct depth.
+
+    The configdata stubs use dirname(dirname(dirname(__FILE__))) to resolve
+    the repo root. At build time the overlay IS the repo root so this works.
+    At generator time we need $_repo_root to resolve to the OpenSSL source
+    tree, so we place the stub at <openssl_dir>/configdata/<config>/configdata.pm
+    (same relative depth) and return the directory.
+    """
+    local_dir = openssl_dir / "configdata" / config_name
+    local_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        overlay_configdata_dir / "configdata.pm",
+        local_dir / "configdata.pm",
+    )
+    return local_dir
+
+
+def _cleanup_source_configdata(openssl_dir: Path) -> None:
+    """Remove temporary configdata stubs from the OpenSSL source tree."""
+    configdata_dir = openssl_dir / "configdata"
+    if configdata_dir.exists():
+        shutil.rmtree(configdata_dir)
+
+
+def _run_dofile(
+    openssl_dir: Path,
+    configdata_dir: Path,
+    template_in: str,
+    output_path: Path,
+    perl_path: str = "perl",
+) -> None:
+    """Run util/dofile.pl for a single template, capturing stdout."""
+    cmd = [
+        perl_path,
+        f"-I{configdata_dir}",
+        "-Mconfigdata",
+    ]
+    if template_in.startswith("providers/common/"):
+        cmd += [
+            f"-I{openssl_dir / 'util/perl'}",
+            f"-I{openssl_dir / 'providers/common/der'}",
+            "-Moids_to_c",
+        ]
+    cmd += [str(openssl_dir / "util" / "dofile.pl"), template_in]
+
+    env = os.environ.copy()
+    env.update(_HERMETIC_DOFILE_ENV)
+    result = subprocess.run(
+        cmd,
+        cwd=openssl_dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"dofile.pl failed for {template_in}:\n{result.stderr.decode()}")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(result.stdout)
+
+
+def pregenerate_templates(
+    openssl_dir: Path,
+    platform_data: dict[str, PlatformData],
+    output_dir: Path,
+    perl_path: str = "perl",
+) -> None:
+    """Pre-generate all dofile template outputs.
+
+    Invariant templates are generated once (using any platform's configdata
+    stub). Platform-specific templates are generated per known platform.
+
+    The configdata stubs are temporarily placed inside the OpenSSL source tree
+    so that $_repo_root (dirname^3 of __FILE__) resolves to the source root
+    rather than the overlay output directory.
+    """
+    generated_dir = output_dir / "generated"
+
+    try:
+        # Place any platform's configdata in the source tree for invariant templates.
+        any_platform = next(iter(platform_data))
+        any_config = get_simple_config_name(any_platform)
+        local_configdata = _place_configdata_in_source(
+            openssl_dir,
+            output_dir / "configdata" / any_config,
+            any_config,
+        )
+
+        common_dir = generated_dir / "common"
+        for template_in, template_out in _ALL_DOFILE_TEMPLATES.items():
+            if template_in in _PLATFORM_SPECIFIC_TEMPLATE_INPUTS:
+                continue
+            out_path = common_dir / template_out
+            print(f"    {template_out}")
+            _run_dofile(openssl_dir, local_configdata, template_in, out_path, perl_path=perl_path)
+
+        # Platform-specific templates: generate per known platform.
+        for platform in platform_data:
+            config_name = get_simple_config_name(platform)
+            local_configdata = _place_configdata_in_source(
+                openssl_dir,
+                output_dir / "configdata" / config_name,
+                config_name,
+            )
+            platform_dir = generated_dir / config_name
+            for template_in, template_out in _ALL_DOFILE_TEMPLATES.items():
+                if template_in not in _PLATFORM_SPECIFIC_TEMPLATE_INPUTS:
+                    continue
+                out_path = platform_dir / template_out
+                print(f"    {config_name}/{template_out}")
+                _run_dofile(openssl_dir, local_configdata, template_in, out_path, perl_path=perl_path)
+
+        # Also generate for no_asm (it gets its own configdata stub).
+        local_configdata = _place_configdata_in_source(
+            openssl_dir,
+            output_dir / "configdata" / "no_asm",
+            "no_asm",
+        )
+        no_asm_dir = generated_dir / "no_asm"
+        for template_in, template_out in _ALL_DOFILE_TEMPLATES.items():
+            if template_in not in _PLATFORM_SPECIFIC_TEMPLATE_INPUTS:
+                continue
+            out_path = no_asm_dir / template_out
+            print(f"    no_asm/{template_out}")
+            _run_dofile(openssl_dir, local_configdata, template_in, out_path, perl_path=perl_path)
+
+    finally:
+        _cleanup_source_configdata(openssl_dir)
+
+
+def pregenerate_progs(
+    openssl_dir: Path,
+    output_dir: Path,
+    configdata_dir: Path,
+    perl_path: str = "perl",
+) -> None:
+    """Pre-generate apps/progs.h and apps/progs.c via progs.pl.
+
+    The configdata_dir must be inside the OpenSSL source tree so that
+    $_repo_root resolves correctly (see _place_configdata_in_source).
+    """
+    generated_dir = output_dir / "generated" / "common" / "apps"
+    generated_dir.mkdir(parents=True, exist_ok=True)
+
+    env = os.environ.copy()
+    env.update(_HERMETIC_DOFILE_ENV)
+
+    for flag, filename in [("-H", "progs.h"), ("-C", "progs.c")]:
+        result = subprocess.run(
+            [
+                perl_path,
+                f"-I{configdata_dir}",
+                "-Mconfigdata",
+                str(openssl_dir / "apps" / "progs.pl"),
+                flag,
+                "apps/openssl",
+            ],
+            cwd=openssl_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"progs.pl {flag} failed:\n{result.stderr.decode()}")
+        (generated_dir / filename).write_bytes(result.stdout)
+        print(f"    apps/{filename}")
+
+
+def _buildinf_template() -> str:
+    return (script_dir() / "buildinf.h.in").read_text()
+
+
+# Fixed epoch matching _HERMETIC_DOFILE_ENV for reproducible builds.
+_BUILDINF_EPOCH = 443779200
+
+
+def _render_compiler_flags_array(compiler_info: str) -> str:
+    """Render the compiler_flags char array body matching mkbuildinf.pl output."""
+    chars = []
+    for i, c in enumerate(compiler_info):
+        if c in ("\\", "'"):
+            c = "\\" + c
+        if i % 16 == 0:
+            if i > 0:
+                chars.append("\n")
+            chars.append("    ")
+        chars.append(f"'{c}',")
+    chars.append("'\\0'\n")
+    return "".join(chars)
+
+
+def generate_buildinf_h(output_dir: Path) -> None:
+    """Generate crypto/buildinf.h from the buildinf.h.in template."""
+    crypto_dir = output_dir / "generated" / "common" / "crypto"
+    crypto_dir.mkdir(parents=True, exist_ok=True)
+
+    date = time.strftime("%a %b %d %H:%M:%S %Y", time.gmtime(_BUILDINF_EPOCH)) + " UTC"
+
+    content = _buildinf_template()
+    content = content.replace("@@PLATFORM@@", "bazel")
+    content = content.replace("@@DATE@@", date)
+    content = content.replace("@@COMPILER_FLAGS_ARRAY@@", _render_compiler_flags_array("compiler: bazel"))
+
+    (crypto_dir / "buildinf.h").write_text(content)
+
+
+def _parse_perlasm_commands(commands: list[str]) -> list[tuple[str, str]]:
+    """Parse perlasm_gen_commands into (tool_path, output_path) pairs.
+
+    Each command has the format (6 space-separated tokens):
+      $(PERL) $(execpath <tool>) <scheme> $(execpath <output>);
+    """
+    pairs = []
+    for cmd in commands:
+        parts = cmd.split(" ")
+        if len(parts) != 6:
+            continue
+        tool = parts[2].rstrip(");")
+        output = parts[5].rstrip(");")
+        pairs.append((tool, output))
+    return pairs
+
+
+def _fix_masm_segment(path: Path) -> None:
+    """Ensure MASM output has a segment before any PROC directive.
+
+    Some perlasm scripts (e.g. aes-gcm-avx512.pl, rsaz-2k-avx512.pl) emit
+    functions before the first .text directive.  In GAS this is fine
+    (implicit .text), but MASM requires all code inside an explicit segment
+    block.  This is an upstream structural bug and applies regardless of the
+    host that ran the perlasm scripts.
+    """
+    lines = path.read_text().splitlines(keepends=True)
+    has_segment = False
+    insert_idx = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if "SEGMENT" in stripped:
+            has_segment = True
+            break
+        if stripped.endswith("PROC PUBLIC") or stripped.endswith("PROC PRIVATE"):
+            insert_idx = i
+            break
+    if insert_idx is not None and not has_segment:
+        lines.insert(insert_idx, ".text$\tSEGMENT ALIGN(256) 'CODE'\n")
+        path.write_text("".join(lines))
+
+
+def pregenerate_perlasm(
+    openssl_dir: Path,
+    platform_data: dict[str, PlatformData],
+    output_dir: Path,
+    perl_path: str = "perl",
+    flavors: list[str] | None = None,
+) -> None:
+    """Pre-generate perlasm assembly for flavor groups.
+
+    When *flavors* is ``None`` all known flavors are generated; otherwise
+    only the listed subset is processed.
+    """
+    generated_asm = output_dir / "generated" / "asm"
+
+    # Build a lookup from Configure target → PlatformData.
+    lookup = {p: d for p, d in platform_data.items()}
+
+    env = os.environ.copy()
+    env.setdefault("CC", "cc")
+
+    if flavors is None:
+        selected = ((f, info) for f, info in _PERLASM_FLAVORS.items() if f not in _WINDOWS_PERLASM_FLAVORS)
+    else:
+        selected = ((f, _PERLASM_FLAVORS[f]) for f in flavors if f in _PERLASM_FLAVORS)
+    for flavor, info in selected:
+        source_platform = info["source_platform"]
+        data = lookup.get(source_platform)
+        if data is None or not data.perlasm_gen_commands:
+            print(f"    Skipping {flavor}: no perlasm commands")
+            continue
+
+        pairs = _parse_perlasm_commands(data.perlasm_gen_commands)
+        flavor_dir = generated_asm / flavor
+        print(f"    {flavor}: {len(pairs)} scripts")
+
+        for tool_path, output_path in pairs:
+            out_file = flavor_dir / output_path
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(
+                [
+                    perl_path,
+                    str(openssl_dir / tool_path),
+                    flavor,
+                    str(out_file),
+                ],
+                cwd=openssl_dir,
+                env=env,
+                check=True,
+            )
+            if flavor == "masm":
+                _fix_masm_segment(out_file)
 
 
 # Features that should NOT be exposed as user-facing bool_flags.
@@ -563,22 +1026,30 @@ def get_user_features(disablables: list[str]) -> list[str]:
     return sorted(f for f in disablables if f not in _SKIP_DISABLABLES)
 
 
-def write_features_bzl(constants_dir: Path, features: list[str]) -> None:
-    """Generate features.bzl with FEATURE_DEFINES, flag macro, and config_setting macro."""
+def write_features_bzl(
+    constants_dir: Path,
+    features: list[str],
+    known_platforms: list[str] | None = None,
+) -> None:
+    """Generate features.bzl with FEATURE_DEFINES, flag macro, config_setting macro,
+    and pregen config_setting_group macro."""
+    loads = (
+        "# Generated code. DO NOT EDIT.\n\n"
+        'load("@bazel_skylib//lib:selects.bzl", "selects")\n'
+        'load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")\n\n'
+    )
+
     if not features:
         (constants_dir / "features.bzl").write_text(
-            "# Generated code. DO NOT EDIT.\n\n"
-            'load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")\n\n'
-            "FEATURE_DEFINES = []\n\n"
-            "def openssl_feature_flags():\n    pass\n\n"
-            "def openssl_feature_config_settings():\n    pass\n"
+            loads
+            + "FEATURE_DEFINES = []\n\n"
+            + "def openssl_feature_flags():\n    pass\n\n"
+            + "def openssl_feature_config_settings():\n    pass\n\n"
+            + _render_pregen_config_settings_macro(known_platforms or [])
         )
         return
 
-    lines = [
-        "# Generated code. DO NOT EDIT.\n\n",
-        'load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")\n\n',
-    ]
+    lines = [loads]
 
     # FEATURE_DEFINES
     blocks = []
@@ -592,7 +1063,10 @@ def write_features_bzl(constants_dir: Path, features: list[str]) -> None:
     # openssl_feature_flags macro (creates bool_flag targets in root BUILD)
     lines.append("def openssl_feature_flags():\n")
     for feature in features:
-        lines.append(f'    bool_flag(name = "no-{feature}", build_setting_default = False)\n')
+        lines.append(
+            f'    bool_flag(name = "no-{feature}", build_setting_default = False,'
+            f' visibility = ["//visibility:public"])\n'
+        )
     lines.append("\n")
 
     # openssl_feature_config_settings macro (creates config_settings in configs/)
@@ -606,8 +1080,164 @@ def write_features_bzl(constants_dir: Path, features: list[str]) -> None:
             f'        visibility = ["//visibility:public"],\n'
             f"    )\n"
         )
+    lines.append("\n")
+
+    # openssl_pregen_config_settings macro
+    lines.append(_render_pregen_config_settings_macro(known_platforms or []))
 
     (constants_dir / "features.bzl").write_text("".join(lines))
+
+
+_WINDOWS_CONFIG_NAMES = frozenset({"windows_arm64", "windows_x64"})
+
+
+def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
+    """Render the openssl_pregen_config_settings() Starlark macro.
+
+    Four tiers of config_settings:
+
+      _pregen_asm_<plat> (non-Windows; os+cpu + pregen=True + noasm=False)
+         specialises ↓
+      _asm_<plat>        (all known; os+cpu + noasm=False)
+         mutually exclusive with ↓
+      _no_asm_fallback   (noasm=True)
+
+      _pregen_<plat>     (all known; os+cpu + pregen=True)
+         Used only for include-path routing, independent of asm mode.
+
+    Windows is excluded from _pregen_asm_* because its assembly is
+    generated at build time via perl_genrule.
+    """
+    if not known_platforms:
+        return "def openssl_pregen_config_settings():\n    pass\n"
+
+    lines = [
+        "def openssl_pregen_config_settings():\n",
+        '    """Create config_setting targets for assembly and pre-generated file routing."""\n',
+    ]
+
+    # _no_asm_fallback: forces no-asm C fallback on any platform.
+    lines.append(
+        "    native.config_setting(\n"
+        '        name = "_no_asm_fallback",\n'
+        '        flag_values = {"//:use-no-asm-fallback": "True"},\n'
+        '        visibility = ["//visibility:public"],\n'
+        "    )\n"
+    )
+
+    # _use_pregenerated
+    lines.append(
+        "    native.config_setting(\n"
+        '        name = "_use_pregenerated",\n'
+        '        flag_values = {"//:use-pregenerated": "True"},\n'
+        '        visibility = ["//visibility:public"],\n'
+        "    )\n"
+    )
+
+    # _known_platform: match_any of all known platforms (same package)
+    match_any_items = ", ".join(f'":{p}"' for p in known_platforms)
+    lines.append(
+        f"    selects.config_setting_group(\n"
+        f'        name = "_known_platform",\n'
+        f"        match_any = [{match_any_items}],\n"
+        f'        visibility = ["//visibility:public"],\n'
+        f"    )\n"
+    )
+
+    # _pregen_enabled: flag=True AND known platform (includes Windows for
+    # template/header routing even though Windows assembly is not pre-generated).
+    lines.append(
+        "    selects.config_setting_group(\n"
+        '        name = "_pregen_enabled",\n'
+        '        match_all = [":_use_pregenerated", ":_known_platform"],\n'
+        '        visibility = ["//visibility:public"],\n'
+        "    )\n"
+    )
+
+    # _asm_<platform>: all known platforms, gated on no-asm-fallback=False.
+    for platform in known_platforms:
+        constraints = PLATFORM_CONSTRAINTS.get(platform)
+        if not constraints:
+            continue
+        os_label, cpu_label = constraints
+        lines.append(
+            f"    native.config_setting(\n"
+            f'        name = "_asm_{platform}",\n'
+            f'        constraint_values = ["{os_label}", "{cpu_label}"],\n'
+            f'        flag_values = {{"//:use-no-asm-fallback": "False"}},\n'
+            f'        visibility = ["//visibility:public"],\n'
+            f"    )\n"
+        )
+
+    # _pregen_<platform>: header/include routing (use-pregenerated=True only).
+    # Used in the includes select to add platform-specific include paths
+    # regardless of the asm/no-asm mode.
+    for platform in known_platforms:
+        constraints = PLATFORM_CONSTRAINTS.get(platform)
+        if not constraints:
+            continue
+        os_label, cpu_label = constraints
+        lines.append(
+            f"    native.config_setting(\n"
+            f'        name = "_pregen_{platform}",\n'
+            f'        constraint_values = ["{os_label}", "{cpu_label}"],\n'
+            f'        flag_values = {{"//:use-pregenerated": "True"}},\n'
+            f'        visibility = ["//visibility:public"],\n'
+            f"    )\n"
+        )
+
+    # _pregen_asm_<platform>: pre-generated assembly routing (non-Windows).
+    # Requires use-pregenerated=True AND use-no-asm-fallback=False.
+    # Specialises _asm_<platform> in the srcs select.
+    for platform in known_platforms:
+        if platform in _WINDOWS_CONFIG_NAMES:
+            continue
+        constraints = PLATFORM_CONSTRAINTS.get(platform)
+        if not constraints:
+            continue
+        os_label, cpu_label = constraints
+        lines.append(
+            f"    native.config_setting(\n"
+            f'        name = "_pregen_asm_{platform}",\n'
+            f'        constraint_values = ["{os_label}", "{cpu_label}"],\n'
+            f'        flag_values = {{"//:use-pregenerated": "True", "//:use-no-asm-fallback": "False"}},\n'
+            f'        visibility = ["//visibility:public"],\n'
+            f"    )\n"
+        )
+
+    return "".join(lines)
+
+
+def perlasm_only(
+    openssl_source_dir: str,
+    output_dir: str,
+    flavors: list[str],
+    perl_path: str = "perl",
+) -> None:
+    """Generate only perlasm assembly for the requested flavors.
+
+    This mode is used by platform-specific CI runners (macOS, Windows) that
+    produce assembly with native compiler probing.  The output is later
+    merged into the full overlay produced by the core Linux runner.
+    """
+    openssl_dir = Path(openssl_source_dir)
+    out = Path(output_dir)
+
+    print(f"Using Perl: {perl_path}")
+    print(f"Perlasm-only mode: flavors={flavors}")
+
+    source_platforms = {_PERLASM_FLAVORS[f]["source_platform"] for f in flavors if f in _PERLASM_FLAVORS}
+
+    platform_data: dict[str, PlatformData] = {}
+    for sp in source_platforms:
+        print(f"  Configuring for {sp}...")
+        platform_data[sp] = extract_platform_data(openssl_dir, sp, perl_path=perl_path)
+
+    print("=== Pre-generating perlasm assembly ===")
+    pregenerate_perlasm(openssl_dir, platform_data, out, perl_path=perl_path, flavors=flavors)
+
+    print("=== Done (perlasm-only) ===")
+    print(f"Assembly written to: {out / 'generated' / 'asm'}")
 
 
 def main(
@@ -617,9 +1247,12 @@ def main(
     tag: str | None,
     buildifier_path: str,
     source_archive: str | None = None,
+    perl_path: str = "perl",
 ) -> None:
     openssl_dir = Path(openssl_source_dir)
     out = Path(output_dir)
+
+    print(f"Using Perl: {perl_path}")
 
     constants_dir = out / "bazel" / "constants"
     constants_dir.mkdir(parents=True, exist_ok=True)
@@ -630,11 +1263,11 @@ def main(
     for platform in ALL_PLATFORMS:
         config_name = get_simple_config_name(platform)
         print(f"  Configuring for {platform} ({config_name})...")
-        data = extract_platform_data(openssl_dir, platform)
+        data = extract_platform_data(openssl_dir, platform, perl_path=perl_path)
         platform_data[platform] = data
 
     print("  Configuring for no-asm fallback...")
-    no_asm_data = extract_platform_data(openssl_dir, NO_ASM_TARGET)
+    no_asm_data = extract_platform_data(openssl_dir, NO_ASM_TARGET, perl_path=perl_path)
 
     print("=== Computing tiered constants ===")
     tiered = compute_tiered_constants(platform_data, no_asm_data)
@@ -652,11 +1285,36 @@ def main(
     disablables = next(iter(platform_data.values())).disablables
     user_features = get_user_features(disablables)
 
+    # Known platform config_names for pregen routing.
+    known_platforms = sorted(get_simple_config_name(p) for p in ALL_PLATFORMS)
+
     print("=== Generating feature toggle flags ===")
-    write_features_bzl(constants_dir, user_features)
+    write_features_bzl(constants_dir, user_features, known_platforms)
 
     print("=== Generating per-platform configdata stubs ===")
     generate_configdata_stubs(platform_data, no_asm_data, out)
+
+    print("=== Pre-generating template outputs ===")
+    pregenerate_templates(openssl_dir, platform_data, out, perl_path=perl_path)
+
+    # Place configdata in the source tree so $_repo_root resolves correctly.
+    any_config = get_simple_config_name(next(iter(platform_data)))
+    try:
+        local_configdata = _place_configdata_in_source(
+            openssl_dir,
+            out / "configdata" / any_config,
+            any_config,
+        )
+        print("=== Pre-generating progs.h/progs.c ===")
+        pregenerate_progs(openssl_dir, out, local_configdata, perl_path=perl_path)
+    finally:
+        _cleanup_source_configdata(openssl_dir)
+
+    print("=== Pre-generating buildinf.h ===")
+    generate_buildinf_h(out)
+
+    print("=== Pre-generating perlasm assembly ===")
+    pregenerate_perlasm(openssl_dir, platform_data, out, perl_path=perl_path)
 
     # Overlay root = out. All overlay files go under out for correct load paths.
     overlay_dir = out
@@ -665,6 +1323,7 @@ def main(
     copy_from_here_to("BUILD.configs.bazel", overlay_dir / "configs" / "BUILD.bazel")
     copy_from_here_to("perl_genrule.bzl", overlay_dir / "bazel" / "perl_genrule.bzl")
     copy_from_here_to("openssl_genrule.bzl", overlay_dir / "bazel" / "openssl_genrule.bzl")
+    copy_from_here_to("pregen.bzl", overlay_dir / "bazel" / "pregen.bzl")
     copy_from_here_to("redirect_stdout.cc", overlay_dir / "bazel" / "redirect_stdout.cc")
     copy_from_here_to("batch_dofile.pl", overlay_dir / "bazel" / "batch_dofile.pl")
     copy_from_here_to("BUILD.bazel.bazel", overlay_dir / "bazel" / "BUILD.bazel")
@@ -750,7 +1409,44 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", required=True, help="Output directory for generated files")
     parser.add_argument("--bcr_dir", required=False, help="BCR directory for module registration")
     parser.add_argument("--tag", required=False, help="Version tag for BCR")
-    parser.add_argument("--buildifier", default="", help="Path to buildifier for formatting")
+    parser.add_argument(
+        "--buildifier",
+        default=None,
+        help="Path to buildifier (auto-detected from Bazel toolchain or PATH if omitted; pass empty string to skip)",
+    )
     parser.add_argument("--source_archive", required=False, help="Path to source tarball for BCR integrity hash")
+    parser.add_argument(
+        "--perl",
+        default=None,
+        help="Path to Perl interpreter (auto-detected from Bazel toolchain or PATH if omitted)",
+    )
+    parser.add_argument(
+        "--perlasm-only",
+        default=None,
+        dest="perlasm_only",
+        help="Comma-separated perlasm flavors (e.g. 'masm,win64'). "
+        "Only runs perlasm pre-generation for the specified flavors, "
+        "then exits. Used by platform-native CI runners.",
+    )
     args = parser.parse_args()
-    main(args.openssl_source_dir, args.output_dir, args.bcr_dir, args.tag, args.buildifier, args.source_archive)
+    perl = _resolve_perl(args.perl)
+
+    if args.perlasm_only:
+        perlasm_only(
+            args.openssl_source_dir,
+            args.output_dir,
+            flavors=args.perlasm_only.split(","),
+            perl_path=perl,
+        )
+    else:
+        buildifier = _resolve_buildifier(args.buildifier)
+        print(f"Resolved buildifier: {buildifier or '(skipped)'}")
+        main(
+            args.openssl_source_dir,
+            args.output_dir,
+            args.bcr_dir,
+            args.tag,
+            buildifier,
+            args.source_archive,
+            perl_path=perl,
+        )

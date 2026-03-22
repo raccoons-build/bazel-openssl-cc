@@ -36,6 +36,25 @@ ALL_PLATFORMS = UNIX_PLATFORMS + WINDOWS_PLATFORMS + ANDROID_PLATFORMS + IOS_PLA
 
 NO_ASM_TARGET = "no-asm"
 
+# config_name → (os, cpu) constraint labels for Bazel config_setting targets.
+PLATFORM_CONSTRAINTS: dict[str, tuple[str, str]] = {
+    "darwin_arm64": ("@platforms//os:macos", "@platforms//cpu:arm64"),
+    "darwin_x86_64": ("@platforms//os:macos", "@platforms//cpu:x86_64"),
+    "linux_aarch64": ("@platforms//os:linux", "@platforms//cpu:aarch64"),
+    "linux_x86_64": ("@platforms//os:linux", "@platforms//cpu:x86_64"),
+    "linux_riscv64": ("@platforms//os:linux", "@platforms//cpu:riscv64"),
+    "linux_ppc64le": ("@platforms//os:linux", "@platforms//cpu:ppc64le"),
+    "linux_s390x": ("@platforms//os:linux", "@platforms//cpu:s390x"),
+    "linux_arm": ("@platforms//os:linux", "@platforms//cpu:arm"),
+    "windows_arm64": ("@platforms//os:windows", "@platforms//cpu:arm64"),
+    "windows_x64": ("@platforms//os:windows", "@platforms//cpu:x86_64"),
+    "android_arm64": ("@platforms//os:android", "@platforms//cpu:arm64"),
+    "android_x86_64": ("@platforms//os:android", "@platforms//cpu:x86_64"),
+    "ios_arm64": ("@platforms//os:ios", "@platforms//cpu:arm64"),
+    "freebsd_x86_64": ("@platforms//os:freebsd", "@platforms//cpu:x86_64"),
+    "freebsd_aarch64": ("@platforms//os:freebsd", "@platforms//cpu:aarch64"),
+}
+
 _CONFIG_NAME_MAP = {
     MAC_ARM64: "darwin_arm64",
     MAC_X86: "darwin_x86_64",
@@ -79,10 +98,22 @@ def integrity_hash(path: Path) -> str:
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
 
+def script_dir() -> Path:
+    """Return the directory containing the generator scripts and templates.
+
+    Under ``bazel run`` the env var ``BUILD_WORKSPACE_DIRECTORY`` points to the
+    real source tree (runfiles won't contain untracked data files).  For
+    standalone invocations ``Path(__file__).parent`` is correct.
+    """
+    bwd = os.environ.get("BUILD_WORKSPACE_DIRECTORY")
+    if bwd:
+        return Path(bwd)
+    return Path(__file__).resolve().parent
+
+
 def copy_from_here_to(local_path: str, dst: Path, executable: bool = False) -> None:
     dst.parent.mkdir(exist_ok=True, parents=True)
-    current_file = Path(__file__).parent
-    shutil.copyfile(current_file / local_path, dst)
+    shutil.copyfile(script_dir() / local_path, dst)
     if executable:
         if platform.system() == "Windows":
             os.access(dst, os.R_OK | os.W_OK | os.X_OK)

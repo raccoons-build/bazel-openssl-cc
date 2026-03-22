@@ -5,14 +5,11 @@ name: Release
     tags:
     - '*'
 jobs:
-  generate:
+  generate-linux:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4.2.2
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
     - name: Download OpenSSL source
       run: |
         curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.5.5/openssl-3.5.5.tar.gz
@@ -26,26 +23,114 @@ jobs:
         ref: refs/heads/main
     - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
     - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-    - run: ./download-buildifier.sh
     - run: >
-        python3 generate_constants.py
+        bazel run //:generate --
         --openssl_source_dir=/tmp/openssl-3.5.5
         --output_dir=/tmp/overlay
         --bcr_dir=$(pwd)/bazel-central-registry
         --tag=${{github.ref_name}}
-        --buildifier=/tmp/buildifier.exe
         --source_archive=/tmp/openssl.tar.gz
-    - run: tar czf bcr.tar.gz bazel-central-registry
-    - name: Upload bcr
+    - run: tar czf /tmp/core-overlay.tar.gz -C /tmp overlay
+    - name: Upload core overlay
       uses: actions/upload-artifact@v4
       with:
-        name: bcr.tar.gz
-        path: bcr.tar.gz
+        name: core-overlay
+        path: /tmp/core-overlay.tar.gz
         if-no-files-found: error
+    - run: tar czf bcr-core.tar.gz bazel-central-registry
+    - name: Upload core BCR
+      uses: actions/upload-artifact@v4
+      with:
+        name: bcr-core
+        path: bcr-core.tar.gz
+        if-no-files-found: error
+
+  generate-macos:
+    runs-on: macos-14
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4.2.2
+    - name: Download OpenSSL source
+      run: |
+        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.5.5/openssl-3.5.5.tar.gz
+        tar xzf /tmp/openssl.tar.gz -C /tmp
+    - run: >
+        python3 generate_constants.py
+        --openssl_source_dir=/tmp/openssl-3.5.5
+        --output_dir=/tmp/macos-asm
+        --perlasm-only=macosx,ios64
+    - run: tar czf /tmp/macos-asm.tar.gz -C /tmp/macos-asm/generated/asm .
+    - name: Upload macOS ASM
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-asm
+        path: /tmp/macos-asm.tar.gz
+        if-no-files-found: error
+
+  generate-merge:
+    runs-on: ubuntu-latest
+    needs:
+      - generate-linux
+      - generate-macos
+    steps:
+      - name: Download core overlay
+        uses: actions/download-artifact@v4
+        with:
+          name: core-overlay
+          path: /tmp/
+      - run: (cd /tmp && tar xzf core-overlay.tar.gz)
+      - name: Download macOS ASM
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-asm
+          path: /tmp/
+      - name: Overlay macOS ASM
+        run: |
+          rm -rf /tmp/overlay/generated/asm/macosx /tmp/overlay/generated/asm/ios64
+          mkdir -p /tmp/overlay/generated/asm
+          tar xzf /tmp/macos-asm.tar.gz -C /tmp/overlay/generated/asm
+      - name: Download core BCR
+        uses: actions/download-artifact@v4
+        with:
+          name: bcr-core
+          path: /tmp/
+      - run: tar xzf /tmp/bcr-core.tar.gz
+      - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
+      - name: Update BCR overlay with merged files
+        run: |
+          BCR_OVERLAY=bazel-central-registry/modules/openssl/${{github.ref_name}}/overlay
+          rm -rf "$BCR_OVERLAY/generated/asm"
+          cp -r /tmp/overlay/generated/asm "$BCR_OVERLAY/generated/asm"
+          cd bazel-central-registry
+          python3 -c "
+          import hashlib, base64, json, os
+          overlay_dir = 'modules/openssl/${{github.ref_name}}/overlay'
+          source_json_path = 'modules/openssl/${{github.ref_name}}/source.json'
+          with open(source_json_path) as f:
+              sj = json.load(f)
+          for root, _, files in os.walk(overlay_dir):
+              for fn in files:
+                  full = os.path.join(root, fn)
+                  rel = os.path.relpath(full, overlay_dir)
+                  with open(full, 'rb') as fh:
+                      digest = hashlib.sha256(fh.read()).digest()
+                  sj['overlay'][rel] = 'sha256-' + base64.b64encode(digest).decode()
+          with open(source_json_path, 'w') as f:
+              json.dump(sj, f, indent='    ', sort_keys=True)
+              f.write('\n')
+          "
+      - run: tar czf bcr.tar.gz bazel-central-registry
+      - name: Upload merged BCR
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcr.tar.gz
+          path: bcr.tar.gz
+          if-no-files-found: error
+
   release:
     runs-on: ubuntu-latest
     needs:
-      - generate
+      - generate-merge
     steps:
       - name: Download bcr
         uses: actions/download-artifact@v4

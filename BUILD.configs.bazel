@@ -1,6 +1,8 @@
-load("//bazel/constants:features.bzl", "openssl_feature_config_settings")
+load("//bazel/constants:features.bzl", "openssl_feature_config_settings", "openssl_pregen_config_settings")
 
 openssl_feature_config_settings()
+
+openssl_pregen_config_settings()
 
 config_setting(
     name = "darwin_arm64",
