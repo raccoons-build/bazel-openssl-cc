@@ -1371,7 +1371,7 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
         bazel_dep(name = "bazel_skylib", version = "1.7.1")
         bazel_dep(name = "platforms", version = "1.0.0")
         bazel_dep(name = "rules_cc", version = "0.2.4")
-        bazel_dep(name = "rules_perl", version = "1.0.0")
+        bazel_dep(name = "rules_perl", version = "1.1.0")
     """)
 
     module_path = out_dir / "MODULE.bazel"

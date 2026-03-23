@@ -1,5 +1,5 @@
 module(name = "openssl_generator")
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1")
-bazel_dep(name = "rules_perl", version = "0.5.0")
+bazel_dep(name = "rules_perl", version = "1.1.0")
 bazel_dep(name = "rules_python", version = "1.9.0")
