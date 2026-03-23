@@ -13,11 +13,11 @@ perlasm assembly. The output is an overlay placed on top of the OpenSSL source t
 
 At build time, `select()` routes between three modes:
 
-| Mode | When | What happens |
-|------|------|--------------|
-| **Pre-generated** (default) | Known platform, `use-pregenerated=True` | `pregen_files` symlinks static files to canonical output paths. Zero Perl. |
-| **Perl fallback** | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `perl_genrule` run Perl via `rules_perl`. Always used for Windows assembly. |
-| **No-asm** | `use-no-asm-fallback=True` | Portable C only. No assembly, no Perl. |
+| Mode                        | When                                          | What happens                                                                                         |
+| --------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Pre-generated** (default) | Known platform, `use-pregenerated=True`       | `pregen_files` symlinks static files to canonical output paths. Zero Perl.                           |
+| **Perl fallback**           | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `perl_genrule` run Perl via `rules_perl`. Always used for Windows assembly. |
+| **No-asm**                  | `use-no-asm-fallback=True`                    | Portable C only. No assembly, no Perl.                                                               |
 
 Both pregen and Perl paths produce outputs at identical canonical paths (e.g.
 `include/openssl/bio.h`), so downstream targets need no mode-specific include paths.
@@ -60,5 +60,4 @@ cd /path/to/openssl
 bazel test //test_bazel_build/...
 bazel build //... --@openssl//:use-pregenerated=False   # test Perl path
 bazel build //... --@openssl//:use-no-asm-fallback=True  # test no-asm path
-bazel build //... --platforms=@rules_cc_autoconf//platforms:linux_x86_64  # cross-compile
 ```
