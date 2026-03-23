@@ -174,6 +174,8 @@ MISSING_OPENSSL_WINDOWS_SRCS = ["apps/lib/win32_init.c"]
 ALL_OPENSSL_APP_HDRS = COMMON_OPENSSL_APP_HDRS + select({
     "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_HDRS,
     "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_HDRS,
+    "//configs:ios_arm64": _DARWIN_ARM64_OPENSSL_APP_HDRS,
+    "//configs:ios_x86_64": _DARWIN_X86_64_OPENSSL_APP_HDRS,
     "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_HDRS,
     "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_HDRS,
     "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_HDRS,
@@ -183,6 +185,8 @@ ALL_OPENSSL_APP_HDRS = COMMON_OPENSSL_APP_HDRS + select({
 ALL_OPENSSL_APP_SRCS = select({
     "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
     "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
+    "//configs:ios_arm64": _DARWIN_ARM64_OPENSSL_APP_SRCS,
+    "//configs:ios_x86_64": _DARWIN_X86_64_OPENSSL_APP_SRCS,
     "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_SRCS,
     "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_SRCS,
     "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_SRCS + MISSING_OPENSSL_WINDOWS_SRCS,
@@ -263,6 +267,8 @@ cc_binary(
     copts = COMMON_OPENSSL_COPTS + select({
         "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
         "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
+        "//configs:ios_arm64": _DARWIN_ARM64_OPENSSL_APP_DEFINES,
+        "//configs:ios_x86_64": _DARWIN_X86_64_OPENSSL_APP_DEFINES,
         "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_APP_DEFINES,
         "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_APP_DEFINES,
         "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_APP_DEFINES,
@@ -299,6 +305,8 @@ perl_genrule(
     assembly_flavor = select({
         "//configs:darwin_arm64": "ios64",
         "//configs:darwin_x86_64": "macosx",
+        "//configs:ios_arm64": "ios64",
+        "//configs:ios_x86_64": "macosx",
         "//configs:linux_aarch64": "linux64",
         "//configs:linux_x86_64": "elf",
         "//configs:windows_arm64": "win64",
@@ -307,6 +315,8 @@ perl_genrule(
     srcs_to_outs = select({
         "//configs:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
         "//configs:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
+        "//configs:ios_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
+        "//configs:ios_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
         "//configs:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS,
         "//configs:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS,
         "//configs:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS,
@@ -315,6 +325,8 @@ perl_genrule(
     srcs_to_outs_dupes = select({
         "//configs:darwin_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "//configs:darwin_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "//configs:ios_arm64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
+        "//configs:ios_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "//configs:linux_aarch64": NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "//configs:linux_x86_64": NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
         "//configs:windows_arm64": WINDOWS_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT,
@@ -346,6 +358,8 @@ OTHER_LIBCRYPTO_WINDOWS_SRCS = []
 ALL_LIBCRYPTO_HDRS = COMMON_LIBCRYPTO_HDRS + select({
     "//configs:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_HDRS,
     "//configs:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_HDRS,
+    "//configs:ios_arm64": _DARWIN_ARM64_LIBCRYPTO_HDRS,
+    "//configs:ios_x86_64": _DARWIN_X86_64_LIBCRYPTO_HDRS,
     "//configs:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_HDRS,
     "//configs:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_HDRS,
     "//configs:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_HDRS + OTHER_LIBCRYPTO_WINDOWS_HDRS,
@@ -358,6 +372,14 @@ ALL_LIBCRYPTO_SRCS = select({
         NIX_ARM64_PERLASM_TOOLS_AND_OUTS.values() + NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
     ),
     "//configs:darwin_x86_64": remove_dupes(
+        _DARWIN_X86_64_LIBCRYPTO_SRCS,
+        NIX_X86_64_PERLASM_TOOLS_AND_OUTS.values() + NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
+    ),
+    "//configs:ios_arm64": remove_dupes(
+        _DARWIN_ARM64_LIBCRYPTO_SRCS,
+        NIX_ARM64_PERLASM_TOOLS_AND_OUTS.values() + NIX_ARM64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
+    ),
+    "//configs:ios_x86_64": remove_dupes(
         _DARWIN_X86_64_LIBCRYPTO_SRCS,
         NIX_X86_64_PERLASM_TOOLS_AND_OUTS.values() + NIX_X86_64_PERLASM_TOOLS_AND_OUTS_DUPES_DICT.values(),
     ),
@@ -411,6 +433,8 @@ cc_library(
     copts = COMMON_OPENSSL_COPTS + select({
         "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
         "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
+        "//configs:ios_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
+        "//configs:ios_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
         "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
         "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
         "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
@@ -418,6 +442,8 @@ cc_library(
     }) + select({
         "//configs:darwin_arm64": _DARWIN_ARM64_LIBCRYPTO_DEFINES,
         "//configs:darwin_x86_64": _DARWIN_X86_64_LIBCRYPTO_DEFINES,
+        "//configs:ios_arm64": _DARWIN_ARM64_LIBCRYPTO_DEFINES,
+        "//configs:ios_x86_64": _DARWIN_X86_64_LIBCRYPTO_DEFINES,
         "//configs:linux_aarch64": _LINUX_ARM64_LIBCRYPTO_DEFINES,
         "//configs:linux_x86_64": _LINUX_X86_64_LIBCRYPTO_DEFINES,
         "//configs:windows_arm64": _WINDOWS_ARM64_LIBCRYPTO_DEFINES,
@@ -451,6 +477,8 @@ COMMON_LIBSSL_HDRS = glob(
 ALL_LIBSSL_HDRS = COMMON_LIBSSL_HDRS + select({
     "//configs:darwin_arm64": _DARWIN_ARM64_LIBSSL_HDRS,
     "//configs:darwin_x86_64": _DARWIN_X86_64_LIBSSL_HDRS,
+    "//configs:ios_arm64": _DARWIN_ARM64_LIBSSL_HDRS,
+    "//configs:ios_x86_64": _DARWIN_X86_64_LIBSSL_HDRS,
     "//configs:linux_aarch64": _LINUX_ARM64_LIBSSL_HDRS,
     "//configs:linux_x86_64": _LINUX_X86_64_LIBSSL_HDRS,
     "//configs:windows_arm64": _WINDOWS_ARM64_LIBSSL_HDRS,
@@ -460,6 +488,8 @@ ALL_LIBSSL_HDRS = COMMON_LIBSSL_HDRS + select({
 ALL_LIBSSL_SRCS = select({
     "//configs:darwin_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
     "//configs:darwin_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
+    "//configs:ios_arm64": _DARWIN_ARM64_LIBSSL_SRCS,
+    "//configs:ios_x86_64": _DARWIN_X86_64_LIBSSL_SRCS,
     "//configs:linux_aarch64": _LINUX_ARM64_LIBSSL_SRCS,
     "//configs:linux_x86_64": _LINUX_X86_64_LIBSSL_SRCS,
     "//configs:windows_arm64": _WINDOWS_ARM64_LIBSSL_SRCS,
@@ -473,6 +503,8 @@ cc_library(
     copts = COMMON_OPENSSL_COPTS + select({
         "//configs:darwin_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
         "//configs:darwin_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
+        "//configs:ios_arm64": _DARWIN_ARM64_OPENSSL_DEFINES,
+        "//configs:ios_x86_64": _DARWIN_X86_64_OPENSSL_DEFINES,
         "//configs:linux_aarch64": _LINUX_ARM64_OPENSSL_DEFINES,
         "//configs:linux_x86_64": _LINUX_X86_64_OPENSSL_DEFINES,
         "//configs:windows_arm64": _WINDOWS_ARM64_OPENSSL_DEFINES,
@@ -480,6 +512,8 @@ cc_library(
     }) + select({
         "//configs:darwin_arm64": _DARWIN_ARM64_LIBSSL_DEFINES,
         "//configs:darwin_x86_64": _DARWIN_X86_64_LIBSSL_DEFINES,
+        "//configs:ios_arm64": _DARWIN_ARM64_LIBSSL_DEFINES,
+        "//configs:ios_x86_64": _DARWIN_X86_64_LIBSSL_DEFINES,
         "//configs:linux_aarch64": _LINUX_ARM64_LIBSSL_DEFINES,
         "//configs:linux_x86_64": _LINUX_X86_64_LIBSSL_DEFINES,
         "//configs:windows_arm64": _WINDOWS_ARM64_LIBSSL_DEFINES,
@@ -505,6 +539,16 @@ filegroup(
             if f.startswith(":")
         ]).to_list(),
         "//configs:darwin_x86_64": depset([
+            f
+            for f in _DARWIN_X86_64_LIBCRYPTO_HDRS + _DARWIN_X86_64_LIBSSL_HDRS + _DARWIN_X86_64_OPENSSL_APP_HDRS
+            if f.startswith(":")
+        ]).to_list(),
+        "//configs:ios_arm64": depset([
+            f
+            for f in _DARWIN_ARM64_LIBCRYPTO_HDRS + _DARWIN_ARM64_LIBSSL_HDRS + _DARWIN_ARM64_OPENSSL_APP_HDRS
+            if f.startswith(":")
+        ]).to_list(),
+        "//configs:ios_x86_64": depset([
             f
             for f in _DARWIN_X86_64_LIBCRYPTO_HDRS + _DARWIN_X86_64_LIBSSL_HDRS + _DARWIN_X86_64_OPENSSL_APP_HDRS
             if f.startswith(":")
@@ -546,6 +590,8 @@ write_file(
         src = select({
             "//configs:darwin_arm64": DARWIN_ARM64_COMMON_GENERATED_FILES.get(src, ":unused"),
             "//configs:darwin_x86_64": DARWIN_X86_64_COMMON_GENERATED_FILES.get(src, ":unused"),
+            "//configs:ios_arm64": DARWIN_ARM64_COMMON_GENERATED_FILES.get(src, ":unused"),
+            "//configs:ios_x86_64": DARWIN_X86_64_COMMON_GENERATED_FILES.get(src, ":unused"),
             "//configs:linux_aarch64": LINUX_ARM64_COMMON_GENERATED_FILES.get(src, ":unused"),
             "//configs:linux_x86_64": LINUX_X86_64_COMMON_GENERATED_FILES.get(src, ":unused"),
             "//configs:windows_arm64": WINDOWS_ARM64_COMMON_GENERATED_FILES.get(src, ":unused"),
@@ -559,6 +605,8 @@ write_file(
 _PLATFORM_FILES = {
     "//configs:darwin_arm64": _DARWIN_ARM64_GEN_FILES,
     "//configs:darwin_x86_64": _DARWIN_X86_64_GEN_FILES,
+    "//configs:ios_arm64": _DARWIN_ARM64_GEN_FILES,
+    "//configs:ios_x86_64": _DARWIN_X86_64_GEN_FILES,
     "//configs:linux_aarch64": _LINUX_ARM64_GEN_FILES,
     "//configs:linux_x86_64": _LINUX_X86_64_GEN_FILES,
     "//configs:windows_arm64": _WINDOWS_ARM64_GEN_FILES,
