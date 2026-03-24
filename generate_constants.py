@@ -549,10 +549,10 @@ def discover_dofile_templates(openssl_dir: Path) -> dict[str, str]:
             found[rel_in] = out
     if not found:
         raise RuntimeError(
-            f"No *.in dofile templates found under {openssl_dir} "
-            "(expected include/, crypto/, providers/common/...)"
+            f"No *.in dofile templates found under {openssl_dir} (expected include/, crypto/, providers/common/...)"
         )
     return dict(sorted(found.items()))
+
 
 # Templates whose output varies by platform (uses %config or %target values
 # that differ across configdata stubs).
