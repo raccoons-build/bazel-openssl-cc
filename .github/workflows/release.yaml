@@ -1,3 +1,5 @@
+# On tag push: build overlay + BCR metadata, merge macOS perlasm artifacts, then open a
+# PR against bazelbuild/bazel-central-registry (release job). workflow_dispatch is also enabled.
 name: Release
 'on':
   workflow_dispatch: null
