@@ -76,7 +76,7 @@ def main() -> None:
             print(f"Patched {module_path}")
 
     recompute_overlay_hashes(bcr_dir, tag)
-    print(f"Recomputed overlay hashes in source.json")
+    print("Recomputed overlay hashes in source.json")
 
 
 if __name__ == "__main__":
