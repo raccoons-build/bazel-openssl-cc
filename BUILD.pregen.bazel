@@ -1,0 +1,5 @@
+load("@openssl//bazel:pregen.bzl", "pregen_filegroups")
+
+package(default_visibility = ["//visibility:public"])
+
+pregen_filegroups()

@@ -5,7 +5,7 @@ load("@rules_perl//perl:perl.bzl", "perl_binary", "perl_library")
 load("//:utils.bzl", "parse_perlasm_gen")
 load("//bazel:openssl_genrule.bzl", "openssl_perl_genrule")
 load("//bazel:perl_genrule.bzl", "perl_genrule")
-load("//bazel:pregen.bzl", "pregen_files")
+load("//bazel:pregen.bzl", "pregen_overlay_targets")
 load(
     "//bazel/constants:android_arm64.bzl",
     _ANDROID_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
@@ -188,6 +188,8 @@ bool_flag(
     visibility = ["//visibility:public"],
 )
 
+pregen_overlay_targets()
+
 # --- Perl tools for code generation ---
 
 perl_library(
@@ -309,84 +311,6 @@ filegroup(
 filegroup(
     name = "perl_generated_app_srcs",
     srcs = [":perl_generated_srcs"],
-    output_group = "app",
-    tags = ["manual"],
-)
-
-# --- Pre-generated files (canonical output paths via symlinks) ---
-# The pregen_files rule symlinks overlay files from generated/ to the same
-# canonical paths the Perl genrule produces, so consumers see identical
-# include paths regardless of generation mode.
-
-pregen_files(
-    name = "pregen_hdrs",
-    common_srcs = glob([
-        "generated/common/include/**/*.h",
-        "generated/common/providers/common/include/**/*.h",
-    ]) + [
-        "generated/common/crypto/buildinf.h",
-        "generated/common/apps/progs.h",
-    ],
-    platform_prefix = select({
-        "//configs:android_arm64": "generated/android_arm64/",
-        "//configs:android_x86_64": "generated/android_x86_64/",
-        "//configs:darwin_arm64": "generated/darwin_arm64/",
-        "//configs:darwin_x86_64": "generated/darwin_x86_64/",
-        "//configs:freebsd_aarch64": "generated/freebsd_aarch64/",
-        "//configs:freebsd_x86_64": "generated/freebsd_x86_64/",
-        "//configs:ios_arm64": "generated/ios_arm64/",
-        "//configs:linux_aarch64": "generated/linux_aarch64/",
-        "//configs:linux_arm": "generated/linux_arm/",
-        "//configs:linux_ppc64le": "generated/linux_ppc64le/",
-        "//configs:linux_riscv64": "generated/linux_riscv64/",
-        "//configs:linux_s390x": "generated/linux_s390x/",
-        "//configs:linux_x86_64": "generated/linux_x86_64/",
-        "//configs:windows_arm64": "generated/windows_arm64/",
-        "//configs:windows_x64": "generated/windows_x64/",
-        "//conditions:default": "generated/no_asm/",
-    }),
-    platform_srcs = select({
-        "//configs:android_arm64": glob(["generated/android_arm64/include/**/*.h"]),
-        "//configs:android_x86_64": glob(["generated/android_x86_64/include/**/*.h"]),
-        "//configs:darwin_arm64": glob(["generated/darwin_arm64/include/**/*.h"]),
-        "//configs:darwin_x86_64": glob(["generated/darwin_x86_64/include/**/*.h"]),
-        "//configs:freebsd_aarch64": glob(["generated/freebsd_aarch64/include/**/*.h"]),
-        "//configs:freebsd_x86_64": glob(["generated/freebsd_x86_64/include/**/*.h"]),
-        "//configs:ios_arm64": glob(["generated/ios_arm64/include/**/*.h"]),
-        "//configs:linux_aarch64": glob(["generated/linux_aarch64/include/**/*.h"]),
-        "//configs:linux_arm": glob(["generated/linux_arm/include/**/*.h"]),
-        "//configs:linux_ppc64le": glob(["generated/linux_ppc64le/include/**/*.h"]),
-        "//configs:linux_riscv64": glob(["generated/linux_riscv64/include/**/*.h"]),
-        "//configs:linux_s390x": glob(["generated/linux_s390x/include/**/*.h"]),
-        "//configs:linux_x86_64": glob(["generated/linux_x86_64/include/**/*.h"]),
-        "//configs:windows_arm64": glob(["generated/windows_arm64/include/**/*.h"]),
-        "//configs:windows_x64": glob(["generated/windows_x64/include/**/*.h"]),
-        "//conditions:default": glob(["generated/no_asm/include/**/*.h"]),
-    }),
-    tags = ["manual"],
-)
-
-pregen_files(
-    name = "pregen_srcs",
-    common_srcs = glob([
-        "generated/common/crypto/**/*.c",
-        "generated/common/providers/**/*.c",
-    ]) + [
-        "generated/common/apps/progs.c",
-    ],
-    tags = ["manual"],
-)
-
-filegroup(
-    name = "pregen_app_hdrs",
-    srcs = [":pregen_hdrs"],
-    output_group = "app",
-    tags = ["manual"],
-)
-
-filegroup(
-    name = "pregen_app_srcs",
-    srcs = [":pregen_srcs"],
     output_group = "app",
     tags = ["manual"],
 )
@@ -558,15 +482,15 @@ cc_library(
         # No-asm escape hatch (mutually exclusive with _asm_*/_pregen_asm_*)
         "//configs:_no_asm_fallback": NO_ASM_CRYPTO_EXTRA_SRCS,
         # Pre-generated assembly (non-Windows, most specialized)
-        "//configs:_pregen_asm_android_arm64": _ANDROID_ARM64_ASM_CRYPTO_EXTRA + glob(["generated/asm/linux64/**"]),
-        "//configs:_pregen_asm_android_x86_64": _ANDROID_X86_64_ASM_CRYPTO_EXTRA + glob(["generated/asm/elf/**"]),
-        "//configs:_pregen_asm_darwin_arm64": _DARWIN_ARM64_ASM_CRYPTO_EXTRA + glob(["generated/asm/ios64/**"]),
-        "//configs:_pregen_asm_darwin_x86_64": _DARWIN_X86_64_ASM_CRYPTO_EXTRA + glob(["generated/asm/macosx/**"]),
-        "//configs:_pregen_asm_freebsd_aarch64": _FREEBSD_AARCH64_ASM_CRYPTO_EXTRA + glob(["generated/asm/linux64/**"]),
-        "//configs:_pregen_asm_freebsd_x86_64": _FREEBSD_X86_64_ASM_CRYPTO_EXTRA + glob(["generated/asm/elf/**"]),
-        "//configs:_pregen_asm_ios_arm64": _IOS_ARM64_ASM_CRYPTO_EXTRA + glob(["generated/asm/ios64/**"]),
-        "//configs:_pregen_asm_linux_aarch64": _LINUX_AARCH64_ASM_CRYPTO_EXTRA + glob(["generated/asm/linux64/**"]),
-        "//configs:_pregen_asm_linux_x86_64": _LINUX_X86_64_ASM_CRYPTO_EXTRA + glob(["generated/asm/elf/**"]),
+        "//configs:_pregen_asm_android_arm64": _ANDROID_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux64"],
+        "//configs:_pregen_asm_android_x86_64": _ANDROID_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
+        "//configs:_pregen_asm_darwin_arm64": _DARWIN_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_ios64"],
+        "//configs:_pregen_asm_darwin_x86_64": _DARWIN_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_macosx"],
+        "//configs:_pregen_asm_freebsd_aarch64": _FREEBSD_AARCH64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux64"],
+        "//configs:_pregen_asm_freebsd_x86_64": _FREEBSD_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
+        "//configs:_pregen_asm_ios_arm64": _IOS_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_ios64"],
+        "//configs:_pregen_asm_linux_aarch64": _LINUX_AARCH64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux64"],
+        "//configs:_pregen_asm_linux_x86_64": _LINUX_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
         # Unknown platforms
         "//conditions:default": NO_ASM_CRYPTO_EXTRA_SRCS,
     }) + select({

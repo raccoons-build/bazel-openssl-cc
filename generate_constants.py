@@ -1220,6 +1220,7 @@ def main(
     buildifier_path: str,
     source_archive: str | None = None,
     perl_path: str = "perl",
+    pregen_dir: str | None = None,
 ) -> None:
     openssl_dir = Path(openssl_source_dir)
     out = Path(output_dir)
@@ -1288,6 +1289,19 @@ def main(
     print("=== Pre-generating perlasm assembly ===")
     pregenerate_perlasm(openssl_dir, platform_data, out, perl_path=perl_path)
 
+    # Move generated/ to a separate pregen directory so the overlay stays small.
+    pregen = Path(pregen_dir) if pregen_dir else out.parent / "pregen"
+    pregen.mkdir(parents=True, exist_ok=True)
+    generated_src = out / "generated"
+    if generated_src.exists():
+        generated_dst = pregen / "generated"
+        if generated_dst.exists():
+            shutil.rmtree(generated_dst)
+        shutil.move(str(generated_src), str(generated_dst))
+    copy_from_here_to("BUILD.pregen.bazel", pregen / "BUILD.bazel")
+    (pregen / "WORKSPACE.bazel").write_text('workspace(name = "openssl_pregen")\n')
+    print(f"Pregen files written to: {pregen}")
+
     # Overlay root = out. All overlay files go under out for correct load paths.
     overlay_dir = out
     copy_from_here_to("BUILD.openssl.bazel", overlay_dir / "BUILD.bazel")
@@ -1344,6 +1358,20 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
         bazel_dep(name = "platforms", version = "1.0.0")
         bazel_dep(name = "rules_cc", version = "0.2.4")
         bazel_dep(name = "rules_perl", version = "1.1.0")
+
+        http_archive = use_repo_rule(
+            "@bazel_tools//tools/build_defs/repo:http.bzl",
+            "http_archive",
+        )
+
+        http_archive(
+            name = "openssl_pregen",
+            urls = [
+                "https://github.com/raccoons-build/bazel-openssl-cc/releases/download/{tag}/bazel-openssl-cc-{tag}.tar.gz",
+            ],
+            integrity = "PLACEHOLDER",
+            strip_prefix = "pregen",
+        )
     """)
 
     module_path = out_dir / "MODULE.bazel"
@@ -1357,7 +1385,10 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
 
     overlay_info: dict[str, str] = {}
     overlay_dst = out_dir / "overlay"
-    for root, _, files in os.walk(out):
+    for root, dirs, files in os.walk(out):
+        # generated/ has been moved to the pregen archive; skip if still present.
+        if "generated" in dirs:
+            dirs.remove("generated")
         for file in files:
             full_path = Path(root) / file
             rel = os.path.relpath(full_path, out)
@@ -1404,6 +1435,11 @@ if __name__ == "__main__":
         help="Path to Perl interpreter (auto-detected from Bazel toolchain or PATH if omitted)",
     )
     parser.add_argument(
+        "--pregen_dir",
+        default=None,
+        help="Output directory for pre-generated files (default: <output_dir>/../pregen)",
+    )
+    parser.add_argument(
         "--perlasm-only",
         default=None,
         dest="perlasm_only",
@@ -1432,4 +1468,5 @@ if __name__ == "__main__":
             buildifier,
             args.source_archive,
             perl_path=perl,
+            pregen_dir=args.pregen_dir,
         )
