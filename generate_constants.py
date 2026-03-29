@@ -1374,6 +1374,17 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
     }
     (out_dir / "source.json").write_text(json.dumps(source_json, indent="    ", sort_keys=True) + "\n")
 
+    add_to_metadata(openssl_module_dir, tag)
+
+
+def add_to_metadata(openssl_module_dir: Path, tag: str) -> None:
+    metadata_path = openssl_module_dir / "metadata.json"
+    with open(metadata_path, "r") as f:
+        content = json.load(f)
+    content["versions"].append(tag)
+    with open(metadata_path, "w") as f:
+        f.write(json.dumps(content, sort_keys=True, indent="  ") + "\n")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate tiered OpenSSL Bazel constants")
