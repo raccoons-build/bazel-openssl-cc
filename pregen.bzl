@@ -150,10 +150,12 @@ def pregen_overlay_targets():
         common_srcs = ["@openssl_pregen//:common_hdrs"],
         platform_prefix = select(platform_prefix),
         platform_srcs = select(platform_srcs),
+        tags = ["manual"],
     )
     pregen_files(
         name = "pregen_srcs",
         common_srcs = ["@openssl_pregen//:common_srcs"],
+        tags = ["manual"],
     )
-    native.filegroup(name = "pregen_app_hdrs", srcs = [":pregen_hdrs"], output_group = "app")
-    native.filegroup(name = "pregen_app_srcs", srcs = [":pregen_srcs"], output_group = "app")
+    native.filegroup(name = "pregen_app_hdrs", srcs = [":pregen_hdrs"], output_group = "app", tags = ["manual"])
+    native.filegroup(name = "pregen_app_srcs", srcs = [":pregen_srcs"], output_group = "app", tags = ["manual"])
