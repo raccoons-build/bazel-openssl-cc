@@ -5,6 +5,7 @@ load("@rules_perl//perl:perl.bzl", "perl_binary", "perl_library")
 load("//:utils.bzl", "parse_perlasm_gen")
 load("//bazel:openssl_genrule.bzl", "openssl_perl_genrule")
 load("//bazel:perl_genrule.bzl", "perl_genrule")
+load("//bazel:pregen.bzl", "pregen_overlay_targets")
 load(
     "//bazel/constants:android_arm64.bzl",
     _ANDROID_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
@@ -186,6 +187,8 @@ bool_flag(
     build_setting_default = False,
     visibility = ["//visibility:public"],
 )
+
+pregen_overlay_targets()
 
 # --- Perl tools for code generation ---
 
@@ -491,11 +494,11 @@ cc_library(
         # Unknown platforms
         "//conditions:default": NO_ASM_CRYPTO_EXTRA_SRCS,
     }) + select({
-        "//configs:_pregen_enabled": ["@openssl_pregen//:pregen_srcs"],
+        "//configs:_pregen_enabled": [":pregen_srcs"],
         "//conditions:default": [":perl_generated_srcs"],
     }),
     hdrs = COMMON_LIBCRYPTO_HDRS + select({
-        "//configs:_pregen_enabled": ["@openssl_pregen//:pregen_hdrs"],
+        "//configs:_pregen_enabled": [":pregen_hdrs"],
         "//conditions:default": [":perl_generated_hdrs"],
     }),
     copts = COMMON_OPENSSL_COPTS + FEATURE_DEFINES + select({
@@ -623,10 +626,10 @@ cc_binary(
         "@platforms//os:windows": ["apps/lib/win32_init.c"],
         "//conditions:default": [],
     }) + COMMON_APP_HDRS + select({
-        "//configs:_pregen_enabled": ["@openssl_pregen//:pregen_app_hdrs"],
+        "//configs:_pregen_enabled": [":pregen_app_hdrs"],
         "//conditions:default": [":perl_generated_app_hdrs"],
     }) + select({
-        "//configs:_pregen_enabled": ["@openssl_pregen//:pregen_app_srcs"],
+        "//configs:_pregen_enabled": [":pregen_app_srcs"],
         "//conditions:default": [":perl_generated_app_srcs"],
     }),
     copts = COMMON_OPENSSL_COPTS + FEATURE_DEFINES + select({
