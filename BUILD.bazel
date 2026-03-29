@@ -1,0 +1,19 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+
+py_binary(
+    name = "generate",
+    srcs = [
+        "common.py",
+        "generate_constants.py",
+    ],
+    data = [
+        "@buildifier_prebuilt//:buildifier",
+        "@rules_perl//perl:current_toolchain",
+    ],
+    env = {
+        "BUILDIFIER_RLOCATIONPATH": "$(rlocationpath @buildifier_prebuilt//:buildifier)",
+        "PERL_RLOCATIONPATH": "$(PERL_RLOCATIONPATH)",
+    },
+    main = "generate_constants.py",
+    toolchains = ["@rules_perl//perl:current_toolchain"],
+)
