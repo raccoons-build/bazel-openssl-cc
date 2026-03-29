@@ -1,14 +1,11 @@
-"""All functions and constants shared between geneartion scripts"""
+"""Shared constants and helpers for the generation pipeline."""
 
 import base64
 import hashlib
 import os
 import platform
 import shutil
-import subprocess
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 OPENSSL_VERSION = "3.5.5"
 
@@ -16,233 +13,82 @@ MAC_ARM64 = "darwin64-arm64-cc"
 MAC_X86 = "darwin64-x86_64-cc"
 LINUX_ARM64 = "linux-aarch64"
 LINUX_X86 = "linux-x86_64-clang"
+LINUX_RISCV64 = "linux64-riscv64"
+LINUX_PPC64LE = "linux-ppc64le"
+LINUX_S390X = "linux64-s390x"
+LINUX_ARM = "linux-armv4"
 WINDOWS_ARM64 = "VC-WIN64-CLANGASM-ARM"
 WINDOWS_X86 = "VC-WIN64A-masm"
+ANDROID_ARM64 = "android-arm64"
+ANDROID_X86 = "android-x86_64"
+IOS_ARM64 = "ios64-cross"
+FREEBSD_X86 = "BSD-x86_64"
+FREEBSD_ARM64 = "BSD-aarch64"
 
-LINUX_PLATFORMS = [LINUX_ARM64, LINUX_X86]
-
+LINUX_PLATFORMS = [LINUX_ARM64, LINUX_X86, LINUX_RISCV64, LINUX_PPC64LE, LINUX_S390X, LINUX_ARM]
 MAC_PLATFORMS = [MAC_ARM64, MAC_X86]
-
 UNIX_PLATFORMS = LINUX_PLATFORMS + MAC_PLATFORMS
-
 WINDOWS_PLATFORMS = [WINDOWS_ARM64, WINDOWS_X86]
+ANDROID_PLATFORMS = [ANDROID_ARM64, ANDROID_X86]
+IOS_PLATFORMS = [IOS_ARM64]
+FREEBSD_PLATFORMS = [FREEBSD_ARM64, FREEBSD_X86]
+ALL_PLATFORMS = UNIX_PLATFORMS + WINDOWS_PLATFORMS + ANDROID_PLATFORMS + IOS_PLATFORMS + FREEBSD_PLATFORMS
 
-ALL_PLATFORMS = UNIX_PLATFORMS + WINDOWS_PLATFORMS
+NO_ASM_TARGET = "no-asm"
 
-PLATFORMS_X86_64 = [MAC_X86, LINUX_X86, WINDOWS_X86]
-PLATFORMS_ARM64 = [MAC_ARM64, LINUX_ARM64, WINDOWS_ARM64]
+# config_name → (os, cpu) constraint labels for Bazel config_setting targets.
+PLATFORM_CONSTRAINTS: dict[str, tuple[str, str]] = {
+    "darwin_arm64": ("@platforms//os:macos", "@platforms//cpu:arm64"),
+    "darwin_x86_64": ("@platforms//os:macos", "@platforms//cpu:x86_64"),
+    "linux_aarch64": ("@platforms//os:linux", "@platforms//cpu:aarch64"),
+    "linux_x86_64": ("@platforms//os:linux", "@platforms//cpu:x86_64"),
+    "linux_riscv64": ("@platforms//os:linux", "@platforms//cpu:riscv64"),
+    "linux_ppc64le": ("@platforms//os:linux", "@platforms//cpu:ppc64le"),
+    "linux_s390x": ("@platforms//os:linux", "@platforms//cpu:s390x"),
+    "linux_arm": ("@platforms//os:linux", "@platforms//cpu:arm"),
+    "windows_arm64": ("@platforms//os:windows", "@platforms//cpu:arm64"),
+    "windows_x64": ("@platforms//os:windows", "@platforms//cpu:x86_64"),
+    "android_arm64": ("@platforms//os:android", "@platforms//cpu:arm64"),
+    "android_x86_64": ("@platforms//os:android", "@platforms//cpu:x86_64"),
+    "ios_arm64": ("@platforms//os:ios", "@platforms//cpu:arm64"),
+    "freebsd_x86_64": ("@platforms//os:freebsd", "@platforms//cpu:x86_64"),
+    "freebsd_aarch64": ("@platforms//os:freebsd", "@platforms//cpu:aarch64"),
+}
 
-# Used for generation and testing on a pull request.
-WINDOWS = "windows"
-UNIX = "unix"
-LINUX = "linux"
-MAC = "mac"
-ARM64 = "arm64"
-X86_64 = "x86_64"
-# Used for release flow.
-ALL = "all"
-
-
-GENERATED_SRCS = [
-    "apps/progs.c",
-    "crypto/params_idx.c",
-    "providers/common/der/der_digests_gen.c",
-    "providers/common/der/der_dsa_gen.c",
-    "providers/common/der/der_ec_gen.c",
-    "providers/common/der/der_ecx_gen.c",
-    "providers/common/der/der_ml_dsa_gen.c",
-    "providers/common/der/der_rsa_gen.c",
-    "providers/common/der/der_slh_dsa_gen.c",
-    "providers/common/der/der_sm2_gen.c",
-    "providers/common/der/der_wrap_gen.c",
-]
-
-GENERATED_HDRS = [
-    "apps/progs.h",
-    "crypto/buildinf.h",
-    "include/crypto/bn_conf.h",
-    "include/crypto/dso_conf.h",
-    "include/internal/param_names.h",
-    "include/openssl/asn1.h",
-    "include/openssl/asn1t.h",
-    "include/openssl/bio.h",
-    "include/openssl/cmp.h",
-    "include/openssl/cms.h",
-    "include/openssl/comp.h",
-    "include/openssl/conf.h",
-    "include/openssl/configuration.h",
-    "include/openssl/core_names.h",
-    "include/openssl/crmf.h",
-    "include/openssl/crypto.h",
-    "include/openssl/ct.h",
-    "include/openssl/err.h",
-    "include/openssl/ess.h",
-    "include/openssl/fipskey.h",
-    "include/openssl/lhash.h",
-    "include/openssl/ocsp.h",
-    "include/openssl/opensslv.h",
-    "include/openssl/pkcs12.h",
-    "include/openssl/pkcs7.h",
-    "include/openssl/safestack.h",
-    "include/openssl/srp.h",
-    "include/openssl/ssl.h",
-    "include/openssl/ui.h",
-    "include/openssl/x509.h",
-    "include/openssl/x509_acert.h",
-    "include/openssl/x509_vfy.h",
-    "include/openssl/x509v3.h",
-    "providers/common/include/prov/der_digests.h",
-    "providers/common/include/prov/der_dsa.h",
-    "providers/common/include/prov/der_ec.h",
-    "providers/common/include/prov/der_ecx.h",
-    "providers/common/include/prov/der_ml_dsa.h",
-    "providers/common/include/prov/der_rsa.h",
-    "providers/common/include/prov/der_slh_dsa.h",
-    "providers/common/include/prov/der_sm2.h",
-    "providers/common/include/prov/der_wrap.h",
-]
-
-GENERATED_FILES = GENERATED_SRCS + GENERATED_HDRS
+_CONFIG_NAME_MAP = {
+    MAC_ARM64: "darwin_arm64",
+    MAC_X86: "darwin_x86_64",
+    LINUX_ARM64: "linux_aarch64",
+    LINUX_X86: "linux_x86_64",
+    LINUX_RISCV64: "linux_riscv64",
+    LINUX_PPC64LE: "linux_ppc64le",
+    LINUX_S390X: "linux_s390x",
+    LINUX_ARM: "linux_arm",
+    WINDOWS_ARM64: "windows_arm64",
+    WINDOWS_X86: "windows_x64",
+    ANDROID_ARM64: "android_arm64",
+    ANDROID_X86: "android_x86_64",
+    IOS_ARM64: "ios_arm64",
+    FREEBSD_X86: "freebsd_x86_64",
+    FREEBSD_ARM64: "freebsd_aarch64",
+    NO_ASM_TARGET: "no_asm",
+}
 
 
-def get_platforms(os: str) -> list[str]:
-    if os == WINDOWS:
-        return WINDOWS_PLATFORMS
-    elif os == UNIX:
-        return UNIX_PLATFORMS
-    elif os == ALL:
-        return ALL_PLATFORMS
-    else:
-        raise ValueError(f"Unknown os: {os}")
+def get_simple_config_name(platform: str) -> str:
+    """Map a Configure target name to a Bazel config_setting name."""
+    return _CONFIG_NAME_MAP[platform]
 
 
-def get_make_command(os: str) -> str:
-    if os == WINDOWS:
-        return "nmake"
-    elif os == UNIX:
-        return "make"
-    elif os == ALL:
-        return "make"
-    else:
-        raise ValueError(f"Unknown os: {os}")
+def get_configure_target(platform: str) -> str:
+    """Return the OpenSSL Configure target string.
 
-
-def get_start_configure_list(os: str, platform: str) -> list[str]:
-    if os == WINDOWS:
-        if platform in WINDOWS_PLATFORMS:
-            # On Windows we don't  use any assembly because the assembler is mismatched
-            # between MSVC with Bazel and MSVC with OpenSSL.
-            # See https://github.com/rustls/boringssl/blob/018edfaaaeea43bf35a16e9f7ba24510c0c003bb/util/util.bzl#L149
-            # for the inspiration.
-            return ["perl", "Configure", "no-asm"]
-        elif platform in UNIX_PLATFORMS:
-            # If we are generating unix on Windows (don't know why we would) we need to keep assembly.
-            return ["perl", "Configure"]
-        else:
-            raise ValueError(f"Unknown platform: {platform}")
-    elif os == UNIX:
-        return ["./Configure"]
-    elif os == ALL:
-        return ["./Configure"]
-    else:
-        raise ValueError(f"Unknown os: {os}")
-
-
-def get_extra_tar_options(os: str) -> list[str]:
-    all_tar_options = ["--owner", "root", "--group", "wheel", "--mtime=UTC 1980-01-01"]
-    if os == WINDOWS:
-        return []
-    elif os == UNIX:
-        return all_tar_options
-    elif os == ALL:
-        return all_tar_options
-    else:
-        raise ValueError(f"Unknown os: {os}")
-
-
-def get_simple_platform(platform: str) -> str:
-    if platform in WINDOWS_PLATFORMS:
-        return WINDOWS
-    elif platform in UNIX_PLATFORMS:
-        return UNIX
-    else:
-        raise ValueError(f"Unknown platform: {platform}")
-
-
-def get_specific_common_platform(platform: str) -> str:
-    if platform in WINDOWS_PLATFORMS:
-        return WINDOWS
-    elif platform in LINUX_PLATFORMS:
-        return LINUX
-    elif platform in MAC_PLATFORMS:
-        return MAC
-    else:
-        raise ValueError(f"Unknown platform: {platform}")
-
-
-def get_architecture(platform: str) -> str:
-    if platform in PLATFORMS_ARM64:
-        return ARM64
-    elif platform in PLATFORMS_X86_64:
-        return X86_64
-    else:
-        raise ValueError(f"Unknown platform: {platform}")
-
-
-def get_tar_platform(platform: str) -> str:
-    # For now we just return platform but we want this
-    # in case we change how they are output
+    For the no-asm fallback, we use a generic linux target since we only
+    need the C source list (assembly is disabled).
+    """
+    if platform == NO_ASM_TARGET:
+        return "linux-x86_64-clang"
     return platform
-
-
-def get_dir_to_copy(root: Path, platform: str) -> Path:
-    return Path(
-        os.path.join(
-            root,
-            f"{get_simple_platform(platform)}_unzipped",
-            get_specific_common_platform(platform),
-            get_architecture(platform),
-            "tmp",
-        )
-    )
-
-
-@contextmanager
-def download_openssl(version: str, simple_platform: str) -> Generator[tuple[Path, dict[str, str]], None, None]:
-    prefix_dir = f"openssl-{version}"
-    tempdir: Path
-    try:
-        tempdir = Path("/tmp")
-        if simple_platform == WINDOWS:
-            tempdir = Path("C:/tmp")
-        if not tempdir.exists():
-            tempdir.mkdir(exist_ok=True, parents=True)
-        tar_path = tempdir / "openssl.tar.gz"
-        url = f"https://github.com/openssl/openssl/releases/download/openssl-{version}/openssl-{version}.tar.gz"
-        subprocess.run(
-            ["curl", "--fail", "-L", "-o", str(tar_path), url],
-            check=True,
-        )
-        subprocess.run(["tar", "xzf", str(tar_path)], cwd=tempdir, check=True)
-
-        openssl_info = {
-            "url": url,
-            "integrity": integrity_hash(tar_path),
-            "strip_prefix": prefix_dir,
-        }
-
-        yield (tempdir / prefix_dir), openssl_info
-    # On Windows this step can fail and we need to retry. But first clean things up.
-    except Exception as e:
-        cleanup(Path(prefix_dir), tempdir)
-        raise e
-
-
-def cleanup(prefix_dir: Path, tempdir: Path) -> None:
-    if prefix_dir.exists():
-        shutil.rmtree(prefix_dir, ignore_errors=True)
-    if tempdir.exists():
-        shutil.rmtree(tempdir, ignore_errors=True)
 
 
 def integrity_hash(path: Path) -> str:
@@ -252,10 +98,22 @@ def integrity_hash(path: Path) -> str:
     return f"{algo}-{base64.b64encode(digest).decode('utf-8')}"
 
 
+def script_dir() -> Path:
+    """Return the directory containing the generator scripts and templates.
+
+    Under ``bazel run`` the env var ``BUILD_WORKSPACE_DIRECTORY`` points to the
+    real source tree (runfiles won't contain untracked data files).  For
+    standalone invocations ``Path(__file__).parent`` is correct.
+    """
+    bwd = os.environ.get("BUILD_WORKSPACE_DIRECTORY")
+    if bwd:
+        return Path(bwd)
+    return Path(__file__).resolve().parent
+
+
 def copy_from_here_to(local_path: str, dst: Path, executable: bool = False) -> None:
     dst.parent.mkdir(exist_ok=True, parents=True)
-    current_file = Path(__file__).parent
-    shutil.copyfile(current_file / local_path, dst)
+    shutil.copyfile(script_dir() / local_path, dst)
     if executable:
         if platform.system() == "Windows":
             os.access(dst, os.R_OK | os.W_OK | os.X_OK)
