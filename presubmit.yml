@@ -8,8 +8,8 @@ matrix:
   - windows
   - windows_arm64
   bazel:
-  - 7.x
-  - 8.x
+  - 7.*
+  - 8.*
   - 9.*
 tasks:
   verify_targets:
@@ -18,5 +18,17 @@ tasks:
     bazel: ${{ bazel }}
     build_targets:
     - "@openssl//..."
+    test_targets:
+    - "@openssl//test_bazel_build/..."
+  verify_no_pregen:
+    name: Build and test (no pregenerated)
+    platform: ${{ platform }}
+    bazel: ${{ bazel }}
+    build_flags:
+    - "--@openssl//:use-pregenerated=False"
+    build_targets:
+    - "@openssl//..."
+    test_flags:
+    - "--@openssl//:use-pregenerated=False"
     test_targets:
     - "@openssl//test_bazel_build/..."
