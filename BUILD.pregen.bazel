@@ -1,0 +1,92 @@
+load("@openssl//bazel:pregen.bzl", "pregen_files")
+
+package(default_visibility = ["//visibility:public"])
+
+pregen_files(
+    name = "pregen_hdrs",
+    common_srcs = glob([
+        "generated/common/include/**/*.h",
+        "generated/common/providers/common/include/**/*.h",
+    ]) + [
+        "generated/common/crypto/buildinf.h",
+        "generated/common/apps/progs.h",
+    ],
+    platform_prefix = select({
+        "@openssl//configs:android_arm64": "generated/android_arm64/",
+        "@openssl//configs:android_x86_64": "generated/android_x86_64/",
+        "@openssl//configs:darwin_arm64": "generated/darwin_arm64/",
+        "@openssl//configs:darwin_x86_64": "generated/darwin_x86_64/",
+        "@openssl//configs:freebsd_aarch64": "generated/freebsd_aarch64/",
+        "@openssl//configs:freebsd_x86_64": "generated/freebsd_x86_64/",
+        "@openssl//configs:ios_arm64": "generated/ios_arm64/",
+        "@openssl//configs:linux_aarch64": "generated/linux_aarch64/",
+        "@openssl//configs:linux_arm": "generated/linux_arm/",
+        "@openssl//configs:linux_ppc64le": "generated/linux_ppc64le/",
+        "@openssl//configs:linux_riscv64": "generated/linux_riscv64/",
+        "@openssl//configs:linux_s390x": "generated/linux_s390x/",
+        "@openssl//configs:linux_x86_64": "generated/linux_x86_64/",
+        "@openssl//configs:windows_arm64": "generated/windows_arm64/",
+        "@openssl//configs:windows_x64": "generated/windows_x64/",
+        "//conditions:default": "generated/no_asm/",
+    }),
+    platform_srcs = select({
+        "@openssl//configs:android_arm64": glob(["generated/android_arm64/include/**/*.h"]),
+        "@openssl//configs:android_x86_64": glob(["generated/android_x86_64/include/**/*.h"]),
+        "@openssl//configs:darwin_arm64": glob(["generated/darwin_arm64/include/**/*.h"]),
+        "@openssl//configs:darwin_x86_64": glob(["generated/darwin_x86_64/include/**/*.h"]),
+        "@openssl//configs:freebsd_aarch64": glob(["generated/freebsd_aarch64/include/**/*.h"]),
+        "@openssl//configs:freebsd_x86_64": glob(["generated/freebsd_x86_64/include/**/*.h"]),
+        "@openssl//configs:ios_arm64": glob(["generated/ios_arm64/include/**/*.h"]),
+        "@openssl//configs:linux_aarch64": glob(["generated/linux_aarch64/include/**/*.h"]),
+        "@openssl//configs:linux_arm": glob(["generated/linux_arm/include/**/*.h"]),
+        "@openssl//configs:linux_ppc64le": glob(["generated/linux_ppc64le/include/**/*.h"]),
+        "@openssl//configs:linux_riscv64": glob(["generated/linux_riscv64/include/**/*.h"]),
+        "@openssl//configs:linux_s390x": glob(["generated/linux_s390x/include/**/*.h"]),
+        "@openssl//configs:linux_x86_64": glob(["generated/linux_x86_64/include/**/*.h"]),
+        "@openssl//configs:windows_arm64": glob(["generated/windows_arm64/include/**/*.h"]),
+        "@openssl//configs:windows_x64": glob(["generated/windows_x64/include/**/*.h"]),
+        "//conditions:default": glob(["generated/no_asm/include/**/*.h"]),
+    }),
+)
+
+pregen_files(
+    name = "pregen_srcs",
+    common_srcs = glob([
+        "generated/common/crypto/**/*.c",
+        "generated/common/providers/**/*.c",
+    ]) + [
+        "generated/common/apps/progs.c",
+    ],
+)
+
+filegroup(
+    name = "pregen_app_hdrs",
+    srcs = [":pregen_hdrs"],
+    output_group = "app",
+)
+
+filegroup(
+    name = "pregen_app_srcs",
+    srcs = [":pregen_srcs"],
+    output_group = "app",
+)
+
+filegroup(
+    name = "asm_elf",
+    srcs = glob(["generated/asm/elf/**"]),
+)
+
+filegroup(
+    name = "asm_ios64",
+    srcs = glob(["generated/asm/ios64/**"]),
+)
+
+filegroup(
+    name = "asm_linux64",
+    srcs = glob(["generated/asm/linux64/**"]),
+)
+
+filegroup(
+    name = "asm_macosx",
+    srcs = glob(["generated/asm/macosx/**"]),
+)

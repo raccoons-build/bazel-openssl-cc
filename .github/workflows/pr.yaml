@@ -24,15 +24,16 @@ jobs:
         bazel run //:generate --
         --openssl_source_dir=/tmp/openssl-3.5.5
         --output_dir=/tmp/overlay
+        --pregen_dir=/tmp/pregen
         --bcr_dir=$(pwd)/bazel-central-registry
         --tag=3.5.5.bcr.wip
         --source_archive=/tmp/openssl.tar.gz
-    - run: tar czf /tmp/core-overlay.tar.gz -C /tmp overlay
-    - name: Upload core overlay
+    - run: tar czf /tmp/core-pregen.tar.gz -C /tmp pregen
+    - name: Upload core pregen
       uses: actions/upload-artifact@v4
       with:
-        name: core-overlay
-        path: /tmp/core-overlay.tar.gz
+        name: core-pregen
+        path: /tmp/core-pregen.tar.gz
         if-no-files-found: error
     - run: tar czf bcr-core.tar.gz bazel-central-registry
     - name: Upload core BCR
@@ -70,57 +71,52 @@ jobs:
       - pr-generate-linux
       - pr-generate-macos
     steps:
-      - name: Download core overlay
+      - name: Download core pregen
         uses: actions/download-artifact@v4
         with:
-          name: core-overlay
+          name: core-pregen
           path: /tmp/
-      - run: (cd /tmp && tar xzf core-overlay.tar.gz)
+      - run: (cd /tmp && tar xzf core-pregen.tar.gz)
       - name: Download macOS ASM
         uses: actions/download-artifact@v4
         with:
           name: macos-asm
           path: /tmp/
-      - name: Overlay macOS ASM
+      - name: Overlay macOS ASM into pregen
         run: |
-          rm -rf /tmp/overlay/generated/asm/macosx /tmp/overlay/generated/asm/ios64
-          mkdir -p /tmp/overlay/generated/asm
-          tar xzf /tmp/macos-asm.tar.gz -C /tmp/overlay/generated/asm
+          rm -rf /tmp/pregen/generated/asm/macosx /tmp/pregen/generated/asm/ios64
+          mkdir -p /tmp/pregen/generated/asm
+          tar xzf /tmp/macos-asm.tar.gz -C /tmp/pregen/generated/asm
       - name: Download core BCR
         uses: actions/download-artifact@v4
         with:
           name: bcr-core
           path: /tmp/
       - run: tar xzf /tmp/bcr-core.tar.gz
-      - name: Update BCR overlay with merged files
+      - name: Checkout repo for scripts
+        uses: actions/checkout@v4.2.2
+        with:
+          path: repo
+      - name: Create pregen tarball and patch BCR
         run: |
-          BCR_OVERLAY=bazel-central-registry/modules/openssl/3.5.5.bcr.wip/overlay
-          rm -rf "$BCR_OVERLAY/generated/asm"
-          cp -r /tmp/overlay/generated/asm "$BCR_OVERLAY/generated/asm"
-          cd bazel-central-registry
-          python3 -c "
-          import hashlib, base64, json, os
-          overlay_dir = 'modules/openssl/3.5.5.bcr.wip/overlay'
-          source_json_path = 'modules/openssl/3.5.5.bcr.wip/source.json'
-          with open(source_json_path) as f:
-              sj = json.load(f)
-          for root, _, files in os.walk(overlay_dir):
-              for fn in files:
-                  full = os.path.join(root, fn)
-                  rel = os.path.relpath(full, overlay_dir)
-                  with open(full, 'rb') as fh:
-                      digest = hashlib.sha256(fh.read()).digest()
-                  sj['overlay'][rel] = 'sha256-' + base64.b64encode(digest).decode()
-          with open(source_json_path, 'w') as f:
-              json.dump(sj, f, indent='    ', sort_keys=True)
-              f.write('\n')
-          "
+          tar czf /tmp/pregen.tar.gz -C /tmp pregen
+          python3 repo/patch_bcr_pregen.py \
+            --tarball=/tmp/pregen.tar.gz \
+            --bcr_dir=bazel-central-registry \
+            --tag=3.5.5.bcr.wip \
+            --url_override=file:///tmp/pregen.tar.gz
       - run: tar czf bcr.tar.gz bazel-central-registry
       - name: Upload merged BCR
         uses: actions/upload-artifact@v4
         with:
           name: bcr.tar.gz
           path: bcr.tar.gz
+          if-no-files-found: error
+      - name: Upload pregen tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: pregen.tar.gz
+          path: /tmp/pregen.tar.gz
           if-no-files-found: error
 
   pr-test-unix:
@@ -148,6 +144,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bcr.tar.gz
+          path: /tmp/
+      - name: Download pregen tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: pregen.tar.gz
           path: /tmp/
       - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
       - run:
@@ -188,10 +189,15 @@ jobs:
         with:
           name: bcr.tar.gz
           path: C:\
+      - name: Download pregen tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: pregen.tar.gz
+          path: C:\
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
       - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
-      - name: Modify MODULE.bazel files
+      - name: Patch MODULE.bazel paths for Windows
         shell: pwsh
         run: |
          Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip' | ForEach-Object {
