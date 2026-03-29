@@ -1299,6 +1299,7 @@ def main(
             shutil.rmtree(generated_dst)
         shutil.move(str(generated_src), str(generated_dst))
     copy_from_here_to("BUILD.pregen.bazel", pregen / "BUILD.bazel")
+    (pregen / "WORKSPACE.bazel").write_text('workspace(name = "openssl_pregen")\n')
     print(f"Pregen files written to: {pregen}")
 
     # Overlay root = out. All overlay files go under out for correct load paths.
