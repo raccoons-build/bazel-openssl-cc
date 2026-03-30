@@ -527,6 +527,11 @@ cc_library(
     }),
     linkopts = select({
         "@platforms//os:windows": [],
+        "@platforms//os:linux": [
+            "-lc",
+            "-ldl",
+            "-pthread",
+        ],
         "//conditions:default": [
             "-lc",
             "-pthread",
