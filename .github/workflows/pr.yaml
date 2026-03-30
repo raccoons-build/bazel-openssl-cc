@@ -4,7 +4,7 @@ name: Pull Request
   pull_request: null
 jobs:
   pr-generate-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4.2.2
