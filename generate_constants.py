@@ -1305,21 +1305,23 @@ def main(
     # Overlay root = out. All overlay files go under out for correct load paths.
     overlay_dir = out
     copy_from_here_to("BUILD.openssl.bazel", overlay_dir / "BUILD.bazel")
-    (overlay_dir / "configs").mkdir(parents=True, exist_ok=True)
-    copy_from_here_to("BUILD.configs.bazel", overlay_dir / "configs" / "BUILD.bazel")
-    copy_from_here_to("perl_genrule.bzl", overlay_dir / "bazel" / "perl_genrule.bzl")
-    copy_from_here_to("openssl_genrule.bzl", overlay_dir / "bazel" / "openssl_genrule.bzl")
-    copy_from_here_to("pregen.bzl", overlay_dir / "bazel" / "pregen.bzl")
-    copy_from_here_to("redirect_stdout.cc", overlay_dir / "bazel" / "redirect_stdout.cc")
-    copy_from_here_to("batch_dofile.pl", overlay_dir / "bazel" / "batch_dofile.pl")
-    copy_from_here_to("BUILD.bazel.bazel", overlay_dir / "bazel" / "BUILD.bazel")
-    copy_from_here_to("utils.bzl", overlay_dir / "utils.bzl")
-    copy_from_here_to("presubmit.yml", overlay_dir / "presubmit.yml")
 
-    (overlay_dir / "test_bazel_build").mkdir(parents=True, exist_ok=True)
-    copy_from_here_to("BUILD.test.bazel", overlay_dir / "test_bazel_build" / "BUILD.bazel")
-    copy_from_here_to("sha256_test.cc", overlay_dir / "test_bazel_build" / "sha256_test.cc")
-    copy_from_here_to("build_test.cc", overlay_dir / "test_bazel_build" / "build_test.cc")
+    (overlay_dir / "bazel").mkdir(parents=True, exist_ok=True)
+    copy_from_here_to("batch_dofile.pl", overlay_dir / "bazel" / "batch_dofile.pl")
+    copy_from_here_to("build_test.cc", overlay_dir / "bazel" / "build_test.cc")
+    copy_from_here_to("BUILD.bazel.bazel", overlay_dir / "bazel" / "BUILD.bazel")
+    copy_from_here_to("BUILD.configs.bazel", overlay_dir / "configs" / "BUILD.bazel")
+    copy_from_here_to("collate_into_directory.bzl", overlay_dir / "bazel" / "collate_into_directory.bzl")
+    copy_from_here_to("collate_into_directory.cc", overlay_dir / "bazel" / "collate_into_directory.cc")
+    copy_from_here_to("openssl_genrule.bzl", overlay_dir / "bazel" / "openssl_genrule.bzl")
+    copy_from_here_to("perl_genrule.bzl", overlay_dir / "bazel" / "perl_genrule.bzl")
+    copy_from_here_to("pregen.bzl", overlay_dir / "bazel" / "pregen.bzl")
+    copy_from_here_to("presubmit.yml", overlay_dir / "presubmit.yml")
+    copy_from_here_to("redirect_stdout.cc", overlay_dir / "bazel" / "redirect_stdout.cc")
+    copy_from_here_to("sha256_test.cc", overlay_dir / "bazel" / "sha256_test.cc")
+    copy_from_here_to("utils.bzl", overlay_dir / "bazel" / "utils.bzl")
+
+    (overlay_dir / "configs").mkdir(parents=True, exist_ok=True)
 
     if buildifier_path:
         print("=== Formatting with buildifier ===")
