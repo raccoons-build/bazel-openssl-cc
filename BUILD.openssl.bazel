@@ -2,10 +2,11 @@ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_perl//perl:perl.bzl", "perl_binary", "perl_library")
-load("//:utils.bzl", "parse_perlasm_gen")
+load("//bazel:collate_into_directory.bzl", "collate_into_directory")
 load("//bazel:openssl_genrule.bzl", "openssl_perl_genrule")
 load("//bazel:perl_genrule.bzl", "perl_genrule")
 load("//bazel:pregen.bzl", "pregen_overlay_targets")
+load("//bazel:utils.bzl", "parse_perlasm_gen")
 load(
     "//bazel/constants:android_arm64.bzl",
     _ANDROID_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
@@ -26,7 +27,12 @@ load(
     _ANDROID_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _ANDROID_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
 )
-load("//bazel/constants:common.bzl", "COMMON_APP_SRCS", "COMMON_CRYPTO_SRCS", "COMMON_SSL_SRCS")
+load(
+    "//bazel/constants:common.bzl",
+    "COMMON_APP_SRCS",
+    "COMMON_CRYPTO_SRCS",
+    "COMMON_SSL_SRCS",
+)
 load(
     "//bazel/constants:darwin_arm64.bzl",
     _DARWIN_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
@@ -48,7 +54,11 @@ load(
     _DARWIN_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _DARWIN_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
 )
-load("//bazel/constants:features.bzl", "FEATURE_DEFINES", "openssl_feature_flags")
+load(
+    "//bazel/constants:features.bzl",
+    "FEATURE_DEFINES",
+    "openssl_feature_flags",
+)
 load(
     "//bazel/constants:freebsd_aarch64.bzl",
     _FREEBSD_AARCH64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
@@ -526,12 +536,12 @@ cc_library(
         "//conditions:default": [],
     }),
     linkopts = select({
-        "@platforms//os:windows": [],
         "@platforms//os:linux": [
             "-lc",
             "-ldl",
             "-pthread",
         ],
+        "@platforms//os:windows": [],
         "//conditions:default": [
             "-lc",
             "-pthread",
@@ -672,4 +682,16 @@ cc_binary(
     }),
     visibility = ["//visibility:public"],
     deps = [":ssl"],
+)
+
+collate_into_directory(
+    name = "install",
+    bins = [
+        ":openssl",
+    ],
+    libs = [
+        ":crypto",
+        ":ssl",
+    ],
+    visibility = ["//visibility:public"],
 )

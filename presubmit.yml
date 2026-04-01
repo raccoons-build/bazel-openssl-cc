@@ -19,7 +19,7 @@ tasks:
     build_targets:
     - "@openssl//..."
     test_targets:
-    - "@openssl//test_bazel_build/..."
+    - "@openssl//..."
   verify_no_pregen:
     name: Build and test (no pregenerated)
     platform: ${{ platform }}
@@ -31,4 +31,4 @@ tasks:
     test_flags:
     - "--@openssl//:use-pregenerated=False"
     test_targets:
-    - "@openssl//test_bazel_build/..."
+    - "@openssl//..."

@@ -1,9 +1,5 @@
 """Utility functions for BUILD file processing."""
 
-def get_repo_name():
-    """Return the workspace name of the current repository."""
-    return Label("//:BUILD.bazel").workspace_name
-
 def remove_extra_chars(str):
     """Strip trailing punctuation and carriage returns from perlasm output tokens."""
     return str.replace(")", "").replace(";", "").replace("\r", "")
