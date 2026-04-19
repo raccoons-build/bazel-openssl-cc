@@ -695,3 +695,9 @@ collate_into_directory(
     ],
     visibility = ["//visibility:public"],
 )
+
+alias(
+    name = "gen_dir",
+    actual = ":install",
+    visibility = ["//visibility:public"],
+)
