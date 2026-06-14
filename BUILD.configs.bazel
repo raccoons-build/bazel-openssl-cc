@@ -1,3 +1,4 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//bazel/constants:features.bzl", "openssl_feature_config_settings", "openssl_pregen_config_settings")
 
 openssl_feature_config_settings()
@@ -54,6 +55,120 @@ config_setting(
     constraint_values = [
         "@platforms//os:windows",
         "@platforms//cpu:x86_64",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_msvc",
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+    flag_values = {
+        "@rules_cc//cc/compiler": "msvc-cl",
+    },
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_x64_msvc",
+    match_all = [
+        ":windows_x64",
+        ":windows_msvc",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_arm64_msvc",
+    match_all = [
+        ":windows_arm64",
+        ":windows_msvc",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_clang_cl",
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+    flag_values = {
+        "@rules_cc//cc/compiler": "clang-cl",
+    },
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_x64_clang_cl",
+    match_all = [
+        ":windows_x64",
+        ":windows_clang_cl",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_arm64_clang_cl",
+    match_all = [
+        ":windows_arm64",
+        ":windows_clang_cl",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_mingw",
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+    flag_values = {
+        "@rules_cc//cc/compiler": "mingw-gcc",
+    },
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_x64_mingw",
+    match_all = [
+        ":windows_x64",
+        ":windows_mingw",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_arm64_mingw",
+    match_all = [
+        ":windows_arm64",
+        ":windows_mingw",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_non_msvc",
+    match_any = [
+        ":windows_clang_cl",
+        ":windows_mingw",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_x64_non_msvc",
+    match_any = [
+        ":windows_x64_clang_cl",
+        ":windows_x64_mingw",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_arm64_non_msvc",
+    match_any = [
+        ":windows_arm64_clang_cl",
+        ":windows_arm64_mingw",
     ],
     visibility = ["//visibility:public"],
 )
