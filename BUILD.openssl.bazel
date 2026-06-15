@@ -339,7 +339,15 @@ PERLASM_TOOLS = glob(["crypto/perlasm/*.pl"])
 
 perl_genrule(
     name = "perlasm_genfiles",
-    additional_srcs = PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
+    additional_srcs = select({
+        "//configs:windows_msvc": PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
+        "@platforms//os:windows": PERLASM_TOOLS + [
+            "crypto/ec/ecp_nistz256_table.c",
+            "ms/uplink-common.pl",
+            "ms/applink.c",
+        ],
+        "//conditions:default": PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
+    }),
     assembly_flavor = select({
         "//configs:android_arm64": "linux64",
         "//configs:android_x86_64": "elf",
@@ -350,8 +358,10 @@ perl_genrule(
         "//configs:ios_arm64": "ios64",
         "//configs:linux_aarch64": "linux64",
         "//configs:linux_x86_64": "elf",
-        "//configs:windows_arm64": "win64",
-        "//configs:windows_x64": "masm",
+        "//configs:windows_arm64_msvc": "win64",
+        "//configs:windows_arm64_non_msvc": "linux64",
+        "//configs:windows_x64_msvc": "masm",
+        "//configs:windows_x64_non_msvc": "mingw64",
         "//conditions:default": "",
     }),
     srcs_to_outs = select({
@@ -427,14 +437,17 @@ COMMON_OPENSSL_COPTS = [
     ],
 })
 
-COMMON_WINDOWS_DEFINES = [
-    "_WINSOCKAPI_",
-    "OPENSSL_SYS_WINCE",
-    "WIN32_LEAN_AND_MEAN",
-]
-
 COMMON_DEFINES = select({
-    "@platforms//os:windows": COMMON_WINDOWS_DEFINES,
+    "//configs:windows_msvc": [
+        "_WINSOCKAPI_",
+        "OPENSSL_SYS_WINCE",
+        "WIN32_LEAN_AND_MEAN",
+    ],
+    "//configs:windows_non_msvc": [
+        "_WINSOCKAPI_",
+        "WIN32_LEAN_AND_MEAN",
+        "SIO_UDP_NETRESET=0x9800001C",
+    ],
     "//conditions:default": [],
 })
 
@@ -672,11 +685,17 @@ cc_binary(
         "apps/include",
     ],
     linkopts = select({
-        "@platforms//os:windows": [
+        "//configs:windows_msvc": [
             "-defaultlib:ws2_32.lib",
             "-defaultlib:advapi32.lib",
             "-defaultlib:user32.lib",
             "-defaultlib:crypt32.lib",
+        ],
+        "//configs:windows_non_msvc": [
+            "-lws2_32",
+            "-ladvapi32",
+            "-luser32",
+            "-lcrypt32",
         ],
         "//conditions:default": [],
     }),
