@@ -56,7 +56,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tarball", required=True, help="Path to the pregen tarball")
     parser.add_argument("--bcr_dir", required=True, help="Path to the bazel-central-registry checkout")
-    parser.add_argument("--tag", required=True, help="Version tag (e.g. 3.5.5.bcr.1)")
+    parser.add_argument("--tag", required=True, help="Version tag (e.g. 4.0.1.bcr.1)")
     parser.add_argument(
         "--url_override", default=None, help="Override the pregen download URL (e.g. file:///tmp/pregen.tar.gz)"
     )

@@ -12,7 +12,7 @@ jobs:
       uses: actions/checkout@v4.2.2
     - name: Download OpenSSL source
       run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.5.5/openssl-3.5.5.tar.gz
+        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
         tar xzf /tmp/openssl.tar.gz -C /tmp
     - name: Checkout BCR
       uses: actions/checkout@v4.2.2
@@ -25,7 +25,7 @@ jobs:
     - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
     - run: >
         bazel run //:generate --
-        --openssl_source_dir=/tmp/openssl-3.5.5
+        --openssl_source_dir=/tmp/openssl-4.0.1
         --output_dir=/tmp/overlay
         --pregen_dir=/tmp/pregen
         --bcr_dir=$(pwd)/bazel-central-registry
@@ -53,11 +53,11 @@ jobs:
       uses: actions/checkout@v4.2.2
     - name: Download OpenSSL source
       run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.5.5/openssl-3.5.5.tar.gz
+        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
         tar xzf /tmp/openssl.tar.gz -C /tmp
     - run: >
         python3 generate_constants.py
-        --openssl_source_dir=/tmp/openssl-3.5.5
+        --openssl_source_dir=/tmp/openssl-4.0.1
         --output_dir=/tmp/macos-asm
         --perlasm-only=macosx,ios64
     - run: tar czf /tmp/macos-asm.tar.gz -C /tmp/macos-asm/generated/asm .

@@ -538,6 +538,7 @@ def discover_dofile_templates(openssl_dir: Path) -> dict[str, str]:
         openssl_dir / "crypto",
         openssl_dir / "providers" / "common" / "include" / "prov",
         openssl_dir / "providers" / "common" / "der",
+        openssl_dir / "providers" / "implementations",
     ]
     found: dict[str, str] = {}
     for root in roots:
@@ -1348,17 +1349,20 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
 
     copy_from_here_to("presubmit.yml", out_dir / "presubmit.yml")
 
+    # One compatibility level per OpenSSL major version (they are ABI-incompatible).
+    compatibility_level = int(OPENSSL_VERSION.split(".")[0])
+
     module_bazel_content = dedent(f"""\
         module(
             name = "openssl",
             version = "{tag}",
             bazel_compatibility = [">=7.2.1"],
-            compatibility_level = 3030100,
+            compatibility_level = {compatibility_level},
         )
 
         bazel_dep(name = "bazel_skylib", version = "1.7.1")
         bazel_dep(name = "platforms", version = "1.0.0")
-        bazel_dep(name = "rules_cc", version = "0.2.4")
+        bazel_dep(name = "rules_cc", version = "0.2.17")
         bazel_dep(name = "rules_perl", version = "1.1.0")
 
         http_archive = use_repo_rule(
