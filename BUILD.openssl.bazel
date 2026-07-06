@@ -468,6 +468,22 @@ LIBCRYPTO_WINDOWS_INCLUDES = [
     "crypto/bn",
 ]
 
+# crypt32 is pulled in by the CAPI engine (engines/e_capi.c); ws2_32/advapi32/
+# user32 back sockets and registry/user APIs.
+_WINDOWS_SYSTEM_LIBS_MSVC = [
+    "-defaultlib:ws2_32.lib",
+    "-defaultlib:advapi32.lib",
+    "-defaultlib:user32.lib",
+    "-defaultlib:crypt32.lib",
+]
+
+_WINDOWS_SYSTEM_LIBS_GNU = [
+    "-lws2_32",
+    "-ladvapi32",
+    "-luser32",
+    "-lcrypt32",
+]
+
 # --- libcrypto ---
 
 COMMON_LIBCRYPTO_HDRS = glob(
@@ -554,6 +570,11 @@ cc_library(
             "-ldl",
             "-pthread",
         ],
+        "//configs:windows_msvc": _WINDOWS_SYSTEM_LIBS_MSVC,
+        "//configs:windows_clang_cl": _WINDOWS_SYSTEM_LIBS_MSVC,
+        "//configs:windows_mingw": _WINDOWS_SYSTEM_LIBS_GNU,
+        "//configs:windows_clang": _WINDOWS_SYSTEM_LIBS_GNU,
+        # Prevents unmatched Windows compilers from falling to the Unix default.
         "@platforms//os:windows": [],
         "//conditions:default": [
             "-lc",
@@ -684,21 +705,6 @@ cc_binary(
         "apps",
         "apps/include",
     ],
-    linkopts = select({
-        "//configs:windows_msvc": [
-            "-defaultlib:ws2_32.lib",
-            "-defaultlib:advapi32.lib",
-            "-defaultlib:user32.lib",
-            "-defaultlib:crypt32.lib",
-        ],
-        "//configs:windows_non_msvc": [
-            "-lws2_32",
-            "-ladvapi32",
-            "-luser32",
-            "-lcrypt32",
-        ],
-        "//conditions:default": [],
-    }),
     visibility = ["//visibility:public"],
     deps = [":ssl"],
 )
