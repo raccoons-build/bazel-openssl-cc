@@ -173,6 +173,19 @@ selects.config_setting_group(
     visibility = ["//visibility:public"],
 )
 
+# clang on Windows is the LLVM mingw/gnullvm driver, which links GNU-style
+# ("-l") -- unlike clang-cl, which uses the MSVC linker.
+config_setting(
+    name = "windows_clang",
+    constraint_values = [
+        "@platforms//os:windows",
+    ],
+    flag_values = {
+        "@rules_cc//cc/compiler": "clang",
+    },
+    visibility = ["//visibility:public"],
+)
+
 config_setting(
     name = "linux_riscv64",
     constraint_values = [
