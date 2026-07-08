@@ -6,6 +6,9 @@
 #
 # Usage: batch_dofile.pl --in=<template> --out=<output> [--in=... --out=...] ...
 #
+# Arguments of the form @<file> name a Bazel params file containing one
+# argument per line; they are expanded in place.
+#
 # Must be invoked with -Mconfigdata (and any other -M flags the
 # templates need, e.g. -Moids_to_c).
 
@@ -20,15 +23,31 @@ use OpenSSL::Template;
 die "You must run this script with -Mconfigdata\n"
     if !exists($config{target});
 
+# Expand param files, if any.
+my @args;
+for my $arg (@ARGV) {
+    if ($arg =~ /^@(.+)$/) {
+        open(my $fh, '<', $1)
+            or die "Can't open params file $1: $!\n";
+        while (my $line = <$fh>) {
+            $line =~ s/\r?\n$//;
+            push @args, $line;
+        }
+        close $fh;
+    } else {
+        push @args, $arg;
+    }
+}
+
 my @pairs;
 my $i = 0;
-while ($i < scalar(@ARGV)) {
-    my $arg = $ARGV[$i];
+while ($i < scalar(@args)) {
+    my $arg = $args[$i];
     if ($arg =~ /^--in=(.+)$/) {
         my $in = $1;
         $i++;
         die "Expected --out=<path> after --in=$in\n"
-            if $i >= scalar(@ARGV) || $ARGV[$i] !~ /^--out=(.+)$/;
+            if $i >= scalar(@args) || $args[$i] !~ /^--out=(.+)$/;
         push @pairs, { in => $in, out => $1 };
     } else {
         die "Unexpected argument: $arg\n";
