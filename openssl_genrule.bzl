@@ -90,6 +90,12 @@ def _run_dofile(ctx, out_files_list):
     outputs = []
     args = ctx.actions.args()
 
+    # The --in/--out pairs for all templates exceed the Windows cmd.exe
+    # command-line limit, so always pass them via a params file, which
+    # batch_dofile.pl expands.
+    args.use_param_file("@%s", use_always = True)
+    args.set_param_file_format("multiline")
+
     for target, output in ctx.attr.templates_map.items():
         template_file = target.files.to_list()[0]
         out_file = ctx.actions.declare_file(output)
