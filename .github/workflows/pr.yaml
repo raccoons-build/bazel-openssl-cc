@@ -10,7 +10,7 @@ jobs:
       uses: actions/checkout@v4.2.2
     - name: Download OpenSSL source
       run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.5.5/openssl-3.5.5.tar.gz
+        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
         tar xzf /tmp/openssl.tar.gz -C /tmp
     - name: Checkout BCR
       uses: actions/checkout@v4.2.2
@@ -22,11 +22,11 @@ jobs:
     - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
     - run: >
         bazel run //:generate --
-        --openssl_source_dir=/tmp/openssl-3.5.5
+        --openssl_source_dir=/tmp/openssl-4.0.1
         --output_dir=/tmp/overlay
         --pregen_dir=/tmp/pregen
         --bcr_dir=$(pwd)/bazel-central-registry
-        --tag=3.5.5.bcr.wip
+        --tag=4.0.1.bcr.wip
         --source_archive=/tmp/openssl.tar.gz
     - run: tar czf /tmp/core-pregen.tar.gz -C /tmp pregen
     - name: Upload core pregen
@@ -50,11 +50,11 @@ jobs:
       uses: actions/checkout@v4.2.2
     - name: Download OpenSSL source
       run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-3.5.5/openssl-3.5.5.tar.gz
+        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
         tar xzf /tmp/openssl.tar.gz -C /tmp
     - run: >
         python3 generate_constants.py
-        --openssl_source_dir=/tmp/openssl-3.5.5
+        --openssl_source_dir=/tmp/openssl-4.0.1
         --output_dir=/tmp/macos-asm
         --perlasm-only=macosx,ios64
     - run: tar czf /tmp/macos-asm.tar.gz -C /tmp/macos-asm/generated/asm .
@@ -103,7 +103,7 @@ jobs:
           python3 repo/patch_bcr_pregen.py \
             --tarball=/tmp/pregen.tar.gz \
             --bcr_dir=bazel-central-registry \
-            --tag=3.5.5.bcr.wip \
+            --tag=4.0.1.bcr.wip \
             --url_override=file:///tmp/pregen.tar.gz
       - run: tar czf bcr.tar.gz bazel-central-registry
       - name: Upload merged BCR
@@ -155,7 +155,7 @@ jobs:
           mkdir workspace &&
           cd workspace &&
           echo ${{ matrix.bazel }} > .bazelversion &&
-          echo 'bazel_dep(name = "openssl", version = "3.5.5.bcr.wip")' > MODULE.bazel &&
+          echo 'bazel_dep(name = "openssl", version = "4.0.1.bcr.wip")' > MODULE.bazel &&
           echo 'bazel_dep(name = "rules_java", version = "9.1.0", dev_dependency = True)' >> MODULE.bazel &&
           echo 'bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)' >> MODULE.bazel
       - run:
@@ -200,18 +200,18 @@ jobs:
       - name: Patch MODULE.bazel paths for Windows
         shell: pwsh
         run: |
-         Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip' | ForEach-Object {
+         Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\4.0.1.bcr.wip' | ForEach-Object {
               $content = Get-Content $_.FullName
               $newContent = $content -replace 'file:///tmp/', 'file:///C:/'
               Set-Content $_.FullName -Value $newContent
           }
       - name: Update hash in source.json
-        run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\3.5.5.bcr.wip\source.json
+        run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\4.0.1.bcr.wip\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\4.0.1.bcr.wip\source.json > C:\bazel-central-registry\modules\openssl\4.0.1.bcr.wip\source.json.modified && rm C:\bazel-central-registry\modules\openssl\4.0.1.bcr.wip\source.json && mv C:\bazel-central-registry\modules\openssl\4.0.1.bcr.wip\source.json.modified C:\bazel-central-registry\modules\openssl\4.0.1.bcr.wip\source.json
       - run:
           mkdir workspace &&
           cd workspace &&
           echo ${{ matrix.bazel }} > .bazelversion &&
-          echo 'bazel_dep(name = "openssl", version = "3.5.5.bcr.wip")' > MODULE.bazel &&
+          echo 'bazel_dep(name = "openssl", version = "4.0.1.bcr.wip")' > MODULE.bazel &&
           echo 'bazel_dep(name = "rules_java", version = "9.1.0", dev_dependency = True)' >> MODULE.bazel &&
           echo 'bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)' >> MODULE.bazel
       - run:

@@ -98,6 +98,7 @@ def pregen_filegroups():
         srcs = native.glob([
             "generated/common/include/**/*.h",
             "generated/common/providers/common/include/**/*.h",
+            "generated/common/providers/implementations/**/*.inc",
         ]) + [
             "generated/common/crypto/buildinf.h",
             "generated/common/apps/progs.h",
@@ -106,7 +107,6 @@ def pregen_filegroups():
     native.filegroup(
         name = "common_srcs",
         srcs = native.glob([
-            "generated/common/crypto/**/*.c",
             "generated/common/providers/**/*.c",
         ]) + ["generated/common/apps/progs.c"],
     )

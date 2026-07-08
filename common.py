@@ -7,7 +7,7 @@ import platform
 import shutil
 from pathlib import Path
 
-OPENSSL_VERSION = "3.5.5"
+OPENSSL_VERSION = "4.0.1"
 
 MAC_ARM64 = "darwin64-arm64-cc"
 MAC_X86 = "darwin64-x86_64-cc"

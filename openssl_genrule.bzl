@@ -11,9 +11,7 @@ for single-output actions (mkbuildinf, progs).
 _HERMETIC_ENV = {"SOURCE_DATE_EPOCH": "443779200"}
 
 _DOFILE_HDR_TEMPLATES = {
-    "include/crypto/bn_conf.h.in": "include/crypto/bn_conf.h",
     "include/crypto/dso_conf.h.in": "include/crypto/dso_conf.h",
-    "include/internal/param_names.h.in": "include/internal/param_names.h",
     "include/openssl/asn1.h.in": "include/openssl/asn1.h",
     "include/openssl/asn1t.h.in": "include/openssl/asn1t.h",
     "include/openssl/bio.h.in": "include/openssl/bio.h",
@@ -49,6 +47,7 @@ _DOFILE_DER_HDR_TEMPLATES = {
     "providers/common/include/prov/der_dsa.h.in": "providers/common/include/prov/der_dsa.h",
     "providers/common/include/prov/der_ec.h.in": "providers/common/include/prov/der_ec.h",
     "providers/common/include/prov/der_ecx.h.in": "providers/common/include/prov/der_ecx.h",
+    "providers/common/include/prov/der_hkdf.h.in": "providers/common/include/prov/der_hkdf.h",
     "providers/common/include/prov/der_ml_dsa.h.in": "providers/common/include/prov/der_ml_dsa.h",
     "providers/common/include/prov/der_rsa.h.in": "providers/common/include/prov/der_rsa.h",
     "providers/common/include/prov/der_slh_dsa.h.in": "providers/common/include/prov/der_slh_dsa.h",
@@ -56,15 +55,28 @@ _DOFILE_DER_HDR_TEMPLATES = {
     "providers/common/include/prov/der_wrap.h.in": "providers/common/include/prov/der_wrap.h",
 }
 
-_DOFILE_SRC_TEMPLATES = {
-    "crypto/params_idx.c.in": "crypto/params_idx.c",
-}
+def _dofile_inc_templates():
+    """Generated .inc files (OpenSSL 4.x+): providers/implementations/**/*.inc.in.
+
+    Globbed rather than hardcoded
+    so OpenSSL version bumps pick up added or removed templates automatically.
+    """
+    return {
+        src: src[:-len(".in")]
+        for src in native.glob(
+            ["providers/implementations/**/*.inc.in"],
+            allow_empty = True,
+        )
+    }
+
+_DOFILE_SRC_TEMPLATES = {}
 
 _DOFILE_DER_SRC_TEMPLATES = {
     "providers/common/der/der_digests_gen.c.in": "providers/common/der/der_digests_gen.c",
     "providers/common/der/der_dsa_gen.c.in": "providers/common/der/der_dsa_gen.c",
     "providers/common/der/der_ec_gen.c.in": "providers/common/der/der_ec_gen.c",
     "providers/common/der/der_ecx_gen.c.in": "providers/common/der/der_ecx_gen.c",
+    "providers/common/der/der_hkdf_gen.c.in": "providers/common/der/der_hkdf_gen.c",
     "providers/common/der/der_ml_dsa_gen.c.in": "providers/common/der/der_ml_dsa_gen.c",
     "providers/common/der/der_rsa_gen.c.in": "providers/common/der/der_rsa_gen.c",
     "providers/common/der/der_slh_dsa_gen.c.in": "providers/common/der/der_slh_dsa_gen.c",
@@ -77,6 +89,12 @@ def _run_dofile(ctx, out_files_list):
     inputs = []
     outputs = []
     args = ctx.actions.args()
+
+    # The --in/--out pairs for all templates exceed the Windows cmd.exe
+    # command-line limit, so always pass them via a params file, which
+    # batch_dofile.pl expands.
+    args.use_param_file("@%s", use_always = True)
+    args.set_param_file_format("multiline")
 
     for target, output in ctx.attr.templates_map.items():
         template_file = target.files.to_list()[0]
@@ -222,6 +240,7 @@ def openssl_perl_genrule(*, name, mode = None, **kwargs):
         templates = {}
         templates.update(_DOFILE_HDR_TEMPLATES)
         templates.update(_DOFILE_DER_HDR_TEMPLATES)
+        templates.update(_dofile_inc_templates())
         _openssl_gen(
             name = name,
             mode = "hdrs",
