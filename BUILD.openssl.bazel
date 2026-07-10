@@ -439,14 +439,24 @@ COMMON_OPENSSL_COPTS = [
 
 COMMON_DEFINES = select({
     "//configs:windows_msvc": [
-        "_WINSOCKAPI_",
         "OPENSSL_SYS_WINCE",
+    ],
+    "//configs:windows_non_msvc": [
+        "SIO_UDP_NETRESET=0x9800001C",
+    ],
+    "//conditions:default": [],
+})
+
+# _WINSOCKAPI_ and WIN32_LEAN_AND_MEAN are openssl-internal and must not
+# propagate to consumers via CcInfo.
+COMMON_LOCAL_DEFINES = select({
+    "//configs:windows_msvc": [
+        "_WINSOCKAPI_",
         "WIN32_LEAN_AND_MEAN",
     ],
     "//configs:windows_non_msvc": [
         "_WINSOCKAPI_",
         "WIN32_LEAN_AND_MEAN",
-        "SIO_UDP_NETRESET=0x9800001C",
     ],
     "//conditions:default": [],
 })
@@ -560,6 +570,7 @@ cc_library(
         "//conditions:default": NO_ASM_DEFINES,
     }),
     defines = COMMON_DEFINES,
+    local_defines = COMMON_LOCAL_DEFINES,
     includes = LIBCRYPTO_INCLUDES + select({
         "@platforms//os:windows": LIBCRYPTO_WINDOWS_INCLUDES,
         "//conditions:default": [],
@@ -631,6 +642,7 @@ cc_library(
         "//conditions:default": NO_ASM_DEFINES,
     }),
     defines = COMMON_DEFINES,
+    local_defines = COMMON_LOCAL_DEFINES,
     includes = ["include"],
     linkopts = select({
         "@platforms//os:windows": [],
@@ -701,6 +713,7 @@ cc_binary(
         "//conditions:default": [],
     }),
     defines = COMMON_DEFINES,
+    local_defines = COMMON_LOCAL_DEFINES,
     includes = [
         "apps",
         "apps/include",
