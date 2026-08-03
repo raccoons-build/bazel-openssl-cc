@@ -538,6 +538,7 @@ def discover_dofile_templates(openssl_dir: Path) -> dict[str, str]:
         openssl_dir / "crypto",
         openssl_dir / "providers" / "common" / "include" / "prov",
         openssl_dir / "providers" / "common" / "der",
+        openssl_dir / "providers" / "implementations",
     ]
     found: dict[str, str] = {}
     for root in roots:
@@ -1358,7 +1359,7 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
 
         bazel_dep(name = "bazel_skylib", version = "1.7.1")
         bazel_dep(name = "platforms", version = "1.0.0")
-        bazel_dep(name = "rules_cc", version = "0.2.4")
+        bazel_dep(name = "rules_cc", version = "0.2.17")
         bazel_dep(name = "rules_perl", version = "1.1.2")
 
         http_archive = use_repo_rule(
