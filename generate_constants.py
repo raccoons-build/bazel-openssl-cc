@@ -1349,15 +1349,12 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
 
     copy_from_here_to("presubmit.yml", out_dir / "presubmit.yml")
 
-    # One compatibility level per OpenSSL major version (they are ABI-incompatible).
-    compatibility_level = int(OPENSSL_VERSION.split(".")[0])
-
     module_bazel_content = dedent(f"""\
         module(
             name = "openssl",
             version = "{tag}",
             bazel_compatibility = [">=7.2.1"],
-            compatibility_level = {compatibility_level},
+            compatibility_level = 3030100,
         )
 
         bazel_dep(name = "bazel_skylib", version = "1.7.1")
