@@ -14,11 +14,11 @@ on any host machine.
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
 from pathlib import Path
-from textwrap import dedent
 from typing import Any, NamedTuple
 
 from common import (
@@ -45,6 +45,8 @@ _EXTRACT_SRCS_PL = f"{GENERATOR_DIR}/extract_srcs.pl"
 _CONFIGDATA_TEMPLATE = f"{GENERATOR_DIR}/configdata.pm.in"
 _BUILDINF_TEMPLATE = f"{GENERATOR_DIR}/buildinf.h.in"
 _BATCH_DOFILE_PL = f"{OVERLAY_DIR}/bazel/batch_dofile.pl"
+# Rendered (not copied) into the overlay: see render_module_bazel.
+_MODULE_BAZEL_TEMPLATE = f"{OVERLAY_DIR}/MODULE.bazel"
 
 
 def _resolve_from_rlocation(env_var: str) -> str | None:
@@ -649,15 +651,19 @@ _HERMETIC_DOFILE_ENV = {
 }
 
 # Perlasm flavor → source platform (whose perlasm_gen_commands define the
-# script set) and the config_names that consume this flavor.
+# script set), the config_names that consume this flavor, and the toolchain
+# profile the perlasm scripts are told they are generating for (see
+# _PERLASM_PROBE_PROFILES).
 _PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
     "elf": {
         "source_platform": "linux-x86_64-clang",
         "consumers": ["linux_x86_64", "android_x86_64", "freebsd_x86_64"],
+        "probe_profile": "gnu",
     },
     "macosx": {
         "source_platform": "linux-x86_64-clang",
         "consumers": ["darwin_x86_64"],
+        "probe_profile": "clang",
     },
     "masm": {
         "source_platform": "VC-WIN64A-masm",
@@ -666,10 +672,12 @@ _PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
     "ios64": {
         "source_platform": "darwin64-arm64-cc",
         "consumers": ["darwin_arm64", "ios_arm64"],
+        "probe_profile": "clang",
     },
     "linux64": {
         "source_platform": "darwin64-arm64-cc",
         "consumers": ["linux_aarch64", "android_arm64", "freebsd_aarch64"],
+        "probe_profile": "gnu",
     },
     "win64": {
         "source_platform": "VC-WIN64-CLANGASM-ARM",
@@ -677,7 +685,49 @@ _PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
     },
 }
 
-# Windows assembly is generated at build time via perl_genrule (not
+# The perlasm scripts decide which instruction-set paths to emit by running
+# $CC and parsing its version output (GNU as version, clang version,
+# __clang_major__). Pre-generated assembly must not depend on whichever
+# compiler happens to be installed where the generator runs, so instead of a
+# real compiler the scripts are given a stub that answers those probes with
+# these pinned values. They therefore also define the minimum assembler a
+# consumer of the pre-generated files needs; anyone with an older one can
+# build with --@openssl//:use-pregenerated=False, which probes their real
+# toolchain at build time. The values match what the CI runners that
+# produced earlier releases reported (binutils 2.38 on ubuntu-22.04, Apple
+# clang 15 on macos-14), so they do not change the shipped output.
+_PERLASM_PROBE_PROFILES: dict[str, dict[str, str]] = {
+    "gnu": {"as_version": "2.38", "clang_version": ""},
+    "clang": {"as_version": "", "clang_version": "15.0.0"},
+}
+
+_PERLASM_PROBE_STUB = """\
+#!/bin/sh
+# Stand-in for $CC while pre-generating perlasm output. Answers only the
+# version probes made by crypto/*/asm/*.pl, with pinned values; see
+# _PERLASM_PROBE_PROFILES in generate_constants.py.
+AS_VERSION='{as_version}'
+CLANG_VERSION='{clang_version}'
+case " $* " in
+  *" -Wa,-v "*)
+    [ -n "$AS_VERSION" ] && echo "GNU assembler version $AS_VERSION (pinned by bazel-openssl-cc)" ;;
+  *" -dM "*)
+    [ -n "$CLANG_VERSION" ] && echo "#define __clang_major__ ${{CLANG_VERSION%%.*}}" ;;
+  *" -v "*|*" --version "*)
+    [ -n "$CLANG_VERSION" ] && echo "clang version $CLANG_VERSION (pinned by bazel-openssl-cc)" ;;
+esac
+exit 0
+"""
+
+
+def _write_probe_stub(directory: Path, profile: str) -> Path:
+    stub = directory / f"perlasm-cc-{profile}.sh"
+    stub.write_text(_PERLASM_PROBE_STUB.format(**_PERLASM_PROBE_PROFILES[profile]))
+    stub.chmod(0o755)
+    return stub
+
+
+# Windows assembly is generated at build time via openssl_perlasm (not
 # pre-generated) to ensure correct assembler probing.
 _WINDOWS_PERLASM_FLAVORS = frozenset({"masm", "win64"})
 
@@ -959,9 +1009,6 @@ def pregenerate_perlasm(
     # Build a lookup from Configure target → PlatformData.
     lookup = {p: d for p, d in platform_data.items()}
 
-    env = os.environ.copy()
-    env.setdefault("CC", "cc")
-
     if flavors is None:
         selected = ((f, info) for f, info in _PERLASM_FLAVORS.items() if f not in _WINDOWS_PERLASM_FLAVORS)
     else:
@@ -975,7 +1022,13 @@ def pregenerate_perlasm(
 
         pairs = _parse_perlasm_commands(data.perlasm_gen_commands)
         flavor_dir = generated_asm / flavor
-        print(f"    {flavor}: {len(pairs)} scripts")
+        flavor_dir.mkdir(parents=True, exist_ok=True)
+        print(f"    {flavor}: {len(pairs)} scripts ({info['probe_profile']} probe profile)")
+
+        # Only the pinned stub may answer the scripts' compiler probes; drop
+        # anything from the environment they might consult.
+        env = {k: v for k, v in os.environ.items() if k not in ("CC", "ASM", "CFLAGS")}
+        env["CC"] = str(_write_probe_stub(generated_asm, info["probe_profile"]))
 
         for tool_path, output_path in pairs:
             out_file = flavor_dir / output_path
@@ -993,6 +1046,9 @@ def pregenerate_perlasm(
             )
             if flavor == "masm":
                 _fix_masm_segment(out_file)
+
+    for stub in generated_asm.glob("perlasm-cc-*.sh"):
+        stub.unlink()
 
 
 # Features that should NOT be exposed as user-facing bool_flags.
@@ -1165,7 +1221,7 @@ def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
          Used only for include-path routing, independent of asm mode.
 
     Windows is excluded from _pregen_asm_* because its assembly is
-    generated at build time via perl_genrule.
+    generated at build time via openssl_perlasm.
     """
     if not known_platforms:
         return "def openssl_pregen_config_settings():\n    pass\n"
@@ -1412,8 +1468,9 @@ def main(
     print(f"Pregen files written to: {pregen}")
 
     # Overlay root = out. overlay/ in this repo has the same layout as the
-    # overlay shipped to BCR, so it is copied as-is (with version overrides).
-    srcs.copy_tree(OVERLAY_DIR, out)
+    # overlay shipped to BCR, so it is copied as-is (with version overrides),
+    # except MODULE.bazel, which is rendered with the module version below.
+    srcs.copy_tree(OVERLAY_DIR, out, exclude=frozenset({"MODULE.bazel"}))
 
     if buildifier_path:
         print("=== Formatting with buildifier ===")
@@ -1427,17 +1484,26 @@ def main(
             raise RuntimeError(
                 "--source_archive is required when generating BCR files (--bcr_dir and --tag were provided)"
             )
-        write_bcr_files(out, bcr_dir, tag, source_archive, version)
+        write_bcr_files(out, bcr_dir, tag, source_archive, version, srcs)
 
     print("=== Done ===")
     print(f"Overlay written to: {out}")
 
 
-# Bzlmod compatibility level shared by every published openssl module version.
-# All releases so far (3.3.x through 4.0.x) use this value; changing it for a
-# release line would make bzlmod refuse to resolve it alongside older releases
-# of the same line, so only change it deliberately.
-_BCR_COMPATIBILITY_LEVEL = 3030100
+def render_module_bazel(srcs: OverlaySources, tag: str) -> str:
+    """Render overlay/MODULE.bazel for a module version.
+
+    Markers are ``{{NAME}}`` (not the ``@@NAME@@`` of the other templates,
+    because buildifier reads ``@@`` inside a Starlark string as a canonical
+    repository name). ``{{PREGEN_INTEGRITY}}`` is deliberately left in place:
+    it is only known once the pre-generated archive is final and is filled in
+    by patch_bcr_pregen.py.
+    """
+    content = srcs.read_text(_MODULE_BAZEL_TEMPLATE).replace("{{BCR_TAG}}", tag)
+    leftover = sorted(set(re.findall(r"\{\{[A-Z_]+\}\}", content)) - {"{{PREGEN_INTEGRITY}}"})
+    if leftover:
+        raise RuntimeError(f"Unrendered markers in {_MODULE_BAZEL_TEMPLATE}: {leftover}")
+    return content
 
 
 def write_bcr_files(
@@ -1446,6 +1512,7 @@ def write_bcr_files(
     tag: str,
     source_archive: str,
     version: OpenSSLVersion,
+    srcs: OverlaySources,
 ) -> None:
     """Write BCR module files. Overlay root is out (contains BUILD.bazel, bazel/, configs/, etc.)."""
     openssl_module_dir = Path(bcr_dir) / "modules" / "openssl"
@@ -1454,33 +1521,7 @@ def write_bcr_files(
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(out / "presubmit.yml", out_dir / "presubmit.yml")
 
-    module_bazel_content = dedent(f"""\
-        module(
-            name = "openssl",
-            version = "{tag}",
-            bazel_compatibility = [">=7.2.1"],
-            compatibility_level = {_BCR_COMPATIBILITY_LEVEL},
-        )
-
-        bazel_dep(name = "bazel_skylib", version = "1.7.1")
-        bazel_dep(name = "platforms", version = "1.0.0")
-        bazel_dep(name = "rules_cc", version = "0.2.17")
-        bazel_dep(name = "rules_perl", version = "1.1.2")
-
-        http_archive = use_repo_rule(
-            "@bazel_tools//tools/build_defs/repo:http.bzl",
-            "http_archive",
-        )
-
-        http_archive(
-            name = "openssl_pregen",
-            urls = [
-                "https://github.com/raccoons-build/bazel-openssl-cc/releases/download/{tag}/bazel-openssl-cc-{tag}.tar.gz",
-            ],
-            integrity = "PLACEHOLDER",
-            strip_prefix = "pregen",
-        )
-    """)
+    module_bazel_content = render_module_bazel(srcs, tag)
 
     module_path = out_dir / "MODULE.bazel"
     module_path.parent.mkdir(parents=True, exist_ok=True)

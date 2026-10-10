@@ -87,44 +87,14 @@ jobs:
         path: bcr-core.tar.gz
         if-no-files-found: error
 
-  generate-macos:
-    name: generate (macOS perlasm, ${{ inputs.bcr_tag }})
-    runs-on: macos-14
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4.2.2
-      with:
-        ref: ${{ inputs.ref }}
-    - name: Download OpenSSL source
-      run: |
-        if [[ ! "$BCR_TAG" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.bcr\. ]]; then
-          echo "::error::bcr_tag '$BCR_TAG' must look like <MAJOR.MINOR.PATCH>.bcr.<N>"
-          exit 1
-        fi
-        version="${BASH_REMATCH[1]}"
-        curl -fL -o /tmp/openssl.tar.gz "https://github.com/openssl/openssl/releases/download/openssl-${version}/openssl-${version}.tar.gz"
-        mkdir -p /tmp/openssl-src
-        tar xzf /tmp/openssl.tar.gz -C /tmp/openssl-src
-        echo "OPENSSL_SRC=/tmp/openssl-src/openssl-${version}" >> "$GITHUB_ENV"
-    - run: >
-        python3 generator/generate_constants.py
-        --openssl_source_dir=$OPENSSL_SRC
-        --output_dir=/tmp/macos-asm
-        --perlasm-only=macosx,ios64
-    - run: tar czf /tmp/macos-asm.tar.gz -C /tmp/macos-asm/generated/asm .
-    - name: Upload macOS ASM
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-asm-${{ inputs.bcr_tag }}
-        path: /tmp/macos-asm.tar.gz
-        if-no-files-found: error
-
+  # The pre-generated assembly no longer depends on the machine that produces
+  # it (the generator answers the perlasm compiler probes with pinned values),
+  # so a single Linux job produces every flavour; there is no macOS job.
   generate-merge:
-    name: merge pregen (${{ inputs.bcr_tag }})
+    name: package pregen (${{ inputs.bcr_tag }})
     runs-on: ubuntu-latest
     needs:
       - generate-linux
-      - generate-macos
     steps:
       - name: Download core pregen
         uses: actions/download-artifact@v4
@@ -132,16 +102,6 @@ jobs:
           name: core-pregen-${{ inputs.bcr_tag }}
           path: /tmp/
       - run: (cd /tmp && tar xzf core-pregen.tar.gz)
-      - name: Download macOS ASM
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-asm-${{ inputs.bcr_tag }}
-          path: /tmp/
-      - name: Overlay macOS ASM into pregen
-        run: |
-          rm -rf /tmp/pregen/generated/asm/macosx /tmp/pregen/generated/asm/ios64
-          mkdir -p /tmp/pregen/generated/asm
-          tar xzf /tmp/macos-asm.tar.gz -C /tmp/pregen/generated/asm
       - name: Download core BCR
         uses: actions/download-artifact@v4
         with:

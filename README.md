@@ -10,7 +10,7 @@ Generates a bzlmod overlay to compile OpenSSL with `cc_library` targets. Based o
 | Directory    | Contents                                                                                                   |
 | ------------ | ---------------------------------------------------------------------------------------------------------- |
 | `generator/` | The `//generator:generate` binary and its inputs (`extract_srcs.pl`, `configdata.pm.in`, `buildinf.h.in`). |
-| `overlay/`   | Copied verbatim into the BCR overlay, same layout: `BUILD.bazel`, `bazel/*.bzl`, `configs/BUILD.bazel`.    |
+| `overlay/`   | The BCR overlay, same layout: `MODULE.bazel` (rendered), `BUILD.bazel`, `bazel/*.bzl`, `configs/BUILD.bazel`. |
 | `pregen/`    | Copied verbatim into the root of the pre-generated archive published on GitHub releases.                   |
 | `versions/`  | Optional per-OpenSSL-version overrides of any of the above. See [versions/README.md](versions/README.md). |
 
@@ -50,11 +50,19 @@ At build time, `select()` routes between three modes:
 | Mode                        | When                                          | What happens                                                                                         |
 | --------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | **Pre-generated** (default) | Known platform, `use-pregenerated=True`       | `pregen_files` symlinks static files to canonical output paths. Zero Perl.                           |
-| **Perl fallback**           | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `perl_genrule` run Perl via `rules_perl`. Always used for Windows assembly. |
+| **Perl fallback**           | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `openssl_perlasm` run Perl via `rules_perl`. Always used for Windows assembly. |
 | **No-asm**                  | `use-no-asm-fallback=True`                    | Portable C only. No assembly, no Perl.                                                               |
 
 Both pregen and Perl paths produce outputs at identical canonical paths (e.g.
 `include/openssl/bio.h`), so downstream targets need no mode-specific include paths.
+
+The perlasm scripts choose instruction-set paths by probing `$CC`. In the Perl path that
+is the configured `cc_toolchain` compiler, so the result matches the toolchain actually
+assembling the output. In the pre-generated path the generator answers those probes with
+pinned values instead of a real compiler (GNU as 2.38 for `elf`/`linux64`, clang 15 for
+`macosx`/`ios64`; see `_PERLASM_PROBE_PROFILES`), so the shipped assembly is identical no
+matter where it was generated and those are the minimum assemblers it requires. Older
+toolchains should build with `--@openssl//:use-pregenerated=False`.
 
 ## Build Flags
 

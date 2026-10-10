@@ -159,6 +159,25 @@ foreach (sort keys %perlasm) {
     push(@perlasm_gen_commands, $cmd);
 }
 
+# -D flags that upstream passes on the command line through *cppflags*
+# rather than *defines* (e.g. the per-target L_ENDIAN / B_ENDIAN).
+sub cppflag_defines {
+    my @out;
+    foreach my $flags (@_) {
+        next unless defined $flags;
+        my @list = ref $flags eq 'ARRAY' ? @$flags : split(/\s+/, $flags);
+        push @out, map { s/^-D//r } grep { /^-D/ } @list;
+    }
+    return @out;
+}
+
+# The apps get upstream's BIN_CPPFLAGS: the configuration-wide defines and
+# cppflags, but not the library-only ones.
+foreach my $def (@{$config{defines} // []},
+                 cppflag_defines($target{cppflags}, $config{cppflags})) {
+    $openssl_app_defines{$def} = () unless exists $openssl_app_defines{$def};
+}
+
 # Build defines lists
 my @libcrypto_defines_list;
 foreach my $def (sort keys %libcrypto_defines) {
@@ -188,9 +207,14 @@ if (exists $config{lib_defines}) {
 if (exists $config{openssl_other_defines}) {
     push @defines, @{$config{openssl_other_defines}}
 }
+# Everything upstream's LIB_CPPFLAGS carries, e.g. L_ENDIAN / B_ENDIAN.
+push @defines, cppflag_defines($target{cppflags}, $target{lib_cppflags},
+                               $config{cppflags}, $config{lib_cppflags});
 
+my %seen_define;
 my @openssl_defines_list;
 foreach (sort @defines) {
+    next if $seen_define{$_}++;
     push(@openssl_defines_list, "-D" . $_);
 }
 

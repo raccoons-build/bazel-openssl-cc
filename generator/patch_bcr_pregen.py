@@ -1,7 +1,7 @@
 """Patch BCR module files after the pregen tarball is finalized.
 
-Computes the integrity hash of the pregen tarball, patches the
-PLACEHOLDER in MODULE.bazel, optionally overrides the download URL
+Computes the integrity hash of the pregen tarball, fills in the
+{{PREGEN_INTEGRITY}} marker in MODULE.bazel (see overlay/MODULE.bazel), optionally overrides the download URL
 (for local CI testing with file:// paths), and recomputes all overlay
 file hashes in source.json.
 """
@@ -17,7 +17,7 @@ from common import integrity_hash
 
 def patch_module_bazel(path: Path, integrity: str, url_override: str | None) -> None:
     text = path.read_text()
-    text = text.replace('integrity = "PLACEHOLDER"', f'integrity = "{integrity}"')
+    text = text.replace("{{PREGEN_INTEGRITY}}", integrity)
     if url_override:
         text = re.sub(
             r'"https://github\.com/raccoons-build/bazel-openssl-cc/releases/download/[^"]*"',

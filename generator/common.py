@@ -240,10 +240,17 @@ class OverlaySources:
                     found.add(f.relative_to(d).as_posix())
         return sorted(found)
 
-    def copy_tree(self, rel_dir: str, dst: Path) -> None:
-        """Copy every file under ``rel_dir`` (with overrides applied) to ``dst``, preserving layout."""
+    def copy_tree(self, rel_dir: str, dst: Path, exclude: frozenset[str] = frozenset()) -> None:
+        """Copy every file under ``rel_dir`` (with overrides applied) to ``dst``, preserving layout.
+
+        ``exclude`` lists paths relative to ``rel_dir`` to leave out, e.g. files
+        the caller renders rather than copies.
+        """
         for rel in self.tree_files(rel_dir):
-            self.copy_to(rel, dst / Path(rel).relative_to(rel_dir))
+            tree_rel = Path(rel).relative_to(rel_dir)
+            if tree_rel.as_posix() in exclude:
+                continue
+            self.copy_to(rel, dst / tree_rel)
 
     def overrides_in_effect(self) -> list[Path]:
         """Override directories that exist for this version, most specific first (lookup order)."""
