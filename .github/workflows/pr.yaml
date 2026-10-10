@@ -3,17 +3,25 @@ name: Pull Request
   workflow_dispatch: null
   pull_request: null
 jobs:
+  versions:
+    # The OpenSSL versions the overlay is expected to support, shared with
+    # nightly.yaml. Add a version to .github/openssl-versions.json to start
+    # verifying it; see versions/README.md if it needs overlay changes.
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.read.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - id: read
+        run: echo "list=$(jq -c . .github/openssl-versions.json)" >> "$GITHUB_OUTPUT"
+
   generate-and-test:
     name: openssl ${{ matrix.openssl_version }}
+    needs: versions
     strategy:
       fail-fast: false
       matrix:
-        # Every OpenSSL version the overlay is expected to support. Add a
-        # version here to start verifying it; see versions/README.md if it
-        # needs version-specific overlay changes.
-        openssl_version:
-          - "4.0.1"
-          - "3.5.5"
+        openssl_version: ${{ fromJSON(needs.versions.outputs.list) }}
     uses: ./.github/workflows/generate.yaml
     with:
       bcr_tag: ${{ matrix.openssl_version }}.bcr.wip

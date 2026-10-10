@@ -180,13 +180,40 @@ class OpenSSLVersion(NamedTuple):
 _SELECTOR_RE = re.compile(r"\d+(\.\d+){0,2}")
 
 
+def module_version_key(version: str) -> tuple[list[tuple[int, int | str]], tuple[int, list[tuple[int, int | str]]]]:
+    """Sort key implementing Bazel module version ordering, as the BCR's validation enforces it.
+
+    ``RELEASE[-PRERELEASE][+BUILD]``; release and prerelease are dot-separated
+    identifiers compared one by one, numeric identifiers numerically and before
+    any non-numeric one; a version without a prerelease sorts after one with.
+    Build metadata is ignored. Mirrors ``Version`` in the registry's
+    ``tools/registry.py``.
+    """
+    m = re.fullmatch(r"([a-zA-Z0-9.]+)(?:-([a-zA-Z0-9.-]+))?(?:\+[a-zA-Z0-9.-]+)?", version)
+    if not m:
+        raise ValueError(f"{version!r} is not a valid Bazel module version")
+
+    def identifiers(part: str) -> list[tuple[int, int | str]]:
+        # (0, int) sorts before (1, str): numeric identifiers have lower precedence.
+        return [(0, int(i)) if i.isdigit() else (1, i) for i in part.split(".")]
+
+    release, prerelease = m.group(1), m.group(2)
+    return identifiers(release), (1, []) if prerelease is None else (0, identifiers(prerelease))
+
+
 def add_to_metadata(openssl_module_dir: Path, tag: str) -> None:
-    """Register ``tag`` in the BCR module's metadata.json (idempotent)."""
+    """Register ``tag`` in the BCR module's metadata.json (idempotent).
+
+    The registry requires ``versions`` sorted by module version, so this sorts
+    rather than appends: a 3.x release cut after a 4.x one must land in the
+    middle of the list.
+    """
     metadata_path = openssl_module_dir / "metadata.json"
     with open(metadata_path, "r") as f:
         content = json.load(f)
-    if tag not in content["versions"]:
-        content["versions"].append(tag)
+    versions = set(content["versions"])
+    versions.add(tag)
+    content["versions"] = sorted(versions, key=module_version_key)
     with open(metadata_path, "w") as f:
         f.write(json.dumps(content, sort_keys=True, indent="  ") + "\n")
 

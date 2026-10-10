@@ -1,0 +1,32 @@
+# Nightly: rehearse a release of the current main for every supported OpenSSL
+# version. Runs the real Release workflow in dry-run mode, so everything a
+# release does is exercised (tag selection, generation, the full build and test
+# matrix, assembling the registry change) except publishing. A red nightly means
+# the next release would fail; a new upstream OpenSSL release that breaks
+# generation shows up here once added to .github/openssl-versions.json.
+name: Nightly release rehearsal
+"on":
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch: null
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.read.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - id: read
+        run: echo "list=$(jq -c . .github/openssl-versions.json)" >> "$GITHUB_OUTPUT"
+
+  rehearse-release:
+    name: openssl ${{ matrix.openssl_version }}
+    needs: versions
+    strategy:
+      fail-fast: false
+      matrix:
+        openssl_version: ${{ fromJSON(needs.versions.outputs.list) }}
+    uses: ./.github/workflows/release.yaml
+    with:
+      openssl_version: ${{ matrix.openssl_version }}
+      dry_run: true

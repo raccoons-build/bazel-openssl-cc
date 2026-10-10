@@ -12,6 +12,11 @@
 # platform and Bazel version, and only then upload the pre-generated tarball
 # as a GitHub release asset and open a PR against the registry. If anything
 # fails, nothing is published and no tag is created.
+#
+# nightly.yaml calls this workflow with dry_run=true for every supported
+# version: the whole pipeline runs against the current commit, including
+# assembling the registry change, and only the three publishing steps (tag,
+# GitHub release, registry PR) are skipped.
 name: Release
 'on':
   workflow_dispatch:
@@ -28,6 +33,24 @@ name: Release
           this OpenSSL version.
         required: false
         type: string
+      dry_run:
+        description: Run everything except creating the tag, the GitHub release and the registry PR.
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      openssl_version:
+        required: true
+        type: string
+      bcr_revision:
+        required: false
+        type: string
+        default: ""
+      dry_run:
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
     - '*'
@@ -47,6 +70,7 @@ jobs:
         env:
           VERSION: ${{ inputs.openssl_version }}
           REVISION: ${{ inputs.bcr_revision }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || '' }}
         run: |
           set -euo pipefail
           if [[ -z "$VERSION" ]]; then
@@ -78,7 +102,7 @@ jobs:
             echo "::error::'$TAG' is not a release tag (<MAJOR.MINOR.PATCH>.bcr.<N>)"
             exit 1
           fi
-          echo "Releasing $TAG from $GITHUB_SHA"
+          echo "Releasing $TAG from $GITHUB_SHA${DRY_RUN:+ (dry run: nothing will be published)}"
           echo "bcr_tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # Generates, then runs the full test matrix; `release` below only starts
@@ -115,15 +139,25 @@ jobs:
           path: /tmp/
       - run: mkdir -p /tmp/generated && tar xzf /tmp/bcr.tar.gz -C /tmp/generated
       - run: sha256sum bazel-openssl-cc-${BCR_TAG}.tar.gz
+      # The registry change is prepared on the fork for a real release and on
+      # a plain upstream checkout for a dry run (no secret needed).
       - name: Checkout BCR fork
+        if: ${{ !inputs.dry_run }}
         uses: actions/checkout@v4.2.2
         with:
           repository: illicitonion/bazel-central-registry
           token: ${{ secrets.BCR_GITHUB_TOKEN }}
           path: bazel-central-registry
           ref: refs/heads/main
+      - name: Checkout BCR (dry run)
+        if: ${{ inputs.dry_run }}
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: bazelbuild/bazel-central-registry
+          path: bazel-central-registry
+          ref: refs/heads/main
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - name: Sync fork with upstream and add the new module version
+      - name: Sync with upstream, add the new module version and commit
         run: |
           cd bazel-central-registry
           git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git
@@ -132,10 +166,23 @@ jobs:
           rm -rf "modules/openssl/${BCR_TAG}"
           cp -r "/tmp/generated/bazel-central-registry/modules/openssl/${BCR_TAG}" modules/openssl/
           PYTHONPATH=../repo/generator python3 -c 'import sys; from pathlib import Path; from common import add_to_metadata; add_to_metadata(Path("modules/openssl"), sys.argv[1])' "$BCR_TAG"
+          git checkout -b prep-${BCR_TAG}
+          git add .
+          git commit -m "Release openssl ${BCR_TAG}"
+          git show --stat HEAD
+      # The registry's own presubmit checks (source archive integrity, overlay
+      # hashes, metadata.json ordering, ...), run here so a problem fails the
+      # release instead of the registry PR.
+      - name: Validate the module with the registry's checks
+        run: |
+          python3 -m pip install --quiet requests pyyaml zstandard
+          cd bazel-central-registry
+          python3 tools/bcr_validation.py --registry . --check "openssl@${BCR_TAG}"
       # Creates the tag at this commit if it does not exist yet (manual runs),
       # then the GitHub release with the pre-generated archive. Done before the
       # BCR PR so the URL the module points at resolves as soon as the PR opens.
       - name: Create tag and GitHub release
+        if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.BCR_TAG }}
@@ -143,6 +190,10 @@ jobs:
           files: |
             bazel-openssl-cc-${{ env.BCR_TAG }}.tar.gz
       - name: Open BCR pull request
-        run: cd bazel-central-registry && git checkout -b prep-${BCR_TAG} && git add . && git commit -m "Release openssl ${BCR_TAG}" && git push -u origin prep-${BCR_TAG} && gh pr create --title "Add openssl ${BCR_TAG}" --body "" --repo bazelbuild/bazel-central-registry
+        if: ${{ !inputs.dry_run }}
+        run: cd bazel-central-registry && git push -u origin prep-${BCR_TAG} && gh pr create --title "Add openssl ${BCR_TAG}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: echo "Dry run of release ${BCR_TAG} from ${GITHUB_SHA} succeeded; nothing was published."
