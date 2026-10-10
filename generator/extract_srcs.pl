@@ -81,6 +81,19 @@ foreach my $src (keys %libcrypto_srcs) {
     }
 }
 
+# Collect util/dofile.pl templates: every generated file whose generator is
+# a *.in template. Only C-relevant outputs matter to the Bazel overlay; the
+# rest (pkg-config files, man pages, CMake exporters, ...) are ignored. Keyed
+# by template path, valued by output path.
+my %dofile_templates;
+foreach my $out (sort keys %{$unified_info{generate}}) {
+    my @gen = @{$unified_info{generate}->{$out}};
+    next unless $gen[0] =~ m/\.in$/;
+    next unless $out =~ m/\.(h|c|inc)$/;
+    next if $out =~ m{^(test|fuzz|demos|doc)/};
+    $dofile_templates{normalize_path($gen[0])} = normalize_path($out);
+}
+
 # Build data structures for JSON output
 my @libcrypto_srcs_list;
 foreach (sort keys %libcrypto_srcs) {
@@ -190,5 +203,6 @@ my %output_data = (
     config_openssl_api_defines => \@config_openssl_api_defines,
     config_openssl_feature_defines => \@config_openssl_feature_defines,
     disablables => \@disablables,
+    dofile_templates => \%dofile_templates,
 );
 print $json->encode(\%output_data);

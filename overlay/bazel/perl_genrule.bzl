@@ -8,6 +8,8 @@ load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc:defs.bzl", "CcInfo", "cc_common")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 
+_PERL_TOOLCHAIN_TYPE = "@rules_perl//perl:toolchain_type"
+
 def _perl_genrule_impl(ctx):
     cc_toolchain = find_cc_toolchain(ctx)
 
@@ -24,7 +26,7 @@ def _perl_genrule_impl(ctx):
         ),
     }
 
-    perl_runtime = ctx.attr._perl_toolchain[platform_common.ToolchainInfo].perl_runtime
+    perl_runtime = ctx.toolchains[_PERL_TOOLCHAIN_TYPE].perl_runtime
     perl_interpreter = perl_runtime.interpreter
     additional_srcs = []
     for src in ctx.attr.additional_srcs:
@@ -51,6 +53,10 @@ def _perl_genrule_impl(ctx):
                 env = env,
                 tools = tools,
                 mnemonic = "OpenSSLPerlasm",
+                # The executable is the Perl interpreter, so under
+                # --incompatible_auto_exec_groups this action runs on the
+                # platform the Perl toolchain was resolved for.
+                toolchain = _PERL_TOOLCHAIN_TYPE,
             )
 
     if not outs_as_files:
@@ -87,11 +93,7 @@ perl_genrule = rule(
             doc = "Dict of perlasm script to output file path for scripts that appear in srcs_to_outs with a different output.",
             allow_files = True,
         ),
-        "_perl_toolchain": attr.label(
-            cfg = "exec",
-            default = Label("@rules_perl//perl:current_toolchain"),
-        ),
     },
     fragments = ["cpp"],
-    toolchains = use_cc_toolchain(),
+    toolchains = use_cc_toolchain() + [_PERL_TOOLCHAIN_TYPE],
 )

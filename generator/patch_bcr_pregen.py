@@ -7,18 +7,12 @@ file hashes in source.json.
 """
 
 import argparse
-import base64
-import hashlib
 import json
 import os
 import re
 from pathlib import Path
 
-
-def integrity_hash(path: Path) -> str:
-    with path.open("rb") as f:
-        digest = hashlib.file_digest(f, "sha256").digest()
-    return "sha256-" + base64.b64encode(digest).decode()
+from common import integrity_hash
 
 
 def patch_module_bazel(path: Path, integrity: str, url_override: str | None) -> None:

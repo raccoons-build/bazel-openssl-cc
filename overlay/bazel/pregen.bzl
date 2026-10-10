@@ -93,36 +93,45 @@ def pregen_filegroups():
     Exposes the raw generated files so that pregen_files rules in the
     @openssl overlay can consume them as label inputs.
     """
+
+    # Globs are deliberately broad: the set of generated files (and where
+    # they live) changes between OpenSSL versions, and the generator already
+    # decided what belongs in common/ versus a per-platform directory.
     native.filegroup(
         name = "common_hdrs",
-        srcs = native.glob([
-            "generated/common/include/**/*.h",
-            "generated/common/providers/common/include/**/*.h",
-            "generated/common/providers/implementations/**/*.inc",
-        ]) + [
-            "generated/common/crypto/buildinf.h",
-            "generated/common/apps/progs.h",
-        ],
+        srcs = native.glob(
+            [
+                "generated/common/**/*.h",
+                "generated/common/**/*.inc",
+            ],
+            allow_empty = True,
+        ),
     )
     native.filegroup(
         name = "common_srcs",
-        srcs = native.glob([
-            "generated/common/providers/**/*.c",
-        ]) + ["generated/common/apps/progs.c"],
+        srcs = native.glob(
+            ["generated/common/**/*.c"],
+            allow_empty = True,
+        ),
     )
-    for plat in _PREGEN_PLATFORMS:
+    for plat in _PREGEN_PLATFORMS + ["no_asm"]:
         native.filegroup(
             name = plat + "_hdrs",
-            srcs = native.glob(["generated/" + plat + "/include/**/*.h"]),
+            srcs = native.glob(
+                [
+                    "generated/" + plat + "/**/*.h",
+                    "generated/" + plat + "/**/*.inc",
+                ],
+                allow_empty = True,
+            ),
         )
-    native.filegroup(
-        name = "no_asm_hdrs",
-        srcs = native.glob(["generated/no_asm/include/**/*.h"]),
-    )
     for flavor in ["elf", "ios64", "linux64", "macosx"]:
         native.filegroup(
             name = "asm_" + flavor,
-            srcs = native.glob(["generated/asm/" + flavor + "/**"]),
+            srcs = native.glob(
+                ["generated/asm/" + flavor + "/**"],
+                allow_empty = True,
+            ),
         )
 
 # buildifier: disable=unnamed-macro

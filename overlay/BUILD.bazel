@@ -397,6 +397,13 @@ perl_genrule(
 
 # --- Textual headers (files #included as C source) ---
 
+# OpenSSL 3.x ships the CAPI engine, whose error table is #included as source
+# on Windows. OpenSSL 4.x removed engines/ entirely, hence allow_empty.
+_ENGINE_TEXTUAL_HDRS = glob(
+    include = ["engines/e_capi_err.*"],
+    allow_empty = True,
+)
+
 CRYPTO_TEXTUAL_HDRS = [
     "crypto/des/ncbc_enc.c",
 ] + glob(
@@ -409,7 +416,7 @@ CRYPTO_TEXTUAL_HDRS = [
         "crypto/bn/bn_asm.c",
         "ms/applink.c",
         "ms/uplink.h",
-    ],
+    ] + _ENGINE_TEXTUAL_HDRS,
     "//conditions:default": ["crypto/LPdir_unix.c"],
 })
 
@@ -473,7 +480,7 @@ LIBCRYPTO_INCLUDES = [
 LIBCRYPTO_WINDOWS_INCLUDES = [
     "ms",
     "crypto/bn",
-]
+] + (["engines"] if _ENGINE_TEXTUAL_HDRS else [])
 
 # crypt32 is pulled in by the CAPI engine (engines/e_capi.c); ws2_32/advapi32/
 # user32 back sockets and registry/user APIs.

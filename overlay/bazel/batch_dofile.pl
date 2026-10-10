@@ -16,9 +16,27 @@ use strict;
 use warnings;
 
 use FindBin;
+use Symbol ();
 use lib "$FindBin::Bin/perl";
 use OpenSSL::fallback "$FindBin::Bin/../external/perl/MODULES.txt";
 use OpenSSL::Template;
+
+# OpenSSL renders every template in its own perl process. Some helper modules
+# keep process-global state that would leak between templates when batched:
+# OpenSSL::OID (used via oids_to_c) registers every OID it parses, and an OID
+# registered as a leaf by one .asn1 file silently becomes an arc once another
+# file uses it as a parent, changing what process_leaves() emits. To keep the
+# per-process semantics, both modules are unloaded and oids_to_c re-required
+# (which pulls in a fresh OpenSSL::OID) before each template.
+sub reset_stateful_modules {
+    return unless exists $INC{'oids_to_c.pm'};
+    for my $mod (qw(oids_to_c OpenSSL::OID)) {
+        (my $file = "$mod.pm") =~ s{::}{/}g;
+        delete $INC{$file};
+        Symbol::delete_package($mod);
+    }
+    require oids_to_c;
+}
 
 die "You must run this script with -Mconfigdata\n"
     if !exists($config{target});
@@ -78,6 +96,8 @@ use platform;
 _____
 
 for my $pair (@pairs) {
+    reset_stateful_modules();
+
     my $template = OpenSSL::Template->new(
         TYPE     => 'FILE',
         SOURCE   => $pair->{in},

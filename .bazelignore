@@ -1,0 +1,5 @@
+# Directories copied verbatim into generated outputs; their BUILD files are
+# not packages of this repository.
+overlay
+pregen
+versions

@@ -23,18 +23,28 @@ from typing import Any, NamedTuple
 
 from common import (
     ALL_PLATFORMS,
+    GENERATOR_DIR,
     IOS_PLATFORMS,
     MAC_PLATFORMS,
     NO_ASM_TARGET,
-    OPENSSL_VERSION,
+    OVERLAY_DIR,
     PLATFORM_CONSTRAINTS,
+    PREGEN_DIR,
     WINDOWS_PLATFORMS,
-    copy_from_here_to,
+    OpenSSLVersion,
+    OverlaySources,
+    add_to_metadata,
     get_configure_target,
     get_simple_config_name,
     integrity_hash,
-    script_dir,
+    repo_root,
 )
+
+# Generator inputs (repo-relative; all overridable per version via versions/).
+_EXTRACT_SRCS_PL = f"{GENERATOR_DIR}/extract_srcs.pl"
+_CONFIGDATA_TEMPLATE = f"{GENERATOR_DIR}/configdata.pm.in"
+_BUILDINF_TEMPLATE = f"{GENERATOR_DIR}/buildinf.h.in"
+_BATCH_DOFILE_PL = f"{OVERLAY_DIR}/bazel/batch_dofile.pl"
 
 
 def _resolve_from_rlocation(env_var: str) -> str | None:
@@ -123,6 +133,8 @@ class PlatformData(NamedTuple):
     openssl_defines: list[str]
     disablables: list[str]
     config_header_data: ConfigHeaderData
+    # util/dofile.pl templates this configuration generates: template -> output.
+    dofile_templates: dict[str, str]
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PlatformData":
@@ -130,6 +142,9 @@ class PlatformData(NamedTuple):
             val = data.get(key, [])
             assert isinstance(val, list)
             return [str(x) for x in val]
+
+        templates = data["dofile_templates"]
+        assert isinstance(templates, dict)
 
         str_lists: dict[str, list[str]] = {}
         for key in [
@@ -155,6 +170,7 @@ class PlatformData(NamedTuple):
             openssl_defines=sorted(set(str_lists["openssl_defines"])),
             disablables=str_lists["disablables"],
             config_header_data=ConfigHeaderData.from_dict(data),
+            dofile_templates={str(k): str(v) for k, v in templates.items()},
         )
 
     def all_crypto_srcs(self) -> set[str]:
@@ -265,6 +281,7 @@ def write_config_file(openssl_dir: Path, platform: str) -> None:
 def extract_platform_data(
     openssl_dir: Path,
     platform: str,
+    srcs: OverlaySources,
     perl_path: str = "perl",
 ) -> PlatformData:
     """Run Configure and extract source lists for a platform."""
@@ -277,7 +294,7 @@ def extract_platform_data(
             "-I.",
             "-l",
             "-Mconfigdata",
-            str(script_dir() / "extract_srcs.pl"),
+            str(srcs.resolve(_EXTRACT_SRCS_PL)),
             simple_platform,
         ],
         cwd=openssl_dir,
@@ -454,11 +471,7 @@ def _render_perl_list(items: tuple[str, ...] | list[str]) -> str:
     return f"[{inner}]"
 
 
-def _configdata_template() -> str:
-    return (script_dir() / "configdata.pm.in").read_text()
-
-
-def _render_configdata_stub(profile: _ConfigProfile) -> str:
+def _render_configdata_stub(profile: _ConfigProfile, srcs: OverlaySources) -> str:
     """Render a complete configdata.pm stub for a given config profile."""
     feature_lines = [f'        "{d}",' for d in profile.openssl_feature_defines]
     feature_block = "[\n" + "\n".join(feature_lines) + "\n    ]" if feature_lines else "[]"
@@ -481,7 +494,7 @@ def _render_configdata_stub(profile: _ConfigProfile) -> str:
         "@@DISABLABLES@@": disablables_str,
     }
 
-    result = _configdata_template()
+    result = srcs.read_text(_CONFIGDATA_TEMPLATE)
     for marker, value in replacements.items():
         result = result.replace(marker, value)
     return result
@@ -491,6 +504,7 @@ def generate_configdata_stubs(
     platform_data: dict[str, PlatformData],
     no_asm_data: PlatformData,
     output_dir: Path,
+    srcs: OverlaySources,
 ) -> None:
     """Generate per-platform configdata stubs.
 
@@ -509,12 +523,12 @@ def generate_configdata_stubs(
         profile = _make_profile(data.config_header_data, platform, disablables)
         subdir = configdata_base / config_name
         subdir.mkdir(parents=True, exist_ok=True)
-        (subdir / "configdata.pm").write_text(_render_configdata_stub(profile))
+        (subdir / "configdata.pm").write_text(_render_configdata_stub(profile, srcs))
 
     no_asm_profile = _make_profile(no_asm_data.config_header_data, NO_ASM_TARGET, disablables)
     no_asm_subdir = configdata_base / "no_asm"
     no_asm_subdir.mkdir(parents=True, exist_ok=True)
-    (no_asm_subdir / "configdata.pm").write_text(_render_configdata_stub(no_asm_profile))
+    (no_asm_subdir / "configdata.pm").write_text(_render_configdata_stub(no_asm_profile, srcs))
 
 
 def write_constants_build(output_dir: Path) -> None:
@@ -526,44 +540,48 @@ def write_constants_build(output_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def discover_dofile_templates(openssl_dir: Path) -> dict[str, str]:
-    """Map each util/dofile.pl input path (relative to the OpenSSL root) to its output path.
+def collect_dofile_templates(
+    platform_data: dict[str, PlatformData],
+    no_asm_data: PlatformData,
+) -> dict[str, str]:
+    """Union of util/dofile.pl templates (template -> output) across all configurations.
 
-    Scans the same subtrees OpenSSL uses for generated headers and sources, so new
-    ``*.in`` templates are picked up when upgrading the upstream tarball without
-    editing this script.
+    The set comes from each configuration's ``%unified_info{generate}`` (see
+    extract_srcs.pl), i.e. from OpenSSL's own build description, so new or
+    removed templates in a different OpenSSL version are picked up without
+    editing this script or the overlay rules.
     """
-    roots = [
-        openssl_dir / "include",
-        openssl_dir / "crypto",
-        openssl_dir / "providers" / "common" / "include" / "prov",
-        openssl_dir / "providers" / "common" / "der",
-        openssl_dir / "providers" / "implementations",
-    ]
     found: dict[str, str] = {}
-    for root in roots:
-        if not root.is_dir():
-            continue
-        for path in root.rglob("*.in"):
-            rel_in = path.relative_to(openssl_dir).as_posix()
-            out = (path.parent / path.stem).relative_to(openssl_dir).as_posix()
-            found[rel_in] = out
+    for data in list(platform_data.values()) + [no_asm_data]:
+        for template_in, template_out in data.dofile_templates.items():
+            prev = found.setdefault(template_in, template_out)
+            if prev != template_out:
+                raise RuntimeError(f"Template {template_in} has conflicting outputs: {prev} vs {template_out}")
     if not found:
-        raise RuntimeError(
-            f"No *.in dofile templates found under {openssl_dir} (expected include/, crypto/, providers/common/...)"
-        )
+        raise RuntimeError("configdata.pm lists no *.in dofile templates; is this an OpenSSL 3.0+ source tree?")
     return dict(sorted(found.items()))
 
 
-# Templates whose output varies by platform (uses %config or %target values
-# that differ across configdata stubs).
-_PLATFORM_SPECIFIC_TEMPLATE_INPUTS: frozenset[str] = frozenset(
-    {
-        "include/openssl/configuration.h.in",
-        "include/crypto/bn_conf.h.in",
-        "include/crypto/dso_conf.h.in",
-    }
-)
+def write_templates_bzl(constants_dir: Path, templates: dict[str, str]) -> None:
+    """Write templates.bzl, consumed by bazel/openssl_genrule.bzl for the Perl (from-source) path.
+
+    Keeping this generated guarantees the Perl path and the pre-generated path
+    produce exactly the same set of files.
+    """
+    indent = " " * 4
+    hdrs = {k: v for k, v in templates.items() if not v.endswith(".c")}
+    srcs = {k: v for k, v in templates.items() if v.endswith(".c")}
+    content = f"""\
+# Generated code. DO NOT EDIT.
+#
+# util/dofile.pl templates (template -> output), extracted from configdata.pm.
+
+DOFILE_HDR_TEMPLATES = {json.dumps(hdrs, indent=indent)}
+
+DOFILE_SRC_TEMPLATES = {json.dumps(srcs, indent=indent)}
+"""
+    (constants_dir / "templates.bzl").write_text(content)
+
 
 _HERMETIC_DOFILE_ENV = {
     "SOURCE_DATE_EPOCH": "443779200",
@@ -632,110 +650,121 @@ def _cleanup_source_configdata(openssl_dir: Path) -> None:
         shutil.rmtree(configdata_dir)
 
 
-def _run_dofile(
+# batch_dofile.pl resolves OpenSSL's Perl modules relative to its own location
+# (it mirrors util/dofile.pl), so at generation time it is placed in util/.
+_BATCH_DOFILE_IN_SOURCE = Path("util") / "_bazel_batch_dofile.pl"
+
+
+def _run_batch_dofile(
     openssl_dir: Path,
     configdata_dir: Path,
-    template_in: str,
-    output_path: Path,
+    templates: dict[str, str],
+    out_root: Path,
     perl_path: str = "perl",
 ) -> None:
-    """Run util/dofile.pl for a single template, capturing stdout."""
+    """Render every template with one configdata stub, in a single Perl process.
+
+    This is the same batch_dofile.pl the overlay runs at build time, so the
+    pre-generated files are produced by exactly the code path they replace.
+    """
+    params_lines = []
+    for template_in, template_out in templates.items():
+        out_path = out_root / template_out
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        params_lines.append(f"--in={template_in}")
+        params_lines.append(f"--out={out_path}")
+    params_file = out_root / "_dofile.params"
+    params_file.write_text("\n".join(params_lines) + "\n")
+
     cmd = [
         perl_path,
         f"-I{configdata_dir}",
         "-Mconfigdata",
+        f"-I{openssl_dir / 'util' / 'perl'}",
+        f"-I{openssl_dir / 'providers' / 'common' / 'der'}",
+        "-Moids_to_c",
+        str(openssl_dir / _BATCH_DOFILE_IN_SOURCE),
+        f"@{params_file}",
     ]
-    if template_in.startswith("providers/common/"):
-        cmd += [
-            f"-I{openssl_dir / 'util/perl'}",
-            f"-I{openssl_dir / 'providers/common/der'}",
-            "-Moids_to_c",
-        ]
-    cmd += [str(openssl_dir / "util" / "dofile.pl"), template_in]
-
     env = os.environ.copy()
     env.update(_HERMETIC_DOFILE_ENV)
-    result = subprocess.run(
-        cmd,
-        cwd=openssl_dir,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env,
-    )
+    result = subprocess.run(cmd, cwd=openssl_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    params_file.unlink()
     if result.returncode != 0:
-        raise RuntimeError(f"dofile.pl failed for {template_in}:\n{result.stderr.decode()}")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(result.stdout)
+        raise RuntimeError(f"batch_dofile.pl failed (configdata {configdata_dir}):\n{result.stderr.decode()}")
 
 
 def pregenerate_templates(
     openssl_dir: Path,
     platform_data: dict[str, PlatformData],
+    templates: dict[str, str],
     output_dir: Path,
+    srcs: OverlaySources,
     perl_path: str = "perl",
 ) -> None:
     """Pre-generate all dofile template outputs.
 
-    Invariant templates are generated once (using any platform's configdata
-    stub). Platform-specific templates are generated per known platform.
+    Every template is rendered once per configuration (each known platform
+    plus no_asm). Templates whose output is byte-identical across all of them
+    are platform-independent and land in generated/common/; the rest land in
+    generated/<config_name>/. Detecting this rather than hardcoding the
+    platform-specific set keeps the result correct for any OpenSSL version.
 
     The configdata stubs are temporarily placed inside the OpenSSL source tree
     so that $_repo_root (dirname^3 of __FILE__) resolves to the source root
     rather than the overlay output directory.
     """
     generated_dir = output_dir / "generated"
-    all_dofile_templates = discover_dofile_templates(openssl_dir)
+    render_dir = output_dir / "_render"
+    if render_dir.exists():
+        shutil.rmtree(render_dir)
 
+    config_names = [get_simple_config_name(p) for p in platform_data] + [get_simple_config_name(NO_ASM_TARGET)]
+
+    batch_dofile = openssl_dir / _BATCH_DOFILE_IN_SOURCE
     try:
-        # Place any platform's configdata in the source tree for invariant templates.
-        any_platform = next(iter(platform_data))
-        any_config = get_simple_config_name(any_platform)
-        local_configdata = _place_configdata_in_source(
-            openssl_dir,
-            output_dir / "configdata" / any_config,
-            any_config,
-        )
-
-        common_dir = generated_dir / "common"
-        for template_in, template_out in all_dofile_templates.items():
-            if template_in in _PLATFORM_SPECIFIC_TEMPLATE_INPUTS:
-                continue
-            out_path = common_dir / template_out
-            print(f"    {template_out}")
-            _run_dofile(openssl_dir, local_configdata, template_in, out_path, perl_path=perl_path)
-
-        # Platform-specific templates: generate per known platform.
-        for platform in platform_data:
-            config_name = get_simple_config_name(platform)
+        shutil.copyfile(srcs.resolve(_BATCH_DOFILE_PL), batch_dofile)
+        for config_name in config_names:
+            print(f"    rendering {len(templates)} templates for {config_name}")
             local_configdata = _place_configdata_in_source(
                 openssl_dir,
                 output_dir / "configdata" / config_name,
                 config_name,
             )
-            platform_dir = generated_dir / config_name
-            for template_in, template_out in all_dofile_templates.items():
-                if template_in not in _PLATFORM_SPECIFIC_TEMPLATE_INPUTS:
-                    continue
-                out_path = platform_dir / template_out
-                print(f"    {config_name}/{template_out}")
-                _run_dofile(openssl_dir, local_configdata, template_in, out_path, perl_path=perl_path)
-
-        # Also generate for no_asm (it gets its own configdata stub).
-        local_configdata = _place_configdata_in_source(
-            openssl_dir,
-            output_dir / "configdata" / "no_asm",
-            "no_asm",
-        )
-        no_asm_dir = generated_dir / "no_asm"
-        for template_in, template_out in all_dofile_templates.items():
-            if template_in not in _PLATFORM_SPECIFIC_TEMPLATE_INPUTS:
-                continue
-            out_path = no_asm_dir / template_out
-            print(f"    no_asm/{template_out}")
-            _run_dofile(openssl_dir, local_configdata, template_in, out_path, perl_path=perl_path)
-
+            _run_batch_dofile(openssl_dir, local_configdata, templates, render_dir / config_name, perl_path=perl_path)
     finally:
         _cleanup_source_configdata(openssl_dir)
+        if batch_dofile.exists():
+            batch_dofile.unlink()
+
+    platform_specific: list[str] = []
+    for template_out in sorted(templates.values()):
+        digests = {integrity_hash(render_dir / c / template_out) for c in config_names}
+        if len(digests) == 1:
+            dst = generated_dir / "common" / template_out
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(render_dir / config_names[0] / template_out), dst)
+        else:
+            # pregen.bzl's per-platform filegroups only pick up headers
+            # (*.h, *.inc); anything else needs routing added there first.
+            if not template_out.endswith((".h", ".inc")):
+                raise RuntimeError(
+                    f"{template_out} differs between platforms but is not a header; "
+                    "bazel/pregen.bzl has no per-platform routing for it"
+                )
+            platform_specific.append(template_out)
+            for config_name in config_names:
+                dst = generated_dir / config_name / template_out
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(render_dir / config_name / template_out), dst)
+    shutil.rmtree(render_dir)
+
+    if "include/openssl/configuration.h" not in platform_specific:
+        raise RuntimeError(
+            "include/openssl/configuration.h was not detected as platform-specific; configdata stubs are suspect"
+        )
+    for out in platform_specific:
+        print(f"    platform-specific: {out}")
 
 
 def pregenerate_progs(
@@ -776,10 +805,6 @@ def pregenerate_progs(
         print(f"    apps/{filename}")
 
 
-def _buildinf_template() -> str:
-    return (script_dir() / "buildinf.h.in").read_text()
-
-
 # Fixed epoch matching _HERMETIC_DOFILE_ENV for reproducible builds.
 _BUILDINF_EPOCH = 443779200
 
@@ -799,14 +824,14 @@ def _render_compiler_flags_array(compiler_info: str) -> str:
     return "".join(chars)
 
 
-def generate_buildinf_h(output_dir: Path) -> None:
+def generate_buildinf_h(output_dir: Path, srcs: OverlaySources) -> None:
     """Generate crypto/buildinf.h from the buildinf.h.in template."""
     crypto_dir = output_dir / "generated" / "common" / "crypto"
     crypto_dir.mkdir(parents=True, exist_ok=True)
 
     date = time.strftime("%a %b %d %H:%M:%S %Y", time.gmtime(_BUILDINF_EPOCH)) + " UTC"
 
-    content = _buildinf_template()
+    content = srcs.read_text(_BUILDINF_TEMPLATE)
     content = content.replace("@@PLATFORM@@", "bazel")
     content = content.replace("@@DATE@@", date)
     content = content.replace("@@COMPILER_FLAGS_ARRAY@@", _render_compiler_flags_array("compiler: bazel"))
@@ -1181,6 +1206,18 @@ def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
     return "".join(lines)
 
 
+def _open_sources(openssl_dir: Path) -> tuple[OpenSSLVersion, OverlaySources]:
+    """Determine the OpenSSL version and the overlay template sources that apply to it."""
+    version = OpenSSLVersion.from_source_tree(openssl_dir)
+    srcs = OverlaySources(repo_root(), version)
+    srcs.validate_overrides()
+    print(f"OpenSSL version: {version}" + (f"-{version.pre_release_tag}" if version.pre_release_tag else ""))
+    overrides = srcs.overrides_in_effect()
+    if overrides:
+        print("Version overrides in effect: " + ", ".join(str(d.relative_to(repo_root())) for d in overrides))
+    return version, srcs
+
+
 def perlasm_only(
     openssl_source_dir: str,
     output_dir: str,
@@ -1198,13 +1235,14 @@ def perlasm_only(
 
     print(f"Using Perl: {perl_path}")
     print(f"Perlasm-only mode: flavors={flavors}")
+    _, srcs = _open_sources(openssl_dir)
 
     source_platforms = {_PERLASM_FLAVORS[f]["source_platform"] for f in flavors if f in _PERLASM_FLAVORS}
 
     platform_data: dict[str, PlatformData] = {}
     for sp in source_platforms:
         print(f"  Configuring for {sp}...")
-        platform_data[sp] = extract_platform_data(openssl_dir, sp, perl_path=perl_path)
+        platform_data[sp] = extract_platform_data(openssl_dir, sp, srcs, perl_path=perl_path)
 
     print("=== Pre-generating perlasm assembly ===")
     pregenerate_perlasm(openssl_dir, platform_data, out, perl_path=perl_path, flavors=flavors)
@@ -1227,6 +1265,12 @@ def main(
     out = Path(output_dir)
 
     print(f"Using Perl: {perl_path}")
+    version, srcs = _open_sources(openssl_dir)
+
+    if tag is not None and not tag.startswith(f"{version}.bcr."):
+        raise RuntimeError(
+            f"--tag={tag} does not match the OpenSSL source version {version} (expected {version}.bcr.<N>)"
+        )
 
     constants_dir = out / "bazel" / "constants"
     constants_dir.mkdir(parents=True, exist_ok=True)
@@ -1237,18 +1281,20 @@ def main(
     for platform in ALL_PLATFORMS:
         config_name = get_simple_config_name(platform)
         print(f"  Configuring for {platform} ({config_name})...")
-        data = extract_platform_data(openssl_dir, platform, perl_path=perl_path)
+        data = extract_platform_data(openssl_dir, platform, srcs, perl_path=perl_path)
         platform_data[platform] = data
 
     print("  Configuring for no-asm fallback...")
-    no_asm_data = extract_platform_data(openssl_dir, NO_ASM_TARGET, perl_path=perl_path)
+    no_asm_data = extract_platform_data(openssl_dir, NO_ASM_TARGET, srcs, perl_path=perl_path)
 
     print("=== Computing tiered constants ===")
     tiered = compute_tiered_constants(platform_data, no_asm_data)
+    templates = collect_dofile_templates(platform_data, no_asm_data)
 
     print("=== Writing .bzl files ===")
     write_common_bzl(constants_dir, tiered)
     write_no_asm_bzl(constants_dir, tiered)
+    write_templates_bzl(constants_dir, templates)
     write_constants_build(constants_dir)
 
     for platform in ALL_PLATFORMS:
@@ -1266,10 +1312,10 @@ def main(
     write_features_bzl(constants_dir, user_features, known_platforms)
 
     print("=== Generating per-platform configdata stubs ===")
-    generate_configdata_stubs(platform_data, no_asm_data, out)
+    generate_configdata_stubs(platform_data, no_asm_data, out, srcs)
 
     print("=== Pre-generating template outputs ===")
-    pregenerate_templates(openssl_dir, platform_data, out, perl_path=perl_path)
+    pregenerate_templates(openssl_dir, platform_data, templates, out, srcs, perl_path=perl_path)
 
     # Place configdata in the source tree so $_repo_root resolves correctly.
     any_config = get_simple_config_name(next(iter(platform_data)))
@@ -1285,7 +1331,7 @@ def main(
         _cleanup_source_configdata(openssl_dir)
 
     print("=== Pre-generating buildinf.h ===")
-    generate_buildinf_h(out)
+    generate_buildinf_h(out, srcs)
 
     print("=== Pre-generating perlasm assembly ===")
     pregenerate_perlasm(openssl_dir, platform_data, out, perl_path=perl_path)
@@ -1299,30 +1345,13 @@ def main(
         if generated_dst.exists():
             shutil.rmtree(generated_dst)
         shutil.move(str(generated_src), str(generated_dst))
-    copy_from_here_to("BUILD.pregen.bazel", pregen / "BUILD.bazel")
+    srcs.copy_tree(PREGEN_DIR, pregen)
     (pregen / "WORKSPACE.bazel").write_text('workspace(name = "openssl_pregen")\n')
     print(f"Pregen files written to: {pregen}")
 
-    # Overlay root = out. All overlay files go under out for correct load paths.
-    overlay_dir = out
-    copy_from_here_to("BUILD.openssl.bazel", overlay_dir / "BUILD.bazel")
-
-    (overlay_dir / "bazel").mkdir(parents=True, exist_ok=True)
-    copy_from_here_to("batch_dofile.pl", overlay_dir / "bazel" / "batch_dofile.pl")
-    copy_from_here_to("build_test.cc", overlay_dir / "bazel" / "build_test.cc")
-    copy_from_here_to("BUILD.bazel.bazel", overlay_dir / "bazel" / "BUILD.bazel")
-    copy_from_here_to("BUILD.configs.bazel", overlay_dir / "configs" / "BUILD.bazel")
-    copy_from_here_to("collate_into_directory.bzl", overlay_dir / "bazel" / "collate_into_directory.bzl")
-    copy_from_here_to("collate_into_directory.cc", overlay_dir / "bazel" / "collate_into_directory.cc")
-    copy_from_here_to("openssl_genrule.bzl", overlay_dir / "bazel" / "openssl_genrule.bzl")
-    copy_from_here_to("perl_genrule.bzl", overlay_dir / "bazel" / "perl_genrule.bzl")
-    copy_from_here_to("pregen.bzl", overlay_dir / "bazel" / "pregen.bzl")
-    copy_from_here_to("presubmit.yml", overlay_dir / "presubmit.yml")
-    copy_from_here_to("redirect_stdout.cc", overlay_dir / "bazel" / "redirect_stdout.cc")
-    copy_from_here_to("sha256_test.cc", overlay_dir / "bazel" / "sha256_test.cc")
-    copy_from_here_to("utils.bzl", overlay_dir / "bazel" / "utils.bzl")
-
-    (overlay_dir / "configs").mkdir(parents=True, exist_ok=True)
+    # Overlay root = out. overlay/ in this repo has the same layout as the
+    # overlay shipped to BCR, so it is copied as-is (with version overrides).
+    srcs.copy_tree(OVERLAY_DIR, out)
 
     if buildifier_path:
         print("=== Formatting with buildifier ===")
@@ -1336,25 +1365,39 @@ def main(
             raise RuntimeError(
                 "--source_archive is required when generating BCR files (--bcr_dir and --tag were provided)"
             )
-        write_bcr_files(out, bcr_dir, tag, source_archive)
+        write_bcr_files(out, bcr_dir, tag, source_archive, version)
 
     print("=== Done ===")
     print(f"Overlay written to: {out}")
 
 
-def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> None:
+# Bzlmod compatibility level shared by every published openssl module version.
+# All releases so far (3.3.x through 4.0.x) use this value; changing it for a
+# release line would make bzlmod refuse to resolve it alongside older releases
+# of the same line, so only change it deliberately.
+_BCR_COMPATIBILITY_LEVEL = 3030100
+
+
+def write_bcr_files(
+    out: Path,
+    bcr_dir: str,
+    tag: str,
+    source_archive: str,
+    version: OpenSSLVersion,
+) -> None:
     """Write BCR module files. Overlay root is out (contains BUILD.bazel, bazel/, configs/, etc.)."""
     openssl_module_dir = Path(bcr_dir) / "modules" / "openssl"
     out_dir = openssl_module_dir / tag
 
-    copy_from_here_to("presubmit.yml", out_dir / "presubmit.yml")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(out / "presubmit.yml", out_dir / "presubmit.yml")
 
     module_bazel_content = dedent(f"""\
         module(
             name = "openssl",
             version = "{tag}",
             bazel_compatibility = [">=7.2.1"],
-            compatibility_level = 3030100,
+            compatibility_level = {_BCR_COMPATIBILITY_LEVEL},
         )
 
         bazel_dep(name = "bazel_skylib", version = "1.7.1")
@@ -1402,8 +1445,8 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
 
     source_json = {
         "integrity": integrity_hash(Path(source_archive)),
-        "url": f"https://github.com/openssl/openssl/releases/download/openssl-{OPENSSL_VERSION}/openssl-{OPENSSL_VERSION}.tar.gz",
-        "strip_prefix": f"openssl-{OPENSSL_VERSION}",
+        "url": version.source_url,
+        "strip_prefix": version.archive_name,
         "overlay": overlay_info,
     }
     (out_dir / "source.json").write_text(json.dumps(source_json, indent="    ", sort_keys=True) + "\n")
@@ -1411,21 +1454,16 @@ def write_bcr_files(out: Path, bcr_dir: str, tag: str, source_archive: str) -> N
     add_to_metadata(openssl_module_dir, tag)
 
 
-def add_to_metadata(openssl_module_dir: Path, tag: str) -> None:
-    metadata_path = openssl_module_dir / "metadata.json"
-    with open(metadata_path, "r") as f:
-        content = json.load(f)
-    content["versions"].append(tag)
-    with open(metadata_path, "w") as f:
-        f.write(json.dumps(content, sort_keys=True, indent="  ") + "\n")
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate tiered OpenSSL Bazel constants")
     parser.add_argument("--openssl_source_dir", required=True, help="Path to OpenSSL source tree")
     parser.add_argument("--output_dir", required=True, help="Output directory for generated files")
     parser.add_argument("--bcr_dir", required=False, help="BCR directory for module registration")
-    parser.add_argument("--tag", required=False, help="Version tag for BCR")
+    parser.add_argument(
+        "--tag",
+        required=False,
+        help="BCR module version, e.g. 4.0.1.bcr.0. Must start with the OpenSSL version found in the source tree.",
+    )
     parser.add_argument(
         "--buildifier",
         default=None,

@@ -1,151 +1,74 @@
+# Release: push a tag of the form <OPENSSL_VERSION>.bcr.<N> (e.g. 4.0.1.bcr.0)
+# and this workflow generates the overlay for that OpenSSL version, publishes
+# the pre-generated tarball as a GitHub release asset, and opens a PR against
+# the Bazel Central Registry.
 name: Release
 'on':
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to (re)publish, e.g. 4.0.1.bcr.0
+        required: true
+        type: string
   push:
     tags:
     - '*'
 jobs:
-  generate-linux:
-    runs-on: ubuntu-22.04
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4.2.2
-    - name: Download OpenSSL source
-      run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
-        tar xzf /tmp/openssl.tar.gz -C /tmp
-    - name: Checkout BCR
-      uses: actions/checkout@v4.2.2
-      with:
-        repository: illicitonion/bazel-central-registry
-        token: ${{ secrets.BCR_GITHUB_TOKEN }}
-        path: bazel-central-registry
-        ref: refs/heads/main
-    - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-    - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-    - run: >
-        bazel run //:generate --
-        --openssl_source_dir=/tmp/openssl-4.0.1
-        --output_dir=/tmp/overlay
-        --pregen_dir=/tmp/pregen
-        --bcr_dir=$(pwd)/bazel-central-registry
-        --tag=${{github.ref_name}}
-        --source_archive=/tmp/openssl.tar.gz
-    - run: tar czf /tmp/core-pregen.tar.gz -C /tmp pregen
-    - name: Upload core pregen
-      uses: actions/upload-artifact@v4
-      with:
-        name: core-pregen
-        path: /tmp/core-pregen.tar.gz
-        if-no-files-found: error
-    - run: tar czf bcr-core.tar.gz bazel-central-registry
-    - name: Upload core BCR
-      uses: actions/upload-artifact@v4
-      with:
-        name: bcr-core
-        path: bcr-core.tar.gz
-        if-no-files-found: error
-
-  generate-macos:
-    runs-on: macos-14
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4.2.2
-    - name: Download OpenSSL source
-      run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
-        tar xzf /tmp/openssl.tar.gz -C /tmp
-    - run: >
-        python3 generate_constants.py
-        --openssl_source_dir=/tmp/openssl-4.0.1
-        --output_dir=/tmp/macos-asm
-        --perlasm-only=macosx,ios64
-    - run: tar czf /tmp/macos-asm.tar.gz -C /tmp/macos-asm/generated/asm .
-    - name: Upload macOS ASM
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-asm
-        path: /tmp/macos-asm.tar.gz
-        if-no-files-found: error
-
-  generate-merge:
-    runs-on: ubuntu-latest
-    needs:
-      - generate-linux
-      - generate-macos
-    steps:
-      - name: Download core pregen
-        uses: actions/download-artifact@v4
-        with:
-          name: core-pregen
-          path: /tmp/
-      - run: (cd /tmp && tar xzf core-pregen.tar.gz)
-      - name: Download macOS ASM
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-asm
-          path: /tmp/
-      - name: Overlay macOS ASM into pregen
-        run: |
-          rm -rf /tmp/pregen/generated/asm/macosx /tmp/pregen/generated/asm/ios64
-          mkdir -p /tmp/pregen/generated/asm
-          tar xzf /tmp/macos-asm.tar.gz -C /tmp/pregen/generated/asm
-      - name: Download core BCR
-        uses: actions/download-artifact@v4
-        with:
-          name: bcr-core
-          path: /tmp/
-      - run: tar xzf /tmp/bcr-core.tar.gz
-      - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - name: Checkout repo for scripts
-        uses: actions/checkout@v4.2.2
-        with:
-          path: repo
-      - name: Create pregen tarball and patch BCR
-        run: |
-          tar czf /tmp/bazel-openssl-cc-${{github.ref_name}}.tar.gz -C /tmp pregen
-          python3 repo/patch_bcr_pregen.py \
-            --tarball=/tmp/bazel-openssl-cc-${{github.ref_name}}.tar.gz \
-            --bcr_dir=bazel-central-registry \
-            --tag=${{github.ref_name}}
-      - run: tar czf bcr.tar.gz bazel-central-registry
-      - name: Upload merged BCR
-        uses: actions/upload-artifact@v4
-        with:
-          name: bcr.tar.gz
-          path: bcr.tar.gz
-          if-no-files-found: error
-      - name: Upload pregen tarball
-        uses: actions/upload-artifact@v4
-        with:
-          name: pregen.tar.gz
-          path: /tmp/bazel-openssl-cc-${{github.ref_name}}.tar.gz
-          if-no-files-found: error
+  generate:
+    uses: ./.github/workflows/generate.yaml
+    with:
+      bcr_tag: ${{ inputs.tag || github.ref_name }}
+      ref: ${{ inputs.tag }}
+      run_tests: false
 
   release:
     runs-on: ubuntu-latest
     needs:
-      - generate-merge
+      - generate
+    env:
+      BCR_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
+      - name: Checkout repo for scripts
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ inputs.tag }}
+          path: repo
       - name: Download pregen tarball
         uses: actions/download-artifact@v4
         with:
-          name: pregen.tar.gz
+          name: pregen-${{ env.BCR_TAG }}
           path: .
-      - name: Download bcr
+      - name: Download generated BCR
         uses: actions/download-artifact@v4
         with:
-          name: bcr.tar.gz
+          name: bcr-${{ env.BCR_TAG }}
           path: /tmp/
-      - run: tar xzf /tmp/bcr.tar.gz
-      - run: sha256sum bazel-openssl-cc-${{github.ref_name}}.tar.gz
+      - run: mkdir -p /tmp/generated && tar xzf /tmp/bcr.tar.gz -C /tmp/generated
+      - run: sha256sum bazel-openssl-cc-${BCR_TAG}.tar.gz
+      - name: Checkout BCR fork
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: illicitonion/bazel-central-registry
+          token: ${{ secrets.BCR_GITHUB_TOKEN }}
+          path: bazel-central-registry
+          ref: refs/heads/main
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
+      - name: Sync fork with upstream and add the new module version
+        run: |
+          cd bazel-central-registry
+          git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git
+          git fetch upstream
+          git reset --hard upstream/main
+          rm -rf "modules/openssl/${BCR_TAG}"
+          cp -r "/tmp/generated/bazel-central-registry/modules/openssl/${BCR_TAG}" modules/openssl/
+          PYTHONPATH=../repo/generator python3 -c 'import sys; from pathlib import Path; from common import add_to_metadata; add_to_metadata(Path("modules/openssl"), sys.argv[1])' "$BCR_TAG"
+      - name: Open BCR pull request
+        run: cd bazel-central-registry && git checkout -b prep-${BCR_TAG} && git add . && git commit -m "Release openssl ${BCR_TAG}" && git push -u origin prep-${BCR_TAG} && gh pr create --title "Add openssl ${BCR_TAG}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
       - name: Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: ${{ env.BCR_TAG }}
           files: |
-            bazel-openssl-cc-${{github.ref_name}}.tar.gz
+            bazel-openssl-cc-${{ env.BCR_TAG }}.tar.gz
