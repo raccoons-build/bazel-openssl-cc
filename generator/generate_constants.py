@@ -135,6 +135,12 @@ class PlatformData(NamedTuple):
     config_header_data: ConfigHeaderData
     # util/dofile.pl templates this configuration generates: template -> output.
     dofile_templates: dict[str, str]
+    # Generated (.c.in -> .c) sources that are part of each library on this
+    # configuration. Not every generated file is compiled everywhere, e.g.
+    # OpenSSL 3.6's winstore_store.c is Windows-only.
+    libcrypto_generated_srcs: list[str]
+    libssl_generated_srcs: list[str]
+    openssl_app_generated_srcs: list[str]
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "PlatformData":
@@ -157,6 +163,9 @@ class PlatformData(NamedTuple):
             "openssl_app_defines",
             "openssl_defines",
             "disablables",
+            "libcrypto_generated_srcs",
+            "libssl_generated_srcs",
+            "openssl_app_generated_srcs",
         ]:
             str_lists[key] = _str_list(key)
         return cls(
@@ -171,6 +180,9 @@ class PlatformData(NamedTuple):
             disablables=str_lists["disablables"],
             config_header_data=ConfigHeaderData.from_dict(data),
             dofile_templates={str(k): str(v) for k, v in templates.items()},
+            libcrypto_generated_srcs=str_lists["libcrypto_generated_srcs"],
+            libssl_generated_srcs=str_lists["libssl_generated_srcs"],
+            openssl_app_generated_srcs=str_lists["openssl_app_generated_srcs"],
         )
 
     def all_crypto_srcs(self) -> set[str]:
@@ -198,22 +210,16 @@ def run_configure(openssl_dir: Path, platform: str, perl_path: str = "perl") -> 
 
     write_config_file(openssl_dir, platform)
 
-    configure_cmd = [perl_path, "Configure"]
+    configure_cmd = [
+        perl_path,
+        "Configure",
+        "--config=config.conf",
+        _bazel_config_name(platform),
+        "no-afalgeng",
+        "no-dynamic-engine",
+    ]
     if platform == NO_ASM_TARGET:
-        configure_cmd += [
-            "--config=config.conf",
-            "openssl_config",
-            "no-afalgeng",
-            "no-dynamic-engine",
-            "no-asm",
-        ]
-    else:
-        configure_cmd += [
-            "--config=config.conf",
-            "openssl_config",
-            "no-afalgeng",
-            "no-dynamic-engine",
-        ]
+        configure_cmd.append("no-asm")
 
     env = os.environ.copy()
     if platform in WINDOWS_PLATFORMS:
@@ -249,14 +255,26 @@ _ANDROID_CONFIG_OVERRIDES = {
 }
 
 
+def _bazel_config_name(platform: str) -> str:
+    """Name of the Configure target written to config.conf for *platform*.
+
+    It keeps the upstream target name as a prefix because Configure makes a
+    few decisions from the *name* (e.g. ``winstore`` is only enabled when it
+    starts with ``VC-``/``mingw``), and a bare custom name would silently
+    diverge from an upstream build of the same target.
+    """
+    return f"{get_configure_target(platform)}-bazel"
+
+
 def write_config_file(openssl_dir: Path, platform: str) -> None:
     target = get_configure_target(platform)
+    name = _bazel_config_name(platform)
     override = _ANDROID_CONFIG_OVERRIDES.get(target)
     if override:
         with (openssl_dir / "config.conf").open("w") as f:
             f.write(
                 f"""(
-    'openssl_config' => {{
+    '{name}' => {{
         inherit_from   => [ "{override["inherit_from"]}" ],
         asm_arch       => '{override["asm_arch"]}',
         perlasm_scheme => '{override["perlasm_scheme"]}',
@@ -269,7 +287,7 @@ def write_config_file(openssl_dir: Path, platform: str) -> None:
         with (openssl_dir / "config.conf").open("w") as f:
             f.write(
                 f"""(
-    'openssl_config' => {{
+    '{name}' => {{
         inherit_from => [ "{target}" ],
         dso_scheme   => undef,
     }}
@@ -330,6 +348,25 @@ def compute_tiered_constants(
     no_asm_ssl_extra = no_asm_data.all_ssl_srcs() - common_ssl
     no_asm_app_extra = no_asm_data.all_app_srcs() - common_app
 
+    # Generated sources: the overlay only has plumbing for libcrypto's (the
+    # only library OpenSSL generates sources for so far); fail loudly rather
+    # than silently dropping them if a version adds more.
+    all_data = list(platform_data.values()) + [no_asm_data]
+    for d in all_data:
+        if d.libssl_generated_srcs or d.openssl_app_generated_srcs:
+            raise RuntimeError(
+                "Generated sources outside libcrypto are not supported by the overlay: "
+                f"{d.libssl_generated_srcs + d.openssl_app_generated_srcs}"
+            )
+    common_generated_crypto = set.intersection(*(set(d.libcrypto_generated_srcs) for d in all_data))
+    generated_crypto_extra = {
+        get_simple_config_name(name): sorted(set(data.libcrypto_generated_srcs) - common_generated_crypto)
+        for name, data in platform_data.items()
+    }
+    generated_crypto_extra[get_simple_config_name(NO_ASM_TARGET)] = sorted(
+        set(no_asm_data.libcrypto_generated_srcs) - common_generated_crypto
+    )
+
     per_platform = {}
     for name, data in platform_data.items():
         per_platform[name] = {
@@ -352,6 +389,8 @@ def compute_tiered_constants(
         "no_asm_app_extra": sorted(no_asm_app_extra),
         "no_asm_defines": no_asm_data.openssl_defines,
         "per_platform": per_platform,
+        "common_generated_crypto_srcs": sorted(common_generated_crypto),
+        "generated_crypto_extra_srcs": generated_crypto_extra,
     }
 
 
@@ -383,6 +422,28 @@ NO_ASM_APP_EXTRA_SRCS = {json.dumps(tiered["no_asm_app_extra"], indent=indent)}
 NO_ASM_DEFINES = {json.dumps(tiered["no_asm_defines"], indent=indent)}
 """
     (output_dir / "no_asm.bzl").write_text(content)
+
+
+def write_generated_srcs_bzl(output_dir: Path, tiered: dict[str, Any]) -> None:
+    """Write generated_srcs.bzl: which dofile-generated .c files libcrypto compiles, per configuration.
+
+    Consumed by bazel/openssl_genrule.bzl (Perl path) and bazel/pregen.bzl
+    (pre-generated path) so both compile exactly the generated sources
+    Configure lists for the platform, no more.
+    """
+    indent = " " * 4
+    content = f"""\
+# Generated code. DO NOT EDIT.
+#
+# dofile-generated libcrypto sources (output paths). COMMON_* are compiled on
+# every configuration; GENERATED_CRYPTO_EXTRA_SRCS adds the configuration-
+# specific ones, keyed by config name (including "no_asm").
+
+COMMON_GENERATED_CRYPTO_SRCS = {json.dumps(tiered["common_generated_crypto_srcs"], indent=indent)}
+
+GENERATED_CRYPTO_EXTRA_SRCS = {json.dumps(tiered["generated_crypto_extra_srcs"], indent=indent, sort_keys=True)}
+"""
+    (output_dir / "generated_srcs.bzl").write_text(content)
 
 
 def write_platform_bzl(output_dir: Path, config_name: str, platform_delta: dict[str, Any]) -> None:
@@ -1295,6 +1356,7 @@ def main(
     write_common_bzl(constants_dir, tiered)
     write_no_asm_bzl(constants_dir, tiered)
     write_templates_bzl(constants_dir, templates)
+    write_generated_srcs_bzl(constants_dir, tiered)
     write_constants_build(constants_dir)
 
     for platform in ALL_PLATFORMS:

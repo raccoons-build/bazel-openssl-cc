@@ -11,6 +11,7 @@ The template list is not hardcoded here: it is generated into
 whatever OpenSSL version the overlay was generated for.
 """
 
+load("//bazel/constants:generated_srcs.bzl", "COMMON_GENERATED_CRYPTO_SRCS", "GENERATED_CRYPTO_EXTRA_SRCS")
 load("//bazel/constants:templates.bzl", "DOFILE_HDR_TEMPLATES", "DOFILE_SRC_TEMPLATES")
 
 # Fixed epoch for SOURCE_DATE_EPOCH to ensure reproducible timestamps.
@@ -158,6 +159,28 @@ Template outputs go into DefaultInfo; app outputs go into OutputGroupInfo("app")
     },
 )
 
+def _src_templates_for(outputs):
+    """Subset of DOFILE_SRC_TEMPLATES (template -> output) producing the given outputs."""
+    wanted = {out: None for out in outputs}
+    return {tmpl: out for tmpl, out in DOFILE_SRC_TEMPLATES.items() if out in wanted}
+
+def _src_templates_select():
+    """Per-configuration source templates, mirroring the libcrypto srcs select in //:BUILD.
+
+    Only the generated sources Configure lists for a platform are rendered and
+    compiled; the rest (e.g. Windows-only providers) are left out exactly as
+    OpenSSL's own build would.
+    """
+    no_asm = COMMON_GENERATED_CRYPTO_SRCS + GENERATED_CRYPTO_EXTRA_SRCS["no_asm"]
+    branches = {
+        "//configs:_asm_" + config: _src_templates_for(COMMON_GENERATED_CRYPTO_SRCS + extra)
+        for config, extra in GENERATED_CRYPTO_EXTRA_SRCS.items()
+        if config != "no_asm"
+    }
+    branches["//configs:_no_asm_fallback"] = _src_templates_for(no_asm)
+    branches["//conditions:default"] = _src_templates_for(no_asm)
+    return select(branches)
+
 def openssl_perl_genrule(*, name, mode = None, **kwargs):
     """Generate platform-independent OpenSSL files from Perl templates.
 
@@ -185,7 +208,7 @@ def openssl_perl_genrule(*, name, mode = None, **kwargs):
         _openssl_gen(
             name = name,
             mode = "srcs",
-            templates_map = DOFILE_SRC_TEMPLATES,
+            templates_map = _src_templates_select(),
             **kwargs
         )
     else:

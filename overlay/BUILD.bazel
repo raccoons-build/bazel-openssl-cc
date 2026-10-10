@@ -80,6 +80,11 @@ load(
     _FREEBSD_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
 )
 load(
+    "//bazel/constants:generated_srcs.bzl",
+    "COMMON_GENERATED_CRYPTO_SRCS",
+    "GENERATED_CRYPTO_EXTRA_SRCS",
+)
+load(
     "//bazel/constants:ios_arm64.bzl",
     _IOS_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
     _IOS_ARM64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
@@ -468,6 +473,20 @@ COMMON_LOCAL_DEFINES = select({
 
 # --- Include paths ---
 
+# Directories that dofile-generated sources live in. Those sources include
+# sibling headers by bare name (e.g. "ciphercommon_local.h"); a source-tree
+# file finds them in its own directory, but the generated copies live in the
+# output tree, so their source directories must be on the include path (as
+# OpenSSL's own out-of-tree builds do).
+_GENERATED_SRC_DIRS = sorted({
+    src.rsplit("/", 1)[0]: None
+    for src in COMMON_GENERATED_CRYPTO_SRCS + [
+        src
+        for extra in GENERATED_CRYPTO_EXTRA_SRCS.values()
+        for src in extra
+    ]
+}.keys())
+
 LIBCRYPTO_INCLUDES = [
     "include",
     "providers/implementations/macs",
@@ -475,7 +494,14 @@ LIBCRYPTO_INCLUDES = [
     "providers/common/include",
     "providers/fips/include",
     "crypto",
-]
+] + [d for d in _GENERATED_SRC_DIRS if d not in [
+    "include",
+    "providers/implementations/macs",
+    "providers/implementations/include",
+    "providers/common/include",
+    "providers/fips/include",
+    "crypto",
+]]
 
 LIBCRYPTO_WINDOWS_INCLUDES = [
     "ms",

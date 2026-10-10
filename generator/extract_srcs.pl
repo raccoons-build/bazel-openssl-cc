@@ -94,6 +94,24 @@ foreach my $out (sort keys %{$unified_info{generate}}) {
     $dofile_templates{normalize_path($gen[0])} = normalize_path($out);
 }
 
+# Sources that are *generated* from util/dofile.pl templates and belong to a
+# library on this platform. These are excluded from the plain source lists
+# below (they do not exist in the source tree) and tracked separately so the
+# overlay compiles exactly the generated files Configure would, per platform.
+sub generated_c_srcs {
+    my ($srcs) = @_;
+    my @list;
+    foreach my $src (sort keys %$srcs) {
+        next unless exists($unified_info{generate}->{$src});
+        next unless $src =~ m/\.c$/ && $unified_info{generate}->{$src}[0] =~ m/\.in$/;
+        push(@list, normalize_path($src));
+    }
+    return @list;
+}
+my @libcrypto_generated_srcs_list = generated_c_srcs(\%libcrypto_srcs);
+my @libssl_generated_srcs_list = generated_c_srcs(\%libssl_srcs);
+my @openssl_app_generated_srcs_list = generated_c_srcs(\%openssl_app_srcs);
+
 # Build data structures for JSON output
 my @libcrypto_srcs_list;
 foreach (sort keys %libcrypto_srcs) {
@@ -204,5 +222,8 @@ my %output_data = (
     config_openssl_feature_defines => \@config_openssl_feature_defines,
     disablables => \@disablables,
     dofile_templates => \%dofile_templates,
+    libcrypto_generated_srcs => \@libcrypto_generated_srcs_list,
+    libssl_generated_srcs => \@libssl_generated_srcs_list,
+    openssl_app_generated_srcs => \@openssl_app_generated_srcs_list,
 );
 print $json->encode(\%output_data);
