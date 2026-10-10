@@ -32,3 +32,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
       - uses: pre-commit/action@v3.0.1
+
+  # Single required check for branch protection: succeeds only if every job
+  # above succeeded (skipped or cancelled jobs count as failures).
+  ci:
+    name: CI
+    if: always()
+    needs:
+      - versions
+      - generate-and-test
+      - pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that every job succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | jq -e '[.[] | .result] | all(. == "success")' > /dev/null
