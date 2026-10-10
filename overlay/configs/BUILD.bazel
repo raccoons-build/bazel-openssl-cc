@@ -149,6 +149,7 @@ selects.config_setting_group(
 selects.config_setting_group(
     name = "windows_non_msvc",
     match_any = [
+        ":windows_clang",
         ":windows_clang_cl",
         ":windows_mingw",
     ],
@@ -158,6 +159,7 @@ selects.config_setting_group(
 selects.config_setting_group(
     name = "windows_x64_non_msvc",
     match_any = [
+        ":windows_x64_clang",
         ":windows_x64_clang_cl",
         ":windows_x64_mingw",
     ],
@@ -167,8 +169,27 @@ selects.config_setting_group(
 selects.config_setting_group(
     name = "windows_arm64_non_msvc",
     match_any = [
+        ":windows_arm64_clang",
         ":windows_arm64_clang_cl",
         ":windows_arm64_mingw",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_x64_clang",
+    match_all = [
+        ":windows_x64",
+        ":windows_clang",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "windows_arm64_clang",
+    match_all = [
+        ":windows_arm64",
+        ":windows_clang",
     ],
     visibility = ["//visibility:public"],
 )
