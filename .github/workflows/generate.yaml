@@ -1,9 +1,15 @@
 # Reusable workflow: generate the Bazel overlay + pre-generated files for one
 # OpenSSL version, register it in a local copy of the Bazel Central Registry,
-# and (optionally) build and test the result on every supported platform.
+# and build and test the result on every supported platform.
 #
 # Callers: pr.yaml (one call per OpenSSL version in its matrix) and
-# release.yaml (one call for the version encoded in the git tag).
+# release.yaml (one call for the version encoded in the git tag). Both run
+# the full test matrix; a release is only published if every job here passes.
+#
+# Two registry artifacts are produced from the same pre-generated archive:
+#   bcr-<tag>       module points at the GitHub release URL (what gets published)
+#   bcr-test-<tag>  module points at a file:// copy of the archive (what the
+#                   test jobs below consume, since the release does not exist yet)
 name: Generate
 
 "on":
@@ -15,18 +21,6 @@ name: Generate
           is everything before ".bcr." (the generator also enforces this).
         required: true
         type: string
-      local_pregen_url:
-        description: >-
-          Point the module at a file:// URL for the pre-generated tarball instead of the
-          GitHub release URL, so the result can be tested before a release exists.
-        required: false
-        type: boolean
-        default: false
-      run_tests:
-        description: Build and test @openssl//... on every supported platform
-        required: false
-        type: boolean
-        default: true
       ref:
         description: Git ref of this repository to generate from (defaults to the calling ref)
         required: false
@@ -113,20 +107,33 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           path: repo
-      - name: Create pregen tarball and patch BCR
+      - name: Create pregen tarball and patch BCR (release URL)
         run: |
           tar czf "/tmp/$PREGEN_TARBALL" -C /tmp pregen
           python3 repo/generator/patch_bcr_pregen.py \
             --tarball="/tmp/$PREGEN_TARBALL" \
             --bcr_dir=bazel-central-registry \
-            --tag=${{ inputs.bcr_tag }} \
-            ${{ inputs.local_pregen_url && format('--url_override=file:///tmp/{0}', env.PREGEN_TARBALL) || '' }}
-      - run: tar czf bcr.tar.gz bazel-central-registry
-      - name: Upload merged BCR
+            --tag=${{ inputs.bcr_tag }}
+          tar czf bcr.tar.gz bazel-central-registry
+      - name: Upload BCR (release URL)
         uses: actions/upload-artifact@v4
         with:
           name: bcr-${{ inputs.bcr_tag }}
           path: bcr.tar.gz
+          if-no-files-found: error
+      - name: Patch BCR for testing (file:// URL)
+        run: |
+          python3 repo/generator/patch_bcr_pregen.py \
+            --tarball="/tmp/$PREGEN_TARBALL" \
+            --bcr_dir=bazel-central-registry \
+            --tag=${{ inputs.bcr_tag }} \
+            --url_override="file:///tmp/$PREGEN_TARBALL"
+          tar czf bcr-test.tar.gz bazel-central-registry
+      - name: Upload BCR (test URL)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcr-test-${{ inputs.bcr_tag }}
+          path: bcr-test.tar.gz
           if-no-files-found: error
       - name: Upload pregen tarball
         uses: actions/upload-artifact@v4
@@ -137,7 +144,6 @@ jobs:
 
   test-unix:
     name: test-${{ matrix.os }} bazel-${{ matrix.bazel }} (${{ inputs.bcr_tag }}, pregen=${{ matrix.use_pregenerated }})
-    if: inputs.run_tests
     strategy:
       fail-fast: false
       matrix:
@@ -158,17 +164,17 @@ jobs:
       - generate-merge
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Download bcr
+      - name: Download bcr (test URL)
         uses: actions/download-artifact@v4
         with:
-          name: bcr-${{ inputs.bcr_tag }}
+          name: bcr-test-${{ inputs.bcr_tag }}
           path: /tmp/
       - name: Download pregen tarball
         uses: actions/download-artifact@v4
         with:
           name: pregen-${{ inputs.bcr_tag }}
           path: /tmp/
-      - run: (cd /tmp && tar xzf /tmp/bcr.tar.gz)
+      - run: (cd /tmp && tar xzf /tmp/bcr-test.tar.gz)
       - run:
           mkdir workspace &&
           cd workspace &&
@@ -185,7 +191,6 @@ jobs:
 
   test-windows:
     name: test-windows bazel-${{ matrix.bazel }} (${{ inputs.bcr_tag }}, pregen=${{ matrix.use_pregenerated }})
-    if: inputs.run_tests
     strategy:
       fail-fast: false
       matrix:
@@ -204,10 +209,10 @@ jobs:
     steps:
       - name: Download msys tools
         uses: msys2/setup-msys2@v2
-      - name: Download bcr
+      - name: Download bcr (test URL)
         uses: actions/download-artifact@v4
         with:
-          name: bcr-${{ inputs.bcr_tag }}
+          name: bcr-test-${{ inputs.bcr_tag }}
           path: C:\
       - name: Download pregen tarball
         uses: actions/download-artifact@v4
@@ -216,7 +221,7 @@ jobs:
           path: C:\
       - name: Setup nasm
         uses: ilammy/setup-nasm@v1
-      - run: (cd C:\ && tar xzf C:\bcr.tar.gz)
+      - run: (cd C:\ && tar xzf C:\bcr-test.tar.gz)
       - name: Patch MODULE.bazel paths for Windows
         shell: pwsh
         run: |

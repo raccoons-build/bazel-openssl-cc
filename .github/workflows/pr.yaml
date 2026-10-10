@@ -17,7 +17,6 @@ jobs:
     uses: ./.github/workflows/generate.yaml
     with:
       bcr_tag: ${{ matrix.openssl_version }}.bcr.wip
-      local_pregen_url: true
 
   pre-commit:
     runs-on: ubuntu-latest

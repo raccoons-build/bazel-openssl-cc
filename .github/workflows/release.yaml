@@ -1,37 +1,107 @@
-# Release: push a tag of the form <OPENSSL_VERSION>.bcr.<N> (e.g. 4.0.1.bcr.0)
-# and this workflow generates the overlay for that OpenSSL version, publishes
-# the pre-generated tarball as a GitHub release asset, and opens a PR against
-# the Bazel Central Registry.
+# Release: build, test and publish one OpenSSL version as a module on the
+# Bazel Central Registry. See README.md, "Releasing".
+#
+# Two ways to start one:
+#   * Manually (Actions -> Release -> Run workflow) on a branch, giving the
+#     OpenSSL version and optionally the .bcr.<N> revision. The tag is created
+#     at the end, only after every build and test job has passed.
+#   * By pushing a tag <OPENSSL_VERSION>.bcr.<N>, or by running the workflow
+#     manually *on* such a tag with no version given (to re-run it).
+#
+# Either way: generate the overlay, build and test it on every supported
+# platform and Bazel version, and only then upload the pre-generated tarball
+# as a GitHub release asset and open a PR against the registry. If anything
+# fails, nothing is published and no tag is created.
 name: Release
 'on':
   workflow_dispatch:
     inputs:
-      tag:
-        description: Existing release tag to (re)publish, e.g. 4.0.1.bcr.0
-        required: true
+      openssl_version:
+        description: >-
+          Upstream OpenSSL version to release, e.g. 4.0.3. Leave empty when running on an
+          existing release tag to re-run that release.
+        required: false
+        type: string
+      bcr_revision:
+        description: >-
+          The <N> in <version>.bcr.<N>. Leave empty to use the next unused revision for
+          this OpenSSL version.
+        required: false
         type: string
   push:
     tags:
     - '*'
+
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      bcr_tag: ${{ steps.tag.outputs.bcr_tag }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Determine the release tag
+        id: tag
+        env:
+          VERSION: ${{ inputs.openssl_version }}
+          REVISION: ${{ inputs.bcr_revision }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$VERSION" ]]; then
+            # Push of a tag, or a manual run on an existing tag.
+            if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+              echo "::error::Give an OpenSSL version, or run this workflow on a release tag."
+              exit 1
+            fi
+            TAG="$GITHUB_REF_NAME"
+          else
+            if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::openssl_version must look like MAJOR.MINOR.PATCH, got '$VERSION'"
+              exit 1
+            fi
+            if [[ -z "$REVISION" ]]; then
+              last=$(git tag -l "$VERSION.bcr.*" | sed -E 's/.*\.bcr\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+              REVISION=$(( ${last:--1} + 1 ))
+            fi
+            TAG="$VERSION.bcr.$REVISION"
+            if existing=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}"); then
+              if [[ "$existing" != "$GITHUB_SHA" ]]; then
+                echo "::error::Tag $TAG already exists at $existing; pick another bcr_revision or run on that tag."
+                exit 1
+              fi
+              echo "Tag $TAG already points at this commit; re-running its release."
+            fi
+          fi
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.bcr\.[0-9A-Za-z.-]+$ ]]; then
+            echo "::error::'$TAG' is not a release tag (<MAJOR.MINOR.PATCH>.bcr.<N>)"
+            exit 1
+          fi
+          echo "Releasing $TAG from $GITHUB_SHA"
+          echo "bcr_tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  # Generates, then runs the full test matrix; `release` below only starts
+  # once every job in the called workflow has succeeded.
   generate:
+    needs: prepare
     uses: ./.github/workflows/generate.yaml
     with:
-      bcr_tag: ${{ inputs.tag || github.ref_name }}
-      ref: ${{ inputs.tag }}
-      run_tests: false
+      bcr_tag: ${{ needs.prepare.outputs.bcr_tag }}
 
   release:
     runs-on: ubuntu-latest
     needs:
+      - prepare
       - generate
+    permissions:
+      contents: write
     env:
-      BCR_TAG: ${{ inputs.tag || github.ref_name }}
+      BCR_TAG: ${{ needs.prepare.outputs.bcr_tag }}
     steps:
       - name: Checkout repo for scripts
         uses: actions/checkout@v4.2.2
         with:
-          ref: ${{ inputs.tag }}
           path: repo
       - name: Download pregen tarball
         uses: actions/download-artifact@v4
@@ -62,13 +132,17 @@ jobs:
           rm -rf "modules/openssl/${BCR_TAG}"
           cp -r "/tmp/generated/bazel-central-registry/modules/openssl/${BCR_TAG}" modules/openssl/
           PYTHONPATH=../repo/generator python3 -c 'import sys; from pathlib import Path; from common import add_to_metadata; add_to_metadata(Path("modules/openssl"), sys.argv[1])' "$BCR_TAG"
+      # Creates the tag at this commit if it does not exist yet (manual runs),
+      # then the GitHub release with the pre-generated archive. Done before the
+      # BCR PR so the URL the module points at resolves as soon as the PR opens.
+      - name: Create tag and GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BCR_TAG }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            bazel-openssl-cc-${{ env.BCR_TAG }}.tar.gz
       - name: Open BCR pull request
         run: cd bazel-central-registry && git checkout -b prep-${BCR_TAG} && git add . && git commit -m "Release openssl ${BCR_TAG}" && git push -u origin prep-${BCR_TAG} && gh pr create --title "Add openssl ${BCR_TAG}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.BCR_TAG }}
-          files: |
-            bazel-openssl-cc-${{ env.BCR_TAG }}.tar.gz

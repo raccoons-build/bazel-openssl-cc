@@ -27,11 +27,10 @@ headers differ per platform (found by rendering every template for every platfor
 comparing). Where a version genuinely needs different overlay logic, add a
 `versions/<version>/` override rather than a branch.
 
-Releases are driven by git tags of the form `<OPENSSL_VERSION>.bcr.<N>`, e.g.
-`4.0.1.bcr.0` or `3.5.8.bcr.1`; the release workflow derives the OpenSSL version from
-the tag. Pull requests regenerate and test every version listed in the matrix in
-[`.github/workflows/pr.yaml`](.github/workflows/pr.yaml). Add a version there to start
-supporting it.
+Releases are driven by git tags of the form `<OPENSSL_VERSION>.bcr.<N>`; see
+[Releasing](#releasing). Pull requests regenerate and test every version listed in the
+matrix in [`.github/workflows/pr.yaml`](.github/workflows/pr.yaml). Add a version there
+to start supporting it.
 
 ## Architecture
 
@@ -70,6 +69,53 @@ toolchains should build with `--@openssl//:use-pregenerated=False`.
 --@openssl//:use-pregenerated=False    # Force Perl genrule path
 --@openssl//:use-no-asm-fallback=True  # Force portable C, no assembly
 ```
+
+## Releasing
+
+A release is identified by a git tag `<OPENSSL_VERSION>.bcr.<N>`, for example `4.0.3.bcr.0`
+or `3.6.5.bcr.1`. The OpenSSL version is taken from the tag; `N` is this repository's
+revision of the overlay for that OpenSSL version and starts at 0. Both ways of starting a
+release run the same pipeline, [`release.yaml`](.github/workflows/release.yaml).
+
+**Manually (recommended).** In GitHub, Actions → Release → Run workflow. Choose the branch
+to release from (normally `main`) and enter the OpenSSL version, e.g. `4.0.3`. Leave the
+revision empty to get the next unused `.bcr.<N>` for that version, or set it explicitly.
+The tag is created at the end of the run, at the commit you chose, and only once every
+build and test job has passed.
+
+**By tag.** Pushing a `<version>.bcr.<N>` tag runs the same pipeline against that commit.
+To re-run the release for an existing tag, run the workflow manually *on that tag* (pick
+it in the "Use workflow from" selector) and leave the version empty.
+
+The pipeline:
+
+1. Downloads the matching `openssl-<version>.tar.gz` from GitHub and runs the generator
+   against it (the generator reads `VERSION.dat` and refuses a tag that names a different
+   version).
+2. Packages the pre-generated archive and registers the module in a scratch copy of the
+   Bazel Central Registry, twice: once pointing at the GitHub release URL that the release
+   will create, once pointing at a local `file://` copy of the archive.
+3. Builds and tests `@openssl//...` from the local-copy registry on Linux x86_64 and arm64,
+   macOS and Windows, with Bazel 7, 8 and 9, in both the pre-generated and the from-source
+   (`--@openssl//:use-pregenerated=False`) modes, all with `--incompatible_auto_exec_groups`.
+   This is the same matrix pull requests run.
+4. Only if every job above passed: creates the tag if it does not exist yet, uploads
+   `bazel-openssl-cc-<tag>.tar.gz` as a GitHub release asset, and opens a pull request
+   against `bazelbuild/bazel-central-registry` from the `illicitonion` fork (using the
+   `BCR_GITHUB_TOKEN` secret), adding the module version and its `metadata.json` entry.
+
+If any step fails, nothing is published and no tag is created. Published tags are not
+reused: fix the problem on `main` and release again, which picks the next `.bcr.<N>`.
+Creating the tag needs the workflow's `contents: write` permission; a tag protection rule
+that excludes `GITHUB_TOKEN` would make the final step fail, in which case push the tag by
+hand and re-run on it.
+
+Before releasing an OpenSSL version this repository has not built before, add it to the
+version matrix in [`pr.yaml`](.github/workflows/pr.yaml) and open a pull request. That runs
+the same generate-and-test pipeline without publishing anything, and is where any
+version-specific breakage shows up (see [versions/README.md](versions/README.md) for how
+to handle it). Keep the versions you intend to keep releasing in that matrix so later
+changes to the overlay are checked against all of them.
 
 ## Regenerating the Overlay
 
