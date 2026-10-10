@@ -432,7 +432,6 @@ CRYPTO_TEXTUAL_HDRS = [
         "crypto/LPdir_win.c",
         "crypto/LPdir_win32.c",
         "crypto/LPdir_wince.c",
-        "crypto/bn/bn_asm.c",
         "ms/applink.c",
         "ms/uplink.h",
     ] + _ENGINE_TEXTUAL_HDRS,
@@ -728,9 +727,6 @@ cc_binary(
         "//configs:_asm_windows_x64": _WINDOWS_X64_ASM_APP_EXTRA,
         "//configs:_no_asm_fallback": NO_ASM_APP_EXTRA_SRCS,
         "//conditions:default": NO_ASM_APP_EXTRA_SRCS,
-    }) + select({
-        "@platforms//os:windows": ["apps/lib/win32_init.c"],
-        "//conditions:default": [],
     }) + COMMON_APP_HDRS + select({
         "//configs:_pregen_enabled": [":pregen_app_hdrs"],
         "//conditions:default": [":perl_generated_app_hdrs"],
