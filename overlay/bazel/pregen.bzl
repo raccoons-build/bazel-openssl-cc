@@ -1,5 +1,7 @@
 """Rules and macros for pre-generated OpenSSL files."""
 
+load("//bazel/constants:generated_srcs.bzl", "COMMON_GENERATED_CRYPTO_SRCS", "GENERATED_CRYPTO_EXTRA_SRCS")
+
 _PREGEN_PLATFORMS = [
     "android_arm64",
     "android_x86_64",
@@ -93,36 +95,46 @@ def pregen_filegroups():
     Exposes the raw generated files so that pregen_files rules in the
     @openssl overlay can consume them as label inputs.
     """
+
+    # Globs are deliberately broad: the set of generated files (and where
+    # they live) changes between OpenSSL versions, and the generator already
+    # decided what belongs in common/ versus a per-platform directory.
+    #
+    # Generated sources are referenced one by one from pregen_overlay_targets
+    # (so each configuration compiles only its own set), which requires them
+    # to be exported.
+    native.exports_files(native.glob(
+        ["generated/common/**/*.c"],
+        allow_empty = True,
+    ))
     native.filegroup(
         name = "common_hdrs",
-        srcs = native.glob([
-            "generated/common/include/**/*.h",
-            "generated/common/providers/common/include/**/*.h",
-            "generated/common/providers/implementations/**/*.inc",
-        ]) + [
-            "generated/common/crypto/buildinf.h",
-            "generated/common/apps/progs.h",
-        ],
+        srcs = native.glob(
+            [
+                "generated/common/**/*.h",
+                "generated/common/**/*.inc",
+            ],
+            allow_empty = True,
+        ),
     )
-    native.filegroup(
-        name = "common_srcs",
-        srcs = native.glob([
-            "generated/common/providers/**/*.c",
-        ]) + ["generated/common/apps/progs.c"],
-    )
-    for plat in _PREGEN_PLATFORMS:
+    for plat in _PREGEN_PLATFORMS + ["no_asm"]:
         native.filegroup(
             name = plat + "_hdrs",
-            srcs = native.glob(["generated/" + plat + "/include/**/*.h"]),
+            srcs = native.glob(
+                [
+                    "generated/" + plat + "/**/*.h",
+                    "generated/" + plat + "/**/*.inc",
+                ],
+                allow_empty = True,
+            ),
         )
-    native.filegroup(
-        name = "no_asm_hdrs",
-        srcs = native.glob(["generated/no_asm/include/**/*.h"]),
-    )
     for flavor in ["elf", "ios64", "linux64", "macosx"]:
         native.filegroup(
             name = "asm_" + flavor,
-            srcs = native.glob(["generated/asm/" + flavor + "/**"]),
+            srcs = native.glob(
+                ["generated/asm/" + flavor + "/**"],
+                allow_empty = True,
+            ),
         )
 
 # buildifier: disable=unnamed-macro
@@ -152,9 +164,25 @@ def pregen_overlay_targets():
         platform_srcs = select(platform_srcs),
         tags = ["manual"],
     )
+
+    # Generated .c files are referenced individually (not via a glob) so each
+    # configuration compiles exactly the set Configure lists for it; this
+    # mirrors the libcrypto srcs select in //:BUILD.
+    def pregen_src_labels(outputs):
+        return ["@openssl_pregen//:generated/common/" + out for out in outputs]
+
+    no_asm_srcs = COMMON_GENERATED_CRYPTO_SRCS + GENERATED_CRYPTO_EXTRA_SRCS["no_asm"]
+    generated_srcs = {
+        "//configs:_asm_" + config: pregen_src_labels(COMMON_GENERATED_CRYPTO_SRCS + extra)
+        for config, extra in GENERATED_CRYPTO_EXTRA_SRCS.items()
+        if config != "no_asm"
+    }
+    generated_srcs["//configs:_no_asm_fallback"] = pregen_src_labels(no_asm_srcs)
+    generated_srcs["//conditions:default"] = pregen_src_labels(no_asm_srcs)
+
     pregen_files(
         name = "pregen_srcs",
-        common_srcs = ["@openssl_pregen//:common_srcs"],
+        common_srcs = ["@openssl_pregen//:generated/common/apps/progs.c"] + select(generated_srcs),
         tags = ["manual"],
     )
     native.filegroup(name = "pregen_app_hdrs", srcs = [":pregen_hdrs"], output_group = "app", tags = ["manual"])

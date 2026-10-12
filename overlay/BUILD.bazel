@@ -4,7 +4,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_perl//perl:perl.bzl", "perl_binary", "perl_library")
 load("//bazel:collate_into_directory.bzl", "collate_into_directory")
 load("//bazel:openssl_genrule.bzl", "openssl_perl_genrule")
-load("//bazel:perl_genrule.bzl", "perl_genrule")
+load("//bazel:perlasm.bzl", "openssl_perlasm", "openssl_perlasm_scripts", "openssl_perlasm_tools")
 load("//bazel:pregen.bzl", "pregen_overlay_targets")
 load("//bazel:utils.bzl", "parse_perlasm_gen")
 load(
@@ -78,6 +78,11 @@ load(
     _FREEBSD_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _FREEBSD_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _FREEBSD_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+)
+load(
+    "//bazel/constants:generated_srcs.bzl",
+    "COMMON_GENERATED_CRYPTO_SRCS",
+    "GENERATED_CRYPTO_EXTRA_SRCS",
 )
 load(
     "//bazel/constants:ios_arm64.bzl",
@@ -335,19 +340,33 @@ _WIN_ARM64_PERLASM, _WIN_ARM64_PERLASM_DUPES = parse_perlasm_gen(_WINDOWS_ARM64_
 
 _WIN_X64_PERLASM, _WIN_X64_PERLASM_DUPES = parse_perlasm_gen(_WINDOWS_X64_PERLASM_GEN)
 
-PERLASM_TOOLS = glob(["crypto/perlasm/*.pl"])
+# Every perlasm script any supported platform uses, each wrapped in a
+# perl_binary built for the execution platform. The scripts locate their
+# helpers relative to their own path, so those helpers ride along as data.
+_PERLASM_SCRIPTS = {
+    script: None
+    for scripts in [
+        _NIX_ARM64_PERLASM,
+        _NIX_X86_64_PERLASM,
+        _WIN_ARM64_PERLASM,
+        _WIN_X64_PERLASM,
+    ]
+    for script in scripts
+}.keys()
 
-perl_genrule(
+openssl_perlasm_scripts(
+    name = "perlasm_scripts",
+    data = glob(["crypto/perlasm/*.pl"]) + [
+        "crypto/ec/ecp_nistz256_table.c",
+        "ms/applink.c",
+        "ms/uplink-common.pl",
+    ],
+    scripts = _PERLASM_SCRIPTS,
+    tags = ["manual"],
+)
+
+openssl_perlasm(
     name = "perlasm_genfiles",
-    additional_srcs = select({
-        "//configs:windows_msvc": PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
-        "@platforms//os:windows": PERLASM_TOOLS + [
-            "crypto/ec/ecp_nistz256_table.c",
-            "ms/uplink-common.pl",
-            "ms/applink.c",
-        ],
-        "//conditions:default": PERLASM_TOOLS + ["crypto/ec/ecp_nistz256_table.c"],
-    }),
     assembly_flavor = select({
         "//configs:android_arm64": "linux64",
         "//configs:android_x86_64": "elf",
@@ -364,38 +383,45 @@ perl_genrule(
         "//configs:windows_x64_non_msvc": "mingw64",
         "//conditions:default": "",
     }),
-    srcs_to_outs = select({
-        "//configs:android_arm64": _NIX_ARM64_PERLASM,
-        "//configs:android_x86_64": _NIX_X86_64_PERLASM,
-        "//configs:darwin_arm64": _NIX_ARM64_PERLASM,
-        "//configs:darwin_x86_64": _NIX_X86_64_PERLASM,
-        "//configs:freebsd_aarch64": _NIX_ARM64_PERLASM,
-        "//configs:freebsd_x86_64": _NIX_X86_64_PERLASM,
-        "//configs:ios_arm64": _NIX_ARM64_PERLASM,
-        "//configs:linux_aarch64": _NIX_ARM64_PERLASM,
-        "//configs:linux_x86_64": _NIX_X86_64_PERLASM,
-        "//configs:windows_arm64": _WIN_ARM64_PERLASM,
-        "//configs:windows_x64": _WIN_X64_PERLASM,
+    scripts = select({
+        "//configs:android_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
+        "//configs:android_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
+        "//configs:darwin_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
+        "//configs:darwin_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
+        "//configs:freebsd_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
+        "//configs:freebsd_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
+        "//configs:ios_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
+        "//configs:linux_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
+        "//configs:linux_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
+        "//configs:windows_arm64": openssl_perlasm_tools(_WIN_ARM64_PERLASM),
+        "//configs:windows_x64": openssl_perlasm_tools(_WIN_X64_PERLASM),
         "//conditions:default": {},
     }),
-    srcs_to_outs_dupes = select({
-        "//configs:android_arm64": _NIX_ARM64_PERLASM_DUPES,
-        "//configs:android_x86_64": _NIX_X86_64_PERLASM_DUPES,
-        "//configs:darwin_arm64": _NIX_ARM64_PERLASM_DUPES,
-        "//configs:darwin_x86_64": _NIX_X86_64_PERLASM_DUPES,
-        "//configs:freebsd_aarch64": _NIX_ARM64_PERLASM_DUPES,
-        "//configs:freebsd_x86_64": _NIX_X86_64_PERLASM_DUPES,
-        "//configs:ios_arm64": _NIX_ARM64_PERLASM_DUPES,
-        "//configs:linux_aarch64": _NIX_ARM64_PERLASM_DUPES,
-        "//configs:linux_x86_64": _NIX_X86_64_PERLASM_DUPES,
-        "//configs:windows_arm64": _WIN_ARM64_PERLASM_DUPES,
-        "//configs:windows_x64": _WIN_X64_PERLASM_DUPES,
+    scripts_second_output = select({
+        "//configs:android_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
+        "//configs:android_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
+        "//configs:darwin_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
+        "//configs:darwin_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
+        "//configs:freebsd_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
+        "//configs:freebsd_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
+        "//configs:ios_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
+        "//configs:linux_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
+        "//configs:linux_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
+        "//configs:windows_arm64": openssl_perlasm_tools(_WIN_ARM64_PERLASM_DUPES),
+        "//configs:windows_x64": openssl_perlasm_tools(_WIN_X64_PERLASM_DUPES),
         "//conditions:default": {},
     }),
     tags = ["manual"],
 )
 
 # --- Textual headers (files #included as C source) ---
+
+# OpenSSL 3.x ships the CAPI engine, whose error table is #included as source
+# on Windows. OpenSSL 4.x removed engines/ entirely, hence allow_empty.
+_ENGINE_TEXTUAL_HDRS = glob(
+    include = ["engines/e_capi_err.*"],
+    allow_empty = True,
+)
 
 CRYPTO_TEXTUAL_HDRS = [
     "crypto/des/ncbc_enc.c",
@@ -406,20 +432,20 @@ CRYPTO_TEXTUAL_HDRS = [
         "crypto/LPdir_win.c",
         "crypto/LPdir_win32.c",
         "crypto/LPdir_wince.c",
-        "crypto/bn/bn_asm.c",
         "ms/applink.c",
         "ms/uplink.h",
-    ],
+    ] + _ENGINE_TEXTUAL_HDRS,
     "//conditions:default": ["crypto/LPdir_unix.c"],
 })
 
 # --- Compiler options ---
 
+# Per-target defines such as L_ENDIAN / B_ENDIAN come from the generated
+# constants (upstream's lib_cppflags); never hardcode them here.
 COMMON_OPENSSL_COPTS = [
     "-DOPENSSLDIR=\\\"/etc/ssl\\\"",
     '-DENGINESDIR=\\"/usr/lib/engines-3.0\\"',
     "-DMODULESDIR=\\\"/dev/null\\\"",
-    "-DL_ENDIAN",
     "-DOPENSSL_USE_NODELETE",
 ] + select({
     "//configs:android_arm64": ["-mno-outline-atomics"],
@@ -461,6 +487,20 @@ COMMON_LOCAL_DEFINES = select({
 
 # --- Include paths ---
 
+# Directories that dofile-generated sources live in. Those sources include
+# sibling headers by bare name (e.g. "ciphercommon_local.h"); a source-tree
+# file finds them in its own directory, but the generated copies live in the
+# output tree, so their source directories must be on the include path (as
+# OpenSSL's own out-of-tree builds do).
+_GENERATED_SRC_DIRS = sorted({
+    src.rsplit("/", 1)[0]: None
+    for src in COMMON_GENERATED_CRYPTO_SRCS + [
+        src
+        for extra in GENERATED_CRYPTO_EXTRA_SRCS.values()
+        for src in extra
+    ]
+}.keys())
+
 LIBCRYPTO_INCLUDES = [
     "include",
     "providers/implementations/macs",
@@ -468,12 +508,19 @@ LIBCRYPTO_INCLUDES = [
     "providers/common/include",
     "providers/fips/include",
     "crypto",
-]
+] + [d for d in _GENERATED_SRC_DIRS if d not in [
+    "include",
+    "providers/implementations/macs",
+    "providers/implementations/include",
+    "providers/common/include",
+    "providers/fips/include",
+    "crypto",
+]]
 
 LIBCRYPTO_WINDOWS_INCLUDES = [
     "ms",
     "crypto/bn",
-]
+] + (["engines"] if _ENGINE_TEXTUAL_HDRS else [])
 
 # crypt32 is pulled in by the CAPI engine (engines/e_capi.c); ws2_32/advapi32/
 # user32 back sockets and registry/user APIs.
@@ -680,9 +727,6 @@ cc_binary(
         "//configs:_asm_windows_x64": _WINDOWS_X64_ASM_APP_EXTRA,
         "//configs:_no_asm_fallback": NO_ASM_APP_EXTRA_SRCS,
         "//conditions:default": NO_ASM_APP_EXTRA_SRCS,
-    }) + select({
-        "@platforms//os:windows": ["apps/lib/win32_init.c"],
-        "//conditions:default": [],
     }) + COMMON_APP_HDRS + select({
         "//configs:_pregen_enabled": [":pregen_app_hdrs"],
         "//conditions:default": [":perl_generated_app_hdrs"],

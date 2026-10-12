@@ -1,88 +1,21 @@
 """OpenSSL Perl template processing at build time.
 
-Generates platform-independent files from OpenSSL's .h.in templates,
-DER table generators, progs.pl, and mkbuildinf.pl. Template processing
-is batched into a single Perl invocation via batch_dofile to avoid
-per-template process-creation overhead on Windows. Uses redirect_stdout
-for single-output actions (mkbuildinf, progs).
+Generates files from OpenSSL's util/dofile.pl templates (.h.in, .c.in,
+.inc.in), DER table generators, progs.pl, and mkbuildinf.pl. Template
+processing is batched into a single Perl invocation via batch_dofile to
+avoid per-template process-creation overhead on Windows. Uses
+redirect_stdout for single-output actions (mkbuildinf, progs).
+
+The template list is not hardcoded here: it is generated into
+//bazel/constants:templates.bzl from OpenSSL's configdata.pm, so it tracks
+whatever OpenSSL version the overlay was generated for.
 """
+
+load("//bazel/constants:generated_srcs.bzl", "COMMON_GENERATED_CRYPTO_SRCS", "GENERATED_CRYPTO_EXTRA_SRCS")
+load("//bazel/constants:templates.bzl", "DOFILE_HDR_TEMPLATES", "DOFILE_SRC_TEMPLATES")
 
 # Fixed epoch for SOURCE_DATE_EPOCH to ensure reproducible timestamps.
 _HERMETIC_ENV = {"SOURCE_DATE_EPOCH": "443779200"}
-
-_DOFILE_HDR_TEMPLATES = {
-    "include/crypto/dso_conf.h.in": "include/crypto/dso_conf.h",
-    "include/openssl/asn1.h.in": "include/openssl/asn1.h",
-    "include/openssl/asn1t.h.in": "include/openssl/asn1t.h",
-    "include/openssl/bio.h.in": "include/openssl/bio.h",
-    "include/openssl/cmp.h.in": "include/openssl/cmp.h",
-    "include/openssl/cms.h.in": "include/openssl/cms.h",
-    "include/openssl/comp.h.in": "include/openssl/comp.h",
-    "include/openssl/conf.h.in": "include/openssl/conf.h",
-    "include/openssl/configuration.h.in": "include/openssl/configuration.h",
-    "include/openssl/core_names.h.in": "include/openssl/core_names.h",
-    "include/openssl/crmf.h.in": "include/openssl/crmf.h",
-    "include/openssl/crypto.h.in": "include/openssl/crypto.h",
-    "include/openssl/ct.h.in": "include/openssl/ct.h",
-    "include/openssl/err.h.in": "include/openssl/err.h",
-    "include/openssl/ess.h.in": "include/openssl/ess.h",
-    "include/openssl/fipskey.h.in": "include/openssl/fipskey.h",
-    "include/openssl/lhash.h.in": "include/openssl/lhash.h",
-    "include/openssl/ocsp.h.in": "include/openssl/ocsp.h",
-    "include/openssl/opensslv.h.in": "include/openssl/opensslv.h",
-    "include/openssl/pkcs12.h.in": "include/openssl/pkcs12.h",
-    "include/openssl/pkcs7.h.in": "include/openssl/pkcs7.h",
-    "include/openssl/safestack.h.in": "include/openssl/safestack.h",
-    "include/openssl/srp.h.in": "include/openssl/srp.h",
-    "include/openssl/ssl.h.in": "include/openssl/ssl.h",
-    "include/openssl/ui.h.in": "include/openssl/ui.h",
-    "include/openssl/x509.h.in": "include/openssl/x509.h",
-    "include/openssl/x509_acert.h.in": "include/openssl/x509_acert.h",
-    "include/openssl/x509_vfy.h.in": "include/openssl/x509_vfy.h",
-    "include/openssl/x509v3.h.in": "include/openssl/x509v3.h",
-}
-
-_DOFILE_DER_HDR_TEMPLATES = {
-    "providers/common/include/prov/der_digests.h.in": "providers/common/include/prov/der_digests.h",
-    "providers/common/include/prov/der_dsa.h.in": "providers/common/include/prov/der_dsa.h",
-    "providers/common/include/prov/der_ec.h.in": "providers/common/include/prov/der_ec.h",
-    "providers/common/include/prov/der_ecx.h.in": "providers/common/include/prov/der_ecx.h",
-    "providers/common/include/prov/der_hkdf.h.in": "providers/common/include/prov/der_hkdf.h",
-    "providers/common/include/prov/der_ml_dsa.h.in": "providers/common/include/prov/der_ml_dsa.h",
-    "providers/common/include/prov/der_rsa.h.in": "providers/common/include/prov/der_rsa.h",
-    "providers/common/include/prov/der_slh_dsa.h.in": "providers/common/include/prov/der_slh_dsa.h",
-    "providers/common/include/prov/der_sm2.h.in": "providers/common/include/prov/der_sm2.h",
-    "providers/common/include/prov/der_wrap.h.in": "providers/common/include/prov/der_wrap.h",
-}
-
-def _dofile_inc_templates():
-    """Generated .inc files (OpenSSL 4.x+): providers/implementations/**/*.inc.in.
-
-    Globbed rather than hardcoded
-    so OpenSSL version bumps pick up added or removed templates automatically.
-    """
-    return {
-        src: src[:-len(".in")]
-        for src in native.glob(
-            ["providers/implementations/**/*.inc.in"],
-            allow_empty = True,
-        )
-    }
-
-_DOFILE_SRC_TEMPLATES = {}
-
-_DOFILE_DER_SRC_TEMPLATES = {
-    "providers/common/der/der_digests_gen.c.in": "providers/common/der/der_digests_gen.c",
-    "providers/common/der/der_dsa_gen.c.in": "providers/common/der/der_dsa_gen.c",
-    "providers/common/der/der_ec_gen.c.in": "providers/common/der/der_ec_gen.c",
-    "providers/common/der/der_ecx_gen.c.in": "providers/common/der/der_ecx_gen.c",
-    "providers/common/der/der_hkdf_gen.c.in": "providers/common/der/der_hkdf_gen.c",
-    "providers/common/der/der_ml_dsa_gen.c.in": "providers/common/der/der_ml_dsa_gen.c",
-    "providers/common/der/der_rsa_gen.c.in": "providers/common/der/der_rsa_gen.c",
-    "providers/common/der/der_slh_dsa_gen.c.in": "providers/common/der/der_slh_dsa_gen.c",
-    "providers/common/der/der_sm2_gen.c.in": "providers/common/der/der_sm2_gen.c",
-    "providers/common/der/der_wrap_gen.c.in": "providers/common/der/der_wrap_gen.c",
-}
 
 def _run_dofile(ctx, out_files_list):
     """Run batch_dofile once for all templates."""
@@ -112,6 +45,7 @@ def _run_dofile(ctx, out_files_list):
         outputs = outputs,
         mnemonic = "OpenSSLDofile",
         progress_message = "Generating %d template files" % len(outputs),
+        toolchain = None,
     )
 
 def _run_progs(ctx, flag, out_path):
@@ -133,6 +67,7 @@ def _run_progs(ctx, flag, out_path):
         env = _HERMETIC_ENV,
         mnemonic = "OpenSSLProgs",
         progress_message = "Generating %s" % out.short_path,
+        toolchain = None,
     )
     return out
 
@@ -161,6 +96,7 @@ def _openssl_gen_impl(ctx):
             env = _HERMETIC_ENV,
             mnemonic = "OpenSSLBuildinf",
             progress_message = "Generating %s" % buildinf.short_path,
+            toolchain = None,
         )
 
         app_outs.append(_run_progs(ctx, "-H", "apps/progs.h"))
@@ -178,6 +114,9 @@ def _openssl_gen_impl(ctx):
 _openssl_gen = rule(
     implementation = _openssl_gen_impl,
     doc = """Generates OpenSSL headers and sources from Perl templates at build time.
+
+All tools are exec-configured attributes (perl_binary targets), not toolchains,
+so actions pass toolchain = None for --incompatible_auto_exec_groups.
 
 In "hdrs" mode: processes .h.in dofile templates, generates crypto/buildinf.h,
 and produces apps/progs.h (in the "app" output group).
@@ -220,6 +159,28 @@ Template outputs go into DefaultInfo; app outputs go into OutputGroupInfo("app")
     },
 )
 
+def _src_templates_for(outputs):
+    """Subset of DOFILE_SRC_TEMPLATES (template -> output) producing the given outputs."""
+    wanted = {out: None for out in outputs}
+    return {tmpl: out for tmpl, out in DOFILE_SRC_TEMPLATES.items() if out in wanted}
+
+def _src_templates_select():
+    """Per-configuration source templates, mirroring the libcrypto srcs select in //:BUILD.
+
+    Only the generated sources Configure lists for a platform are rendered and
+    compiled; the rest (e.g. Windows-only providers) are left out exactly as
+    OpenSSL's own build would.
+    """
+    no_asm = COMMON_GENERATED_CRYPTO_SRCS + GENERATED_CRYPTO_EXTRA_SRCS["no_asm"]
+    branches = {
+        "//configs:_asm_" + config: _src_templates_for(COMMON_GENERATED_CRYPTO_SRCS + extra)
+        for config, extra in GENERATED_CRYPTO_EXTRA_SRCS.items()
+        if config != "no_asm"
+    }
+    branches["//configs:_no_asm_fallback"] = _src_templates_for(no_asm)
+    branches["//conditions:default"] = _src_templates_for(no_asm)
+    return select(branches)
+
 def openssl_perl_genrule(*, name, mode = None, **kwargs):
     """Generate platform-independent OpenSSL files from Perl templates.
 
@@ -237,24 +198,17 @@ def openssl_perl_genrule(*, name, mode = None, **kwargs):
             fail("Cannot infer mode from name '{}'; pass mode explicitly".format(name))
 
     if mode == "hdrs":
-        templates = {}
-        templates.update(_DOFILE_HDR_TEMPLATES)
-        templates.update(_DOFILE_DER_HDR_TEMPLATES)
-        templates.update(_dofile_inc_templates())
         _openssl_gen(
             name = name,
             mode = "hdrs",
-            templates_map = templates,
+            templates_map = DOFILE_HDR_TEMPLATES,
             **kwargs
         )
     elif mode == "srcs":
-        templates = {}
-        templates.update(_DOFILE_SRC_TEMPLATES)
-        templates.update(_DOFILE_DER_SRC_TEMPLATES)
         _openssl_gen(
             name = name,
             mode = "srcs",
-            templates_map = templates,
+            templates_map = _src_templates_select(),
             **kwargs
         )
     else:

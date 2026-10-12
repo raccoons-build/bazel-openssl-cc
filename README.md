@@ -5,22 +5,60 @@
 Generates a bzlmod overlay to compile OpenSSL with `cc_library` targets. Based on
 [`dbx_build_tools`](https://github.com/dropbox/dbx_build_tools/blob/master/thirdparty/openssl/BUILD.openssl.tail).
 
+## Repository layout
+
+| Directory    | Contents                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| `generator/` | `//generator:generate` and its inputs (`extract_srcs.pl`, `configdata.pm.in`, `buildinf.h.in`).     |
+| `overlay/`   | The BCR overlay in its shipped layout. `MODULE.bazel` is a template; the rest is copied as is.      |
+| `pregen/`    | Root of the pre-generated archive attached to GitHub releases.                                      |
+| `versions/`  | Per-OpenSSL-version overrides of the above; see [versions/README.md](versions/README.md).           |
+
+`overlay/`, `pregen/` and `versions/` are in `.bazelignore`: their `BUILD.bazel` files are
+templates, not packages of this repository.
+
+## Supporting any OpenSSL version
+
+The generator takes an OpenSSL source tree and reads its version from `VERSION.dat`.
+Everything that varies between releases comes from OpenSSL's own `configdata.pm`: source
+lists, defines, the `util/dofile.pl` templates, and which generated headers differ per
+platform (found by rendering each template for every platform and comparing). A version
+that needs different overlay logic gets a `versions/` override, not a branch.
+
+Pull requests build and test every version in
+[`.github/openssl-versions.json`](.github/openssl-versions.json); a nightly job does the
+same against upstream `master`. Releases are tags of the form `<OPENSSL_VERSION>.bcr.<N>`;
+see [Releasing](#releasing).
+
 ## Architecture
 
-`generate_constants.py` runs OpenSSL's `Configure` for 15 target platforms + a no-asm
-fallback, extracts source lists and defines, then pre-generates headers, sources, and
-perlasm assembly. The output is an overlay placed on top of the OpenSSL source tree.
+`generator/generate_constants.py` runs OpenSSL's `Configure` for 15 target platforms plus a
+no-asm fallback, extracts source lists and defines, and pre-generates headers, sources and
+perlasm assembly. It outputs an overlay for the OpenSSL source tree and a separate
+pre-generated archive.
+
+The module builds from the upstream source archive and the overlay alone: with
+`--@openssl//:use-pregenerated=False` all code generation runs OpenSSL's own Perl scripts
+at build time and nothing is fetched from this repository. The pre-generated archive only
+removes Perl from the default build.
 
 At build time, `select()` routes between three modes:
 
 | Mode                        | When                                          | What happens                                                                                         |
 | --------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | **Pre-generated** (default) | Known platform, `use-pregenerated=True`       | `pregen_files` symlinks static files to canonical output paths. Zero Perl.                           |
-| **Perl fallback**           | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `perl_genrule` run Perl via `rules_perl`. Always used for Windows assembly. |
+| **Perl fallback**           | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `openssl_perlasm` run Perl via `rules_perl`. Always used for Windows assembly. |
 | **No-asm**                  | `use-no-asm-fallback=True`                    | Portable C only. No assembly, no Perl.                                                               |
 
 Both pregen and Perl paths produce outputs at identical canonical paths (e.g.
 `include/openssl/bio.h`), so downstream targets need no mode-specific include paths.
+
+The perlasm scripts pick instruction-set paths by probing `$CC`. The Perl path probes the
+configured `cc_toolchain` compiler. The pre-generated path answers the probes with pinned
+values (GNU as 2.38 for `elf`/`linux64`, clang 15 for `macosx`/`ios64`; see
+`_PERLASM_PROBE_PROFILES`), so the shipped assembly does not depend on where it was
+generated. Those versions are its minimum assembler requirement; older toolchains should
+use `use-pregenerated=False`.
 
 ## Build Flags
 
@@ -28,6 +66,47 @@ Both pregen and Perl paths produce outputs at identical canonical paths (e.g.
 --@openssl//:use-pregenerated=False    # Force Perl genrule path
 --@openssl//:use-no-asm-fallback=True  # Force portable C, no assembly
 ```
+
+## Releasing
+
+A release is a tag `<OPENSSL_VERSION>.bcr.<N>`, e.g. `4.0.1.bcr.3`: upstream OpenSSL 4.0.1,
+revision 3 of this overlay for it (revisions start at 0).
+[`release.yaml`](.github/workflows/release.yaml) runs the same pipeline however it starts:
+
+- **Manually (recommended):** Actions → Release → Run workflow. Pick the branch (normally
+  `main`) and enter the release, e.g. `4.0.1.bcr.3`, or just `4.0.1` for the next unused
+  revision. The tag is created at the end, only after every job has passed.
+- **By tag:** push the tag. To re-run an existing tag, run the workflow on that tag with the
+  release field empty.
+
+The pipeline:
+
+1. Download `openssl-<version>.tar.gz` and run the generator, which refuses a tag that does
+   not match `VERSION.dat`.
+2. Package the pre-generated archive and register the module in a scratch copy of the Bazel
+   Central Registry, once with the GitHub release URL and once with a local `file://` copy
+   for testing.
+3. Build and test `@openssl//...` from the local copy on Linux x86_64 and arm64, macOS and
+   Windows, with Bazel 7, 8 and 9, in both modes, with `--incompatible_auto_exec_groups`.
+   This is the pull request matrix.
+4. Assemble the registry change (module version plus `metadata.json` entry) and run the
+   registry's `bcr_validation.py` on it.
+5. Create the tag if needed, upload `bazel-openssl-cc-<tag>.tar.gz` as a release asset, and
+   open a pull request to publish the module on the Bazel Central Registry.
+
+If anything fails, nothing is published and no tag is created; fix `main` and release
+again. Tags are never reused. Creating the tag needs `contents: write`; if a tag protection
+rule blocks `GITHUB_TOKEN`, push the tag by hand and re-run on it.
+
+**Nightly.** [`nightly.yaml`](.github/workflows/nightly.yaml) runs steps 1 to 4 every night
+against a snapshot of the current upstream `master` commit. A red nightly means the next
+OpenSSL release will need overlay changes.
+
+**Supported versions.** Before releasing a version this repository has not built, add it to
+[`.github/openssl-versions.json`](.github/openssl-versions.json) and open a pull request;
+that runs the pipeline without publishing and surfaces any version-specific breakage (see
+[versions/README.md](versions/README.md)). Keep every version you still release in that
+list.
 
 ## Regenerating the Overlay
 
@@ -42,9 +121,22 @@ bazel run //:generate -- \
 Standalone (needs system Python 3.10+, Perl 5, buildifier):
 
 ```bash
-python3 generate_constants.py \
+python3 generator/generate_constants.py \
   --openssl_source_dir /path/to/openssl \
   --output_dir /path/to/output
+```
+
+To also produce the BCR module files, pass `--bcr_dir`, `--source_archive` and a
+`--tag` that starts with the version in the source tree's `VERSION.dat`:
+
+```bash
+bazel run //:generate -- \
+  --openssl_source_dir /path/to/openssl-4.0.1 \
+  --output_dir /path/to/overlay \
+  --pregen_dir /path/to/pregen \
+  --bcr_dir /path/to/bazel-central-registry \
+  --tag 4.0.1.bcr.0 \
+  --source_archive /path/to/openssl-4.0.1.tar.gz
 ```
 
 ## Testing

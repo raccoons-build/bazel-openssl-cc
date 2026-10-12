@@ -81,6 +81,37 @@ foreach my $src (keys %libcrypto_srcs) {
     }
 }
 
+# Collect util/dofile.pl templates: every generated file whose generator is
+# a *.in template. Only C-relevant outputs matter to the Bazel overlay; the
+# rest (pkg-config files, man pages, CMake exporters, ...) are ignored. Keyed
+# by template path, valued by output path.
+my %dofile_templates;
+foreach my $out (sort keys %{$unified_info{generate}}) {
+    my @gen = @{$unified_info{generate}->{$out}};
+    next unless $gen[0] =~ m/\.in$/;
+    next unless $out =~ m/\.(h|c|inc)$/;
+    next if $out =~ m{^(test|fuzz|demos|doc)/};
+    $dofile_templates{normalize_path($gen[0])} = normalize_path($out);
+}
+
+# Sources that are *generated* from util/dofile.pl templates and belong to a
+# library on this platform. These are excluded from the plain source lists
+# below (they do not exist in the source tree) and tracked separately so the
+# overlay compiles exactly the generated files Configure would, per platform.
+sub generated_c_srcs {
+    my ($srcs) = @_;
+    my @list;
+    foreach my $src (sort keys %$srcs) {
+        next unless exists($unified_info{generate}->{$src});
+        next unless $src =~ m/\.c$/ && $unified_info{generate}->{$src}[0] =~ m/\.in$/;
+        push(@list, normalize_path($src));
+    }
+    return @list;
+}
+my @libcrypto_generated_srcs_list = generated_c_srcs(\%libcrypto_srcs);
+my @libssl_generated_srcs_list = generated_c_srcs(\%libssl_srcs);
+my @openssl_app_generated_srcs_list = generated_c_srcs(\%openssl_app_srcs);
+
 # Build data structures for JSON output
 my @libcrypto_srcs_list;
 foreach (sort keys %libcrypto_srcs) {
@@ -128,6 +159,25 @@ foreach (sort keys %perlasm) {
     push(@perlasm_gen_commands, $cmd);
 }
 
+# -D flags that upstream passes on the command line through *cppflags*
+# rather than *defines* (e.g. the per-target L_ENDIAN / B_ENDIAN).
+sub cppflag_defines {
+    my @out;
+    foreach my $flags (@_) {
+        next unless defined $flags;
+        my @list = ref $flags eq 'ARRAY' ? @$flags : split(/\s+/, $flags);
+        push @out, map { s/^-D//r } grep { /^-D/ } @list;
+    }
+    return @out;
+}
+
+# The apps get upstream's BIN_CPPFLAGS: the configuration-wide defines and
+# cppflags, but not the library-only ones.
+foreach my $def (@{$config{defines} // []},
+                 cppflag_defines($target{cppflags}, $config{cppflags})) {
+    $openssl_app_defines{$def} = () unless exists $openssl_app_defines{$def};
+}
+
 # Build defines lists
 my @libcrypto_defines_list;
 foreach my $def (sort keys %libcrypto_defines) {
@@ -157,9 +207,14 @@ if (exists $config{lib_defines}) {
 if (exists $config{openssl_other_defines}) {
     push @defines, @{$config{openssl_other_defines}}
 }
+# Everything upstream's LIB_CPPFLAGS carries, e.g. L_ENDIAN / B_ENDIAN.
+push @defines, cppflag_defines($target{cppflags}, $target{lib_cppflags},
+                               $config{cppflags}, $config{lib_cppflags});
 
+my %seen_define;
 my @openssl_defines_list;
 foreach (sort @defines) {
+    next if $seen_define{$_}++;
     push(@openssl_defines_list, "-D" . $_);
 }
 
@@ -190,5 +245,9 @@ my %output_data = (
     config_openssl_api_defines => \@config_openssl_api_defines,
     config_openssl_feature_defines => \@config_openssl_feature_defines,
     disablables => \@disablables,
+    dofile_templates => \%dofile_templates,
+    libcrypto_generated_srcs => \@libcrypto_generated_srcs_list,
+    libssl_generated_srcs => \@libssl_generated_srcs_list,
+    openssl_app_generated_srcs => \@openssl_app_generated_srcs_list,
 );
 print $json->encode(\%output_data);

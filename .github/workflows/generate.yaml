@@ -1,0 +1,263 @@
+# Reusable: generate the overlay and pre-generated archive for one OpenSSL
+# version, register the module in a scratch Bazel Central Registry, and build
+# and test it on every supported platform. Called by pr.yaml and release.yaml.
+#
+# Two registry artifacts come from the same archive:
+#   bcr-<tag>       module points at the GitHub release URL (what is published)
+#   bcr-test-<tag>  module points at a file:// copy (what the test jobs use,
+#                   since the release does not exist yet)
+name: Generate
+
+"on":
+  workflow_call:
+    inputs:
+      bcr_tag:
+        description: >-
+          BCR module version to publish as, e.g. 4.0.1.bcr.0. The upstream OpenSSL version
+          is everything before ".bcr." (the generator also enforces this).
+        required: true
+        type: string
+      openssl_ref:
+        description: >-
+          Build from the GitHub archive of this openssl/openssl git ref (ideally a commit SHA)
+          instead of the release tarball for the version in bcr_tag. The version in bcr_tag
+          must still match the ref's VERSION.dat. Used by the nightly build of upstream master.
+        required: false
+        type: string
+        default: ""
+      ref:
+        description: Git ref of this repository to generate from (defaults to the calling ref)
+        required: false
+        type: string
+        default: ""
+
+env:
+  BCR_TAG: ${{ inputs.bcr_tag }}
+  OPENSSL_REF: ${{ inputs.openssl_ref }}
+  PREGEN_TARBALL: bazel-openssl-cc-${{ inputs.bcr_tag }}.tar.gz
+
+jobs:
+  generate-linux:
+    name: generate (linux core, ${{ inputs.bcr_tag }})
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4.2.2
+      with:
+        ref: ${{ inputs.ref }}
+    - name: Download OpenSSL source
+      run: |
+        if [[ ! "$BCR_TAG" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.bcr\. ]]; then
+          echo "::error::bcr_tag '$BCR_TAG' must look like <MAJOR.MINOR.PATCH>.bcr.<N>"
+          exit 1
+        fi
+        version="${BASH_REMATCH[1]}"
+        if [[ -n "$OPENSSL_REF" ]]; then
+          # Snapshot of a git ref: GitHub's commit archive, extracted as openssl-<ref>.
+          url="https://github.com/openssl/openssl/archive/${OPENSSL_REF}.tar.gz"
+          dir="openssl-${OPENSSL_REF}"
+          echo "GENERATOR_SOURCE_ARGS=--source_url=${url} --source_strip_prefix=${dir}" >> "$GITHUB_ENV"
+        else
+          url="https://github.com/openssl/openssl/releases/download/openssl-${version}/openssl-${version}.tar.gz"
+          dir="openssl-${version}"
+          echo "GENERATOR_SOURCE_ARGS=" >> "$GITHUB_ENV"
+        fi
+        curl -fL -o /tmp/openssl.tar.gz "$url"
+        mkdir -p /tmp/openssl-src
+        tar xzf /tmp/openssl.tar.gz -C /tmp/openssl-src
+        echo "OPENSSL_SRC=/tmp/openssl-src/${dir}" >> "$GITHUB_ENV"
+    - name: Checkout BCR
+      uses: actions/checkout@v4.2.2
+      with:
+        repository: bazelbuild/bazel-central-registry
+        path: bazel-central-registry
+        fetch-depth: 1
+    - name: Generate overlay
+      run: >
+        bazel run //:generate --
+        --openssl_source_dir=$OPENSSL_SRC
+        --output_dir=/tmp/overlay
+        --pregen_dir=/tmp/pregen
+        --bcr_dir=$(pwd)/bazel-central-registry
+        --tag=${{ inputs.bcr_tag }}
+        --source_archive=/tmp/openssl.tar.gz
+        $GENERATOR_SOURCE_ARGS
+    - run: tar czf /tmp/core-pregen.tar.gz -C /tmp pregen
+    - name: Upload core pregen
+      uses: actions/upload-artifact@v4
+      with:
+        name: core-pregen-${{ inputs.bcr_tag }}
+        path: /tmp/core-pregen.tar.gz
+        if-no-files-found: error
+    - run: tar czf bcr-core.tar.gz bazel-central-registry
+    - name: Upload core BCR
+      uses: actions/upload-artifact@v4
+      with:
+        name: bcr-core-${{ inputs.bcr_tag }}
+        path: bcr-core.tar.gz
+        if-no-files-found: error
+
+  # The pre-generated assembly no longer depends on the machine that produces
+  # it (the generator answers the perlasm compiler probes with pinned values),
+  # so a single Linux job produces every flavour; there is no macOS job.
+  generate-merge:
+    name: package pregen (${{ inputs.bcr_tag }})
+    runs-on: ubuntu-latest
+    needs:
+      - generate-linux
+    steps:
+      - name: Download core pregen
+        uses: actions/download-artifact@v4
+        with:
+          name: core-pregen-${{ inputs.bcr_tag }}
+          path: /tmp/
+      - run: (cd /tmp && tar xzf core-pregen.tar.gz)
+      - name: Download core BCR
+        uses: actions/download-artifact@v4
+        with:
+          name: bcr-core-${{ inputs.bcr_tag }}
+          path: /tmp/
+      - run: tar xzf /tmp/bcr-core.tar.gz
+      - name: Checkout repo for scripts
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ inputs.ref }}
+          path: repo
+      - name: Create pregen tarball and patch BCR (release URL)
+        run: |
+          tar czf "/tmp/$PREGEN_TARBALL" -C /tmp pregen
+          python3 repo/generator/patch_bcr_pregen.py \
+            --tarball="/tmp/$PREGEN_TARBALL" \
+            --bcr_dir=bazel-central-registry \
+            --tag=${{ inputs.bcr_tag }}
+          tar czf bcr.tar.gz bazel-central-registry
+      - name: Upload BCR (release URL)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcr-${{ inputs.bcr_tag }}
+          path: bcr.tar.gz
+          if-no-files-found: error
+      - name: Patch BCR for testing (file:// URL)
+        run: |
+          python3 repo/generator/patch_bcr_pregen.py \
+            --tarball="/tmp/$PREGEN_TARBALL" \
+            --bcr_dir=bazel-central-registry \
+            --tag=${{ inputs.bcr_tag }} \
+            --url_override="file:///tmp/$PREGEN_TARBALL"
+          tar czf bcr-test.tar.gz bazel-central-registry
+      - name: Upload BCR (test URL)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bcr-test-${{ inputs.bcr_tag }}
+          path: bcr-test.tar.gz
+          if-no-files-found: error
+      - name: Upload pregen tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: pregen-${{ inputs.bcr_tag }}
+          path: /tmp/${{ env.PREGEN_TARBALL }}
+          if-no-files-found: error
+
+  test-unix:
+    name: test-${{ matrix.os }} bazel-${{ matrix.bazel }} (${{ inputs.bcr_tag }}, pregen=${{ matrix.use_pregenerated }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-14
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+        bazel:
+          - 7.x
+          - 8.x
+          - 9.x
+        # Exercise both pre-generated file routing (default) and the
+        # from-source Perl path.
+        use_pregenerated:
+          - true
+          - false
+    needs:
+      - generate-merge
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download bcr (test URL)
+        uses: actions/download-artifact@v4
+        with:
+          name: bcr-test-${{ inputs.bcr_tag }}
+          path: /tmp/
+      - name: Download pregen tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: pregen-${{ inputs.bcr_tag }}
+          path: /tmp/
+      - run: (cd /tmp && tar xzf /tmp/bcr-test.tar.gz)
+      - run:
+          mkdir workspace &&
+          cd workspace &&
+          echo ${{ matrix.bazel }} > .bazelversion &&
+          echo 'bazel_dep(name = "openssl", version = "${{ inputs.bcr_tag }}")' > MODULE.bazel &&
+          echo 'bazel_dep(name = "rules_java", version = "9.1.0", dev_dependency = True)' >> MODULE.bazel &&
+          echo 'bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)' >> MODULE.bazel
+      - run:
+          cd workspace &&
+          bazel cquery ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--registry="file:///tmp/bazel-central-registry" @openssl//... --output=build
+      - run:
+          cd workspace &&
+          bazel test ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--verbose_failures --incompatible_auto_exec_groups --registry="file:///tmp/bazel-central-registry" @openssl//...
+
+  test-windows:
+    name: test-windows bazel-${{ matrix.bazel }} (${{ inputs.bcr_tag }}, pregen=${{ matrix.use_pregenerated }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+        bazel:
+          - 7.x
+          - 8.x
+          - 9.x
+        use_pregenerated:
+          - true
+          - false
+    needs:
+      - generate-merge
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download msys tools
+        uses: msys2/setup-msys2@v2
+      - name: Download bcr (test URL)
+        uses: actions/download-artifact@v4
+        with:
+          name: bcr-test-${{ inputs.bcr_tag }}
+          path: C:\
+      - name: Download pregen tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: pregen-${{ inputs.bcr_tag }}
+          path: C:\
+      - name: Setup nasm
+        uses: ilammy/setup-nasm@v1
+      - run: (cd C:\ && tar xzf C:\bcr-test.tar.gz)
+      - name: Patch MODULE.bazel paths for Windows
+        shell: pwsh
+        run: |
+         Get-ChildItem -Recurse -Filter 'MODULE.bazel' -Path 'C:\bazel-central-registry\modules\openssl\${{ inputs.bcr_tag }}' | ForEach-Object {
+              $content = Get-Content $_.FullName
+              $newContent = $content -replace 'file:///tmp/', 'file:///C:/'
+              Set-Content $_.FullName -Value $newContent
+          }
+      - name: Update hash in source.json
+        run: jq --arg HASH "$(pwsh -c '$hash = Get-FileHash -Algorithm SHA256 C:\bazel-central-registry\modules\openssl\${{ inputs.bcr_tag }}\MODULE.bazel | Select-Object Hash ; [System.Convert]::ToBase64String([System.Convert]::FromHexString($hash.Hash))')" '.overlay["MODULE.bazel"] = "sha256-\($HASH)"' C:\bazel-central-registry\modules\openssl\${{ inputs.bcr_tag }}\source.json > C:\bazel-central-registry\modules\openssl\${{ inputs.bcr_tag }}\source.json.modified && rm C:\bazel-central-registry\modules\openssl\${{ inputs.bcr_tag }}\source.json && mv C:\bazel-central-registry\modules\openssl\${{ inputs.bcr_tag }}\source.json.modified C:\bazel-central-registry\modules\openssl\${{ inputs.bcr_tag }}\source.json
+      - run:
+          mkdir workspace &&
+          cd workspace &&
+          echo ${{ matrix.bazel }} > .bazelversion &&
+          echo 'bazel_dep(name = "openssl", version = "${{ inputs.bcr_tag }}")' > MODULE.bazel &&
+          echo 'bazel_dep(name = "rules_java", version = "9.1.0", dev_dependency = True)' >> MODULE.bazel &&
+          echo 'bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)' >> MODULE.bazel
+      - run:
+          cd workspace &&
+          bazel cquery ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--registry="file:///C:/bazel-central-registry" @openssl//... --output=build
+      - run:
+          cd workspace &&
+          bazel test ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--verbose_failures --incompatible_auto_exec_groups --registry="file:///C:/bazel-central-registry" @openssl//...

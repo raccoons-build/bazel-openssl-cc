@@ -79,6 +79,7 @@ def _collate_into_directory_impl(ctx):
         outputs = [outdir],
         mnemonic = "OpenSSLCollateIntoDir",
         progress_message = "Copying OpenSSL files to directory",
+        toolchain = None,
     )
 
     return [

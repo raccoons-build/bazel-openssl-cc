@@ -1,151 +1,195 @@
+# Build, test and publish one OpenSSL version to the Bazel Central Registry.
+# See README.md, "Releasing".
+#
+# Start it manually with the release to cut (4.0.1.bcr.3, or 4.0.1 for the
+# next revision), or by pushing such a tag. Nothing is published and no tag is
+# created unless every build and test job passes. nightly.yaml calls it with
+# dry_run=true against a snapshot of upstream master.
 name: Release
 'on':
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      release:
+        description: >-
+          Release to cut, e.g. 4.0.1.bcr.3 (builds upstream OpenSSL 4.0.1, publishes the
+          module as 4.0.1.bcr.3). Give just the OpenSSL version, e.g. 4.0.1, to use the next
+          unused .bcr.<N>. Leave empty when running on an existing release tag to re-run it.
+        required: false
+        type: string
+      dry_run:
+        description: Run everything except creating the tag, the GitHub release and the registry PR.
+        required: false
+        type: boolean
+        default: false
+      openssl_ref:
+        description: >-
+          Dry runs only: build a snapshot of this openssl/openssl git ref (commit SHA) instead
+          of the release tarball. openssl_version must match the ref's VERSION.dat.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      release:
+        description: Release tag (<version>.bcr.<N>) or OpenSSL version (next unused revision).
+        required: true
+        type: string
+      dry_run:
+        required: false
+        type: boolean
+        default: false
+      openssl_ref:
+        required: false
+        type: string
+        default: ""
   push:
     tags:
     - '*'
+
 jobs:
-  generate-linux:
-    runs-on: ubuntu-22.04
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4.2.2
-    - name: Download OpenSSL source
-      run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
-        tar xzf /tmp/openssl.tar.gz -C /tmp
-    - name: Checkout BCR
-      uses: actions/checkout@v4.2.2
-      with:
-        repository: illicitonion/bazel-central-registry
-        token: ${{ secrets.BCR_GITHUB_TOKEN }}
-        path: bazel-central-registry
-        ref: refs/heads/main
-    - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-    - run: (cd bazel-central-registry && git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git && git fetch upstream && git reset --hard upstream/main)
-    - run: >
-        bazel run //:generate --
-        --openssl_source_dir=/tmp/openssl-4.0.1
-        --output_dir=/tmp/overlay
-        --pregen_dir=/tmp/pregen
-        --bcr_dir=$(pwd)/bazel-central-registry
-        --tag=${{github.ref_name}}
-        --source_archive=/tmp/openssl.tar.gz
-    - run: tar czf /tmp/core-pregen.tar.gz -C /tmp pregen
-    - name: Upload core pregen
-      uses: actions/upload-artifact@v4
-      with:
-        name: core-pregen
-        path: /tmp/core-pregen.tar.gz
-        if-no-files-found: error
-    - run: tar czf bcr-core.tar.gz bazel-central-registry
-    - name: Upload core BCR
-      uses: actions/upload-artifact@v4
-      with:
-        name: bcr-core
-        path: bcr-core.tar.gz
-        if-no-files-found: error
-
-  generate-macos:
-    runs-on: macos-14
-    steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4.2.2
-    - name: Download OpenSSL source
-      run: |
-        curl -fL -o /tmp/openssl.tar.gz https://github.com/openssl/openssl/releases/download/openssl-4.0.1/openssl-4.0.1.tar.gz
-        tar xzf /tmp/openssl.tar.gz -C /tmp
-    - run: >
-        python3 generate_constants.py
-        --openssl_source_dir=/tmp/openssl-4.0.1
-        --output_dir=/tmp/macos-asm
-        --perlasm-only=macosx,ios64
-    - run: tar czf /tmp/macos-asm.tar.gz -C /tmp/macos-asm/generated/asm .
-    - name: Upload macOS ASM
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-asm
-        path: /tmp/macos-asm.tar.gz
-        if-no-files-found: error
-
-  generate-merge:
+  prepare:
     runs-on: ubuntu-latest
-    needs:
-      - generate-linux
-      - generate-macos
+    outputs:
+      bcr_tag: ${{ steps.tag.outputs.bcr_tag }}
     steps:
-      - name: Download core pregen
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4.2.2
         with:
-          name: core-pregen
-          path: /tmp/
-      - run: (cd /tmp && tar xzf core-pregen.tar.gz)
-      - name: Download macOS ASM
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-asm
-          path: /tmp/
-      - name: Overlay macOS ASM into pregen
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Determine the release tag
+        id: tag
+        env:
+          RELEASE: ${{ inputs.release }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || '' }}
+          OPENSSL_REF: ${{ inputs.openssl_ref }}
         run: |
-          rm -rf /tmp/pregen/generated/asm/macosx /tmp/pregen/generated/asm/ios64
-          mkdir -p /tmp/pregen/generated/asm
-          tar xzf /tmp/macos-asm.tar.gz -C /tmp/pregen/generated/asm
-      - name: Download core BCR
-        uses: actions/download-artifact@v4
-        with:
-          name: bcr-core
-          path: /tmp/
-      - run: tar xzf /tmp/bcr-core.tar.gz
-      - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - name: Checkout repo for scripts
-        uses: actions/checkout@v4.2.2
-        with:
-          path: repo
-      - name: Create pregen tarball and patch BCR
-        run: |
-          tar czf /tmp/bazel-openssl-cc-${{github.ref_name}}.tar.gz -C /tmp pregen
-          python3 repo/patch_bcr_pregen.py \
-            --tarball=/tmp/bazel-openssl-cc-${{github.ref_name}}.tar.gz \
-            --bcr_dir=bazel-central-registry \
-            --tag=${{github.ref_name}}
-      - run: tar czf bcr.tar.gz bazel-central-registry
-      - name: Upload merged BCR
-        uses: actions/upload-artifact@v4
-        with:
-          name: bcr.tar.gz
-          path: bcr.tar.gz
-          if-no-files-found: error
-      - name: Upload pregen tarball
-        uses: actions/upload-artifact@v4
-        with:
-          name: pregen.tar.gz
-          path: /tmp/bazel-openssl-cc-${{github.ref_name}}.tar.gz
-          if-no-files-found: error
+          set -euo pipefail
+          if [[ -n "$OPENSSL_REF" && -z "$DRY_RUN" ]]; then
+            echo "::error::openssl_ref builds a snapshot, not a release; it is only allowed with dry_run."
+            exit 1
+          fi
+          if [[ -z "$RELEASE" ]]; then
+            # Push of a tag, or a manual run on an existing tag.
+            if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
+              echo "::error::Give the release to cut (e.g. 4.0.1.bcr.3), or run this workflow on a release tag."
+              exit 1
+            fi
+            TAG="$GITHUB_REF_NAME"
+          elif [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # Just an OpenSSL version: next unused revision for it.
+            last=$(git tag -l "$RELEASE.bcr.*" | sed -E 's/.*\.bcr\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+            TAG="$RELEASE.bcr.$(( ${last:--1} + 1 ))"
+          else
+            TAG="$RELEASE"
+          fi
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.bcr\.[0-9A-Za-z.-]+$ ]]; then
+            echo "::error::'$TAG' is not a release (<MAJOR.MINOR.PATCH>.bcr.<N>)"
+            exit 1
+          fi
+          if [[ -n "$RELEASE" ]] && existing=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}"); then
+            if [[ "$existing" != "$GITHUB_SHA" ]]; then
+              echo "::error::Tag $TAG already exists at $existing; pick another revision or run on that tag."
+              exit 1
+            fi
+            echo "Tag $TAG already points at this commit; re-running its release."
+          fi
+          echo "Releasing $TAG from $GITHUB_SHA${DRY_RUN:+ (dry run: nothing will be published)}"
+          echo "bcr_tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  # Generates, then runs the full test matrix; `release` below only starts
+  # once every job in the called workflow has succeeded.
+  generate:
+    needs: prepare
+    uses: ./.github/workflows/generate.yaml
+    with:
+      bcr_tag: ${{ needs.prepare.outputs.bcr_tag }}
+      openssl_ref: ${{ inputs.openssl_ref }}
 
   release:
     runs-on: ubuntu-latest
     needs:
-      - generate-merge
+      - prepare
+      - generate
+    permissions:
+      contents: write
+    env:
+      BCR_TAG: ${{ needs.prepare.outputs.bcr_tag }}
     steps:
+      - name: Checkout repo for scripts
+        uses: actions/checkout@v4.2.2
+        with:
+          path: repo
       - name: Download pregen tarball
         uses: actions/download-artifact@v4
         with:
-          name: pregen.tar.gz
+          name: pregen-${{ env.BCR_TAG }}
           path: .
-      - name: Download bcr
+      - name: Download generated BCR
         uses: actions/download-artifact@v4
         with:
-          name: bcr.tar.gz
+          name: bcr-${{ env.BCR_TAG }}
           path: /tmp/
-      - run: tar xzf /tmp/bcr.tar.gz
-      - run: sha256sum bazel-openssl-cc-${{github.ref_name}}.tar.gz
+      - run: mkdir -p /tmp/generated && tar xzf /tmp/bcr.tar.gz -C /tmp/generated
+      - run: sha256sum bazel-openssl-cc-${BCR_TAG}.tar.gz
+      # The registry change is prepared on the fork for a real release and on
+      # a plain upstream checkout for a dry run (no secret needed).
+      - name: Checkout BCR fork
+        if: ${{ !inputs.dry_run }}
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: illicitonion/bazel-central-registry
+          token: ${{ secrets.BCR_GITHUB_TOKEN }}
+          path: bazel-central-registry
+          ref: refs/heads/main
+      - name: Checkout BCR (dry run)
+        if: ${{ inputs.dry_run }}
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: bazelbuild/bazel-central-registry
+          path: bazel-central-registry
+          ref: refs/heads/main
       - run: git config --global user.email "github@raccoons.build" && git config --global user.name "Raccoons Build"
-      - run: cd bazel-central-registry && git checkout -b prep-${{github.ref_name}} && git add . && git commit -m "Release openssl ${{github.ref_name}}" && git push -u origin prep-${{github.ref_name}} && gh pr create --title "Add openssl ${{github.ref_name}}" --body "" --repo bazelbuild/bazel-central-registry
+      - name: Sync with upstream, add the new module version and commit
+        run: |
+          cd bazel-central-registry
+          git remote add upstream https://github.com/bazelbuild/bazel-central-registry.git
+          git fetch upstream
+          git reset --hard upstream/main
+          rm -rf "modules/openssl/${BCR_TAG}"
+          cp -r "/tmp/generated/bazel-central-registry/modules/openssl/${BCR_TAG}" modules/openssl/
+          PYTHONPATH=../repo/generator python3 -c 'import sys; from pathlib import Path; from common import add_to_metadata; add_to_metadata(Path("modules/openssl"), sys.argv[1])' "$BCR_TAG"
+          git checkout -b prep-${BCR_TAG}
+          git add .
+          git commit -m "Release openssl ${BCR_TAG}"
+          git show --stat HEAD
+      # The registry's own presubmit checks (source archive integrity, overlay
+      # hashes, metadata.json ordering, ...), run here so a problem fails the
+      # release instead of the registry PR.
+      - name: Validate the module with the registry's checks
+        env:
+          # A snapshot (openssl_ref) points source.json at a GitHub commit
+          # archive, which the registry rightly flags as an unstable URL; that
+          # check is meaningless for a dry run, the rest still apply.
+          SKIP: ${{ inputs.openssl_ref != '' && '--skip_validation=url_stability' || '' }}
+        run: |
+          python3 -m pip install --quiet requests pyyaml zstandard
+          cd bazel-central-registry
+          python3 tools/bcr_validation.py --registry . --check "openssl@${BCR_TAG}" $SKIP
+      # Creates the tag at this commit if it does not exist yet (manual runs),
+      # then the GitHub release with the pre-generated archive. Done before the
+      # BCR PR so the URL the module points at resolves as soon as the PR opens.
+      - name: Create tag and GitHub release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BCR_TAG }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            bazel-openssl-cc-${{ env.BCR_TAG }}.tar.gz
+      - name: Open BCR pull request
+        if: ${{ !inputs.dry_run }}
+        run: cd bazel-central-registry && git push -u origin prep-${BCR_TAG} && gh pr create --title "Add openssl ${BCR_TAG}" --body "" --repo bazelbuild/bazel-central-registry
         env:
           GITHUB_TOKEN: ${{ secrets.BCR_GITHUB_TOKEN }}
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            bazel-openssl-cc-${{github.ref_name}}.tar.gz
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: echo "Dry run of release ${BCR_TAG} from ${GITHUB_SHA} succeeded; nothing was published."
