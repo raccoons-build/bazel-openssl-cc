@@ -1377,6 +1377,8 @@ def main(
     source_archive: str | None = None,
     perl_path: str = "perl",
     pregen_dir: str | None = None,
+    source_url: str | None = None,
+    source_strip_prefix: str | None = None,
 ) -> None:
     openssl_dir = Path(openssl_source_dir)
     out = Path(output_dir)
@@ -1484,7 +1486,16 @@ def main(
             raise RuntimeError(
                 "--source_archive is required when generating BCR files (--bcr_dir and --tag were provided)"
             )
-        write_bcr_files(out, bcr_dir, tag, source_archive, version, srcs)
+        write_bcr_files(
+            out,
+            bcr_dir,
+            tag,
+            source_archive,
+            version,
+            srcs,
+            source_url=source_url or version.source_url,
+            source_strip_prefix=source_strip_prefix or version.archive_name,
+        )
 
     print("=== Done ===")
     print(f"Overlay written to: {out}")
@@ -1513,8 +1524,15 @@ def write_bcr_files(
     source_archive: str,
     version: OpenSSLVersion,
     srcs: OverlaySources,
+    source_url: str,
+    source_strip_prefix: str,
 ) -> None:
-    """Write BCR module files. Overlay root is out (contains BUILD.bazel, bazel/, configs/, etc.)."""
+    """Write BCR module files. Overlay root is out (contains BUILD.bazel, bazel/, configs/, etc.).
+
+    ``source_url``/``source_strip_prefix`` describe ``source_archive`` for
+    source.json: the upstream release tarball for releases, a commit archive
+    for snapshots such as the nightly build of upstream master.
+    """
     openssl_module_dir = Path(bcr_dir) / "modules" / "openssl"
     out_dir = openssl_module_dir / tag
 
@@ -1548,8 +1566,8 @@ def write_bcr_files(
 
     source_json = {
         "integrity": integrity_hash(Path(source_archive)),
-        "url": version.source_url,
-        "strip_prefix": version.archive_name,
+        "url": source_url,
+        "strip_prefix": source_strip_prefix,
         "overlay": overlay_info,
     }
     (out_dir / "source.json").write_text(json.dumps(source_json, indent="    ", sort_keys=True) + "\n")
@@ -1573,6 +1591,17 @@ if __name__ == "__main__":
         help="Path to buildifier (auto-detected from Bazel toolchain or PATH if omitted; pass empty string to skip)",
     )
     parser.add_argument("--source_archive", required=False, help="Path to source tarball for BCR integrity hash")
+    parser.add_argument(
+        "--source_url",
+        default=None,
+        help="URL recorded in source.json for --source_archive (default: the upstream release tarball URL "
+        "for the version in VERSION.dat). Use with a snapshot archive, e.g. a GitHub commit archive.",
+    )
+    parser.add_argument(
+        "--source_strip_prefix",
+        default=None,
+        help="strip_prefix recorded in source.json for --source_archive (default: openssl-<version>).",
+    )
     parser.add_argument(
         "--perl",
         default=None,
@@ -1613,4 +1642,6 @@ if __name__ == "__main__":
             args.source_archive,
             perl_path=perl,
             pregen_dir=args.pregen_dir,
+            source_url=args.source_url,
+            source_strip_prefix=args.source_strip_prefix,
         )

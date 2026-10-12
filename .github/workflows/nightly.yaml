@@ -1,32 +1,37 @@
-# Nightly: rehearse a release of the current main for every supported OpenSSL
-# version. Runs the real Release workflow in dry-run mode, so everything a
-# release does is exercised (tag selection, generation, the full build and test
-# matrix, assembling the registry change) except publishing. A red nightly means
-# the next release would fail; a new upstream OpenSSL release that breaks
-# generation shows up here once added to .github/openssl-versions.json.
-name: Nightly release rehearsal
+# Build upstream OpenSSL master with the current overlay, every night.
+#
+# Pull requests cover the released versions in .github/openssl-versions.json;
+# this looks forward instead: it resolves the current openssl/openssl master
+# commit and runs the Release workflow against it in dry-run mode. A red
+# nightly means the next OpenSSL release will need overlay changes.
+name: Nightly upstream master
 "on":
   schedule:
     - cron: "17 6 * * *"
   workflow_dispatch: null
 jobs:
-  versions:
+  upstream:
     runs-on: ubuntu-latest
     outputs:
-      list: ${{ steps.read.outputs.list }}
+      sha: ${{ steps.resolve.outputs.sha }}
+      version: ${{ steps.resolve.outputs.version }}
     steps:
-      - uses: actions/checkout@v4.2.2
-      - id: read
-        run: echo "list=$(jq -c . .github/openssl-versions.json)" >> "$GITHUB_OUTPUT"
+      - name: Resolve openssl/openssl master
+        id: resolve
+        run: |
+          set -euo pipefail
+          sha=$(curl -fsSL -H "Accept: application/vnd.github+json" https://api.github.com/repos/openssl/openssl/commits/master | jq -r .sha)
+          version=$(curl -fsSL "https://raw.githubusercontent.com/openssl/openssl/${sha}/VERSION.dat" \
+            | awk -F= '/^MAJOR=/{a=$2} /^MINOR=/{b=$2} /^PATCH=/{c=$2} END{print a"."b"."c}')
+          echo "openssl master is ${sha} (${version})"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
   rehearse-release:
-    name: openssl ${{ matrix.openssl_version }}
-    needs: versions
-    strategy:
-      fail-fast: false
-      matrix:
-        openssl_version: ${{ fromJSON(needs.versions.outputs.list) }}
+    name: openssl master (${{ needs.upstream.outputs.version }} @ ${{ needs.upstream.outputs.sha }})
+    needs: upstream
     uses: ./.github/workflows/release.yaml
     with:
-      openssl_version: ${{ matrix.openssl_version }}
+      release: ${{ needs.upstream.outputs.version }}.bcr.nightly
+      openssl_ref: ${{ needs.upstream.outputs.sha }}
       dry_run: true

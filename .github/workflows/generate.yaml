@@ -1,15 +1,11 @@
-# Reusable workflow: generate the Bazel overlay + pre-generated files for one
-# OpenSSL version, register it in a local copy of the Bazel Central Registry,
-# and build and test the result on every supported platform.
+# Reusable: generate the overlay and pre-generated archive for one OpenSSL
+# version, register the module in a scratch Bazel Central Registry, and build
+# and test it on every supported platform. Called by pr.yaml and release.yaml.
 #
-# Callers: pr.yaml (one call per OpenSSL version in its matrix) and
-# release.yaml (one call for the version encoded in the git tag). Both run
-# the full test matrix; a release is only published if every job here passes.
-#
-# Two registry artifacts are produced from the same pre-generated archive:
-#   bcr-<tag>       module points at the GitHub release URL (what gets published)
-#   bcr-test-<tag>  module points at a file:// copy of the archive (what the
-#                   test jobs below consume, since the release does not exist yet)
+# Two registry artifacts come from the same archive:
+#   bcr-<tag>       module points at the GitHub release URL (what is published)
+#   bcr-test-<tag>  module points at a file:// copy (what the test jobs use,
+#                   since the release does not exist yet)
 name: Generate
 
 "on":
@@ -21,6 +17,14 @@ name: Generate
           is everything before ".bcr." (the generator also enforces this).
         required: true
         type: string
+      openssl_ref:
+        description: >-
+          Build from the GitHub archive of this openssl/openssl git ref (ideally a commit SHA)
+          instead of the release tarball for the version in bcr_tag. The version in bcr_tag
+          must still match the ref's VERSION.dat. Used by the nightly build of upstream master.
+        required: false
+        type: string
+        default: ""
       ref:
         description: Git ref of this repository to generate from (defaults to the calling ref)
         required: false
@@ -29,6 +33,7 @@ name: Generate
 
 env:
   BCR_TAG: ${{ inputs.bcr_tag }}
+  OPENSSL_REF: ${{ inputs.openssl_ref }}
   PREGEN_TARBALL: bazel-openssl-cc-${{ inputs.bcr_tag }}.tar.gz
 
 jobs:
@@ -47,10 +52,20 @@ jobs:
           exit 1
         fi
         version="${BASH_REMATCH[1]}"
-        curl -fL -o /tmp/openssl.tar.gz "https://github.com/openssl/openssl/releases/download/openssl-${version}/openssl-${version}.tar.gz"
+        if [[ -n "$OPENSSL_REF" ]]; then
+          # Snapshot of a git ref: GitHub's commit archive, extracted as openssl-<ref>.
+          url="https://github.com/openssl/openssl/archive/${OPENSSL_REF}.tar.gz"
+          dir="openssl-${OPENSSL_REF}"
+          echo "GENERATOR_SOURCE_ARGS=--source_url=${url} --source_strip_prefix=${dir}" >> "$GITHUB_ENV"
+        else
+          url="https://github.com/openssl/openssl/releases/download/openssl-${version}/openssl-${version}.tar.gz"
+          dir="openssl-${version}"
+          echo "GENERATOR_SOURCE_ARGS=" >> "$GITHUB_ENV"
+        fi
+        curl -fL -o /tmp/openssl.tar.gz "$url"
         mkdir -p /tmp/openssl-src
         tar xzf /tmp/openssl.tar.gz -C /tmp/openssl-src
-        echo "OPENSSL_SRC=/tmp/openssl-src/openssl-${version}" >> "$GITHUB_ENV"
+        echo "OPENSSL_SRC=/tmp/openssl-src/${dir}" >> "$GITHUB_ENV"
     - name: Checkout BCR
       uses: actions/checkout@v4.2.2
       with:
@@ -66,6 +81,7 @@ jobs:
         --bcr_dir=$(pwd)/bazel-central-registry
         --tag=${{ inputs.bcr_tag }}
         --source_archive=/tmp/openssl.tar.gz
+        $GENERATOR_SOURCE_ARGS
     - run: tar czf /tmp/core-pregen.tar.gz -C /tmp pregen
     - name: Upload core pregen
       uses: actions/upload-artifact@v4

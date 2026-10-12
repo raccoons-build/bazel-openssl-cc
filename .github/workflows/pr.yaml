@@ -4,9 +4,10 @@ name: Pull Request
   pull_request: null
 jobs:
   versions:
-    # The OpenSSL versions the overlay is expected to support, shared with
-    # nightly.yaml. Add a version to .github/openssl-versions.json to start
-    # verifying it; see versions/README.md if it needs overlay changes.
+    # The released OpenSSL versions the overlay is expected to support. Add a
+    # version to .github/openssl-versions.json to start verifying it; see
+    # versions/README.md if it needs overlay changes. (Upstream master is
+    # covered separately by nightly.yaml.)
     runs-on: ubuntu-latest
     outputs:
       list: ${{ steps.read.outputs.list }}
