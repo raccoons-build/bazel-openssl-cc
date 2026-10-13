@@ -1460,6 +1460,56 @@ def perlasm_only(
     print(f"Assembly written to: {out / 'generated' / 'asm'}")
 
 
+# Upstream files overlay/BUILD.bazel names directly (ms/applink.c, ...) rather
+# than through the generated constants or a glob. Upstream removes and moves
+# files between versions (4.1 dropped crypto/LPdir_wince.c), and such a path
+# only fails on the platform whose select() branch uses it, so check them
+# against the source tree at generation time instead.
+_OVERLAY_SOURCE_PATH_RE = re.compile(
+    r'"((?:apps|crypto|engines|include|ms|providers|ssl|util|Configurations|external)/'
+    r'[A-Za-z0-9_./-]+\.(?:c|h|S|s|pl|pm|inc|def|asn1))"'
+)
+
+
+def check_overlay_source_paths(overlay_dir: Path, openssl_dir: Path) -> None:
+    """Fail if overlay/BUILD.bazel names a source file this OpenSSL version does not have."""
+    literals = set(_OVERLAY_SOURCE_PATH_RE.findall((overlay_dir / "BUILD.bazel").read_text()))
+    missing = sorted(path for path in literals if "*" not in path and not (openssl_dir / path).exists())
+    if missing:
+        raise RuntimeError(f"overlay/BUILD.bazel names files missing from this OpenSSL version: {', '.join(missing)}")
+
+
+_ASM_INCLUDE_RE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
+
+
+def check_perlasm_includes(generated_asm: Path, openssl_dir: Path) -> None:
+    """Fail if pre-generated assembly includes a header the overlay would not provide.
+
+    The overlay serves libcrypto headers from include/ and crypto/ (every .h,
+    .inc and .def below them), reached as upstream's -I. -Iinclude -Icrypto
+    reach them (Bazel always adds the repository root as a quote include
+    directory). The assembly is only ever compiled on its own architecture,
+    so a header that moved elsewhere (4.1 moved crypto/arm_arch.h to
+    include/arch/) would otherwise surface only on that architecture's CI.
+    """
+    problems = []
+    for asm in sorted(generated_asm.rglob("*.[sS]")):
+        for include in _ASM_INCLUDE_RE.findall(asm.read_text(errors="replace")):
+            resolved = [openssl_dir / root / include for root in (".", "include", "crypto")]
+            resolved = [f for f in resolved if f.suffix in (".h", ".inc", ".def")]
+            served = [
+                f
+                for f in resolved
+                if f.is_file() and f.resolve().relative_to(openssl_dir.resolve()).parts[0] in ("include", "crypto")
+            ]
+            if not served:
+                problems.append(f"{asm.relative_to(generated_asm)}: {include}")
+    if problems:
+        raise RuntimeError(
+            "pre-generated assembly includes headers outside include/ and crypto/:\n  " + "\n  ".join(problems)
+        )
+
+
 def main(
     openssl_source_dir: str,
     output_dir: str,
@@ -1551,6 +1601,7 @@ def main(
 
     print("=== Pre-generating perlasm assembly ===")
     pregenerate_perlasm(openssl_dir, platform_data, out, perl_path=perl_path)
+    check_perlasm_includes(out / "generated" / "asm", openssl_dir)
 
     # Move generated/ to a separate pregen directory so the overlay stays small.
     pregen = Path(pregen_dir) if pregen_dir else out.parent / "pregen"
@@ -1571,6 +1622,7 @@ def main(
     # overlay shipped to BCR, so it is copied as-is (with version overrides),
     # except MODULE.bazel, which is rendered with the module version below.
     srcs.copy_tree(OVERLAY_DIR, out, exclude=frozenset({"MODULE.bazel"}))
+    check_overlay_source_paths(out, openssl_dir)
 
     if buildifier_path:
         print("=== Formatting with buildifier ===")

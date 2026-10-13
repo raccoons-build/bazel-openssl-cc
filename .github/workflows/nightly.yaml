@@ -18,9 +18,12 @@ jobs:
     steps:
       - name: Resolve openssl/openssl master
         id: resolve
+        # git ls-remote rather than the GitHub API: anonymous API calls share
+        # a per-IP rate limit across hosted runners and get 403s.
         run: |
           set -euo pipefail
-          sha=$(curl -fsSL -H "Accept: application/vnd.github+json" https://api.github.com/repos/openssl/openssl/commits/master | jq -r .sha)
+          sha=$(git ls-remote https://github.com/openssl/openssl.git refs/heads/master | cut -f1)
+          test -n "$sha"
           version=$(curl -fsSL "https://raw.githubusercontent.com/openssl/openssl/${sha}/VERSION.dat" \
             | awk -F= '/^MAJOR=/{a=$2} /^MINOR=/{b=$2} /^PATCH=/{c=$2} END{print a"."b"."c}')
           echo "openssl master is ${sha} (${version})"
