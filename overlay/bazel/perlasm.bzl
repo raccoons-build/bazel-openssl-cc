@@ -70,19 +70,30 @@ def _openssl_perlasm_impl(ctx):
         action_name = ACTION_NAMES.c_compile,
         variables = cc_common.empty_variables(),
     ))
-    env["CC"] = cc_common.get_tool_for_action(
+    cc_path = cc_common.get_tool_for_action(
         feature_configuration = feature_configuration,
         action_name = ACTION_NAMES.c_compile,
     )
+
+    # Perl's backticks go through cmd.exe on Windows, which reads the "/" after
+    # a drive letter as a switch ("'C:' is not recognized ...").
+    if len(cc_path) > 1 and cc_path[1] == ":":
+        cc_path = '"' + cc_path.replace("/", "\\") + '"'
+    env["CC"] = cc_path
 
     outs_as_files = []
     for tools_to_outs in [ctx.attr.scripts, ctx.attr.scripts_second_output]:
         for tool, out in tools_to_outs.items():
             out_file = ctx.actions.declare_file(out)
             outs_as_files.append(out_file)
+
+            # The compiler probes are written for gcc/clang on a POSIX shell;
+            # elsewhere (cl.exe through cmd.exe) they fail on stderr, and
+            # upstream's build just lets that scroll by. quiet_run keeps the
+            # output for failures only, so consumers never see it on success.
             ctx.actions.run(
-                executable = tool[DefaultInfo].files_to_run,
-                arguments = [ctx.attr.assembly_flavor, out_file.path],
+                executable = ctx.executable._quiet_run,
+                arguments = [tool[DefaultInfo].files_to_run.executable.path, ctx.attr.assembly_flavor, out_file.path],
                 inputs = cc_toolchain.all_files,
                 outputs = [out_file],
                 env = env,
@@ -126,6 +137,11 @@ openssl_perlasm = rule(
             doc = "Like scripts, for scripts run a second time to write a different file (e.g. sha512-x86_64.pl also writes sha256).",
             cfg = config.exec(exec_group = _EXEC_GROUP),
             providers = [DefaultInfo],
+        ),
+        "_quiet_run": attr.label(
+            cfg = config.exec(exec_group = _EXEC_GROUP),
+            executable = True,
+            default = Label("//bazel:quiet_run"),
         ),
     },
     exec_groups = {

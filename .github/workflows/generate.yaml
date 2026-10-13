@@ -198,9 +198,17 @@ jobs:
           echo 'bazel_dep(name = "openssl", version = "${{ inputs.bcr_tag }}")' > MODULE.bazel &&
           echo 'bazel_dep(name = "rules_java", version = "9.1.0", dev_dependency = True)' >> MODULE.bazel &&
           echo 'bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)' >> MODULE.bazel
+      # The resolved build graph is kept as an artifact rather than printed,
+      # to keep the log readable.
       - run:
           cd workspace &&
-          bazel cquery ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--registry="file:///tmp/bazel-central-registry" @openssl//... --output=build
+          bazel cquery ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--registry="file:///tmp/bazel-central-registry" @openssl//... --output=build > cquery.txt
+      - name: Upload cquery output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cquery-${{ inputs.bcr_tag }}-${{ matrix.os }}-bazel${{ matrix.bazel }}-pregen${{ matrix.use_pregenerated }}
+          path: workspace/cquery.txt
       - run:
           cd workspace &&
           bazel test ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--verbose_failures --incompatible_auto_exec_groups --registry="file:///tmp/bazel-central-registry" @openssl//...
@@ -255,9 +263,18 @@ jobs:
           echo 'bazel_dep(name = "openssl", version = "${{ inputs.bcr_tag }}")' > MODULE.bazel &&
           echo 'bazel_dep(name = "rules_java", version = "9.1.0", dev_dependency = True)' >> MODULE.bazel &&
           echo 'bazel_dep(name = "rules_cc", version = "0.2.17", dev_dependency = True)' >> MODULE.bazel
-      - run:
+      # The resolved build graph is kept as an artifact rather than printed,
+      # to keep the log readable.
+      - shell: bash
+        run:
           cd workspace &&
-          bazel cquery ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--registry="file:///C:/bazel-central-registry" @openssl//... --output=build
+          bazel cquery ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--registry="file:///C:/bazel-central-registry" @openssl//... --output=build > cquery.txt
+      - name: Upload cquery output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cquery-${{ inputs.bcr_tag }}-windows-bazel${{ matrix.bazel }}-pregen${{ matrix.use_pregenerated }}
+          path: workspace/cquery.txt
       - run:
           cd workspace &&
           bazel test ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--verbose_failures --incompatible_auto_exec_groups --registry="file:///C:/bazel-central-registry" @openssl//...

@@ -80,11 +80,6 @@ load(
     _FREEBSD_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
 )
 load(
-    "//bazel/constants:generated_srcs.bzl",
-    "COMMON_GENERATED_CRYPTO_SRCS",
-    "GENERATED_CRYPTO_EXTRA_SRCS",
-)
-load(
     "//bazel/constants:ios_arm64.bzl",
     _IOS_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
     _IOS_ARM64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
@@ -163,6 +158,11 @@ load(
     "NO_ASM_SSL_EXTRA_SRCS",
 )
 load(
+    "//bazel/constants:templates.bzl",
+    "DOFILE_SRC_TEMPLATES",
+    "STDOUT_SCRIPTS",
+)
+load(
     "//bazel/constants:windows_arm64.bzl",
     _WINDOWS_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
     _WINDOWS_ARM64_ASM_CRYPTO_EXTRA = "ASM_CRYPTO_EXTRA_SRCS",
@@ -186,6 +186,15 @@ load(
 )
 
 package(default_visibility = ["//:__subpackages__"])
+
+# OpenSSL's license (Apache-2.0) and contributor list, for notice bundling.
+exports_files(
+    [
+        "AUTHORS.md",
+        "LICENSE.txt",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 # --- Feature toggle flags (generated macro) ---
 openssl_feature_flags()
@@ -442,6 +451,21 @@ CRYPTO_TEXTUAL_HDRS = [
 
 # Per-target defines such as L_ENDIAN / B_ENDIAN come from the generated
 # constants (upstream's lib_cppflags); never hardcode them here.
+# Consumers cannot silence warnings from this package's compile actions, so
+# the ones OpenSSL's own MSVC build prints are disabled here. Upstream's VC
+# configs pass /W3 /wd4090; the rest are known upstream false positives.
+_MSVC_WARNING_COPTS = [
+    # Different const qualifiers: upstream disables this too (Configurations/10-main.conf).
+    "/wd4090",
+    # Incompatible pointer types: the dead branch of the sizeof() ternaries in
+    # include/internal/tsan_assist.h is still type-checked.
+    "/wd4133",
+    # Pointer truncation in ms/uplink.c.
+    "/wd4311",
+    # Zero-extending ~ in crypto/bn/bn_gcd.c.
+    "/wd4319",
+]
+
 COMMON_OPENSSL_COPTS = [
     "-DOPENSSLDIR=\\\"/etc/ssl\\\"",
     '-DENGINESDIR=\\"/usr/lib/engines-3.0\\"',
@@ -453,6 +477,8 @@ COMMON_OPENSSL_COPTS = [
     "//configs:linux_aarch64": ["-mno-outline-atomics"],
     "//conditions:default": [],
 }) + select({
+    "//configs:windows_clang_cl": _MSVC_WARNING_COPTS,
+    "//configs:windows_msvc": _MSVC_WARNING_COPTS,
     "@platforms//os:windows": [],
     "//conditions:default": [
         "-Wa,--noexecstack",
@@ -471,51 +497,56 @@ COMMON_DEFINES = select({
     "//conditions:default": [],
 })
 
-# _WINSOCKAPI_ and WIN32_LEAN_AND_MEAN are openssl-internal and must not
-# propagate to consumers via CcInfo.
+# WIN32_LEAN_AND_MEAN is in upstream's Windows configs; it is openssl-internal
+# and must not propagate to consumers via CcInfo. (It already keeps winsock.h
+# out of windows.h, so _WINSOCKAPI_ is not defined as well: winsock2.h defines
+# it itself, and a second definition is a C4005 warning in every file.)
 COMMON_LOCAL_DEFINES = select({
-    "//configs:windows_msvc": [
-        "_WINSOCKAPI_",
-        "WIN32_LEAN_AND_MEAN",
-    ],
-    "//configs:windows_non_msvc": [
-        "_WINSOCKAPI_",
-        "WIN32_LEAN_AND_MEAN",
-    ],
+    "@platforms//os:windows": ["WIN32_LEAN_AND_MEAN"],
     "//conditions:default": [],
 })
 
 # --- Include paths ---
 
-# Directories that dofile-generated sources live in. Those sources include
-# sibling headers by bare name (e.g. "ciphercommon_local.h"); a source-tree
-# file finds them in its own directory, but the generated copies live in the
-# output tree, so their source directories must be on the include path (as
-# OpenSSL's own out-of-tree builds do).
+# Directories where generated files and the sources using them meet by bare
+# name, which only works when the directory is on the include path, because
+# generated files live in the output tree rather than next to the source
+# (OpenSSL's own out-of-tree builds add the same -I flags):
+#   * dofile-generated sources include sibling headers (e.g. "ciphercommon_local.h");
+#   * sources include sibling generated headers (e.g. "charmap.h").
+# Generated sources that only include through include/ (the mkerr.pl error
+# tables) do not need their directory; directories under include/ are covered
+# by "include" itself.
 _GENERATED_SRC_DIRS = sorted({
-    src.rsplit("/", 1)[0]: None
-    for src in COMMON_GENERATED_CRYPTO_SRCS + [
-        src
-        for extra in GENERATED_CRYPTO_EXTRA_SRCS.values()
-        for src in extra
-    ]
-}.keys())
+    path.rsplit("/", 1)[0]: None
+    for path in list(DOFILE_SRC_TEMPLATES.values()) + [out for out in STDOUT_SCRIPTS if not out.endswith(".c")]
+    if not path.startswith("include/")
+})
 
-LIBCRYPTO_INCLUDES = [
+# Headers at the source root: OpenSSL 3.0 keeps e_os.h there (3.1 moved it
+# under include/internal), and apps/include/apps.h includes it by bare name.
+_ROOT_HDRS = glob(
+    ["*.h"],
+    allow_empty = True,
+)
+
+# With root headers (OpenSSL 3.0's e_os.h), the root must be an include
+# directory too: crypto/rand/rand_deprecated.c does #include <e_os.h>, which
+# upstream serves with -I.
+_BASE_INCLUDES = [
     "include",
     "providers/implementations/macs",
     "providers/implementations/include",
     "providers/common/include",
     "providers/fips/include",
     "crypto",
-] + [d for d in _GENERATED_SRC_DIRS if d not in [
-    "include",
-    "providers/implementations/macs",
-    "providers/implementations/include",
-    "providers/common/include",
-    "providers/fips/include",
-    "crypto",
-]]
+]
+
+LIBCRYPTO_INCLUDES = (["."] if _ROOT_HDRS else []) + _BASE_INCLUDES + [
+    d
+    for d in _GENERATED_SRC_DIRS
+    if d not in _BASE_INCLUDES
+]
 
 LIBCRYPTO_WINDOWS_INCLUDES = [
     "ms",
@@ -540,7 +571,7 @@ _WINDOWS_SYSTEM_LIBS_GNU = [
 
 # --- libcrypto ---
 
-COMMON_LIBCRYPTO_HDRS = glob(
+COMMON_LIBCRYPTO_HDRS = _ROOT_HDRS + glob(
     include = [
         "crypto/**/*.h",
         "crypto/*.h",
@@ -551,6 +582,14 @@ COMMON_LIBCRYPTO_HDRS = glob(
         "providers/*.inc",
         "providers/implementations/**/*.inc",
     ],
+) + glob(
+    # Textually included fragments that are not .h, e.g.
+    # include/internal/qlog_events.inc or crypto/ec/curve448/arch_64/*.inc (4.1+).
+    [
+        "crypto/**/*.inc",
+        "include/**/*.inc",
+    ],
+    allow_empty = True,
 )
 
 cc_library(
@@ -620,7 +659,6 @@ cc_library(
     }),
     linkopts = select({
         "@platforms//os:linux": [
-            "-lc",
             "-ldl",
             "-pthread",
         ],
@@ -630,10 +668,7 @@ cc_library(
         "//configs:windows_clang": _WINDOWS_SYSTEM_LIBS_GNU,
         # Prevents unmatched Windows compilers from falling to the Unix default.
         "@platforms//os:windows": [],
-        "//conditions:default": [
-            "-lc",
-            "-pthread",
-        ],
+        "//conditions:default": ["-pthread"],
     }),
     local_defines = COMMON_LOCAL_DEFINES,
     textual_hdrs = CRYPTO_TEXTUAL_HDRS,
@@ -642,7 +677,10 @@ cc_library(
 
 # --- libssl ---
 
-COMMON_LIBSSL_HDRS = glob(include = ["ssl/**/*.h"])
+COMMON_LIBSSL_HDRS = glob(include = ["ssl/**/*.h"]) + glob(
+    ["ssl/**/*.inc"],
+    allow_empty = True,
+)
 
 cc_library(
     name = "ssl",
@@ -687,10 +725,6 @@ cc_library(
     }),
     defines = COMMON_DEFINES,
     includes = ["include"],
-    linkopts = select({
-        "@platforms//os:windows": [],
-        "//conditions:default": ["-lc"],
-    }),
     local_defines = COMMON_LOCAL_DEFINES,
     visibility = ["//visibility:public"],
     deps = [":crypto"],
@@ -698,7 +732,7 @@ cc_library(
 
 # --- openssl CLI ---
 
-COMMON_APP_HDRS = glob(
+COMMON_APP_HDRS = _ROOT_HDRS + glob(
     include = [
         "apps/*.h",
         "apps/include/*.h",

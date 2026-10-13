@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, Callable, NamedTuple, TypeVar
 
 from common import (
     ALL_PLATFORMS,
@@ -101,6 +101,9 @@ class ConfigHeaderData(NamedTuple):
     openssl_sys_defines: list[str]
     openssl_api_defines: list[str]
     openssl_feature_defines: list[str]
+    openssl_disabled_protocols: list[str]
+    openssl_disabled_algorithms: list[str]
+    openssl_disabled_features: list[str]
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ConfigHeaderData":
@@ -119,6 +122,9 @@ class ConfigHeaderData(NamedTuple):
             openssl_sys_defines=_str_list("config_openssl_sys_defines"),
             openssl_api_defines=_str_list("config_openssl_api_defines"),
             openssl_feature_defines=_str_list("config_openssl_feature_defines"),
+            openssl_disabled_protocols=_str_list("config_openssl_disabled_protocols"),
+            openssl_disabled_algorithms=_str_list("config_openssl_disabled_algorithms"),
+            openssl_disabled_features=_str_list("config_openssl_disabled_features"),
         )
 
 
@@ -137,6 +143,10 @@ class PlatformData(NamedTuple):
     config_header_data: ConfigHeaderData
     # util/dofile.pl templates this configuration generates: template -> output.
     dofile_templates: dict[str, str]
+    # Stdout script generators (util/mkerr.pl, crypto/objects/objects.pl, ...):
+    # output -> {script, args, deps}.
+    stdout_scripts: dict[str, dict[str, Any]]
+    disablables_int: list[str]
     # Generated (.c.in -> .c) sources that are part of each library on this
     # configuration. Not every generated file is compiled everywhere, e.g.
     # OpenSSL 3.6's winstore_store.c is Windows-only.
@@ -151,8 +161,10 @@ class PlatformData(NamedTuple):
             assert isinstance(val, list)
             return [str(x) for x in val]
 
-        templates = data["dofile_templates"]
-        assert isinstance(templates, dict)
+        def _dict(key: str) -> dict[str, Any]:
+            val = data[key]
+            assert isinstance(val, dict)
+            return {str(k): v for k, v in val.items()}
 
         str_lists: dict[str, list[str]] = {}
         for key in [
@@ -165,6 +177,7 @@ class PlatformData(NamedTuple):
             "openssl_app_defines",
             "openssl_defines",
             "disablables",
+            "disablables_int",
             "libcrypto_generated_srcs",
             "libssl_generated_srcs",
             "openssl_app_generated_srcs",
@@ -181,7 +194,9 @@ class PlatformData(NamedTuple):
             openssl_defines=sorted(set(str_lists["openssl_defines"])),
             disablables=str_lists["disablables"],
             config_header_data=ConfigHeaderData.from_dict(data),
-            dofile_templates={str(k): str(v) for k, v in templates.items()},
+            dofile_templates={k: str(v) for k, v in _dict("dofile_templates").items()},
+            stdout_scripts={k: dict(v) for k, v in _dict("stdout_scripts").items()},
+            disablables_int=str_lists["disablables_int"],
             libcrypto_generated_srcs=str_lists["libcrypto_generated_srcs"],
             libssl_generated_srcs=str_lists["libssl_generated_srcs"],
             openssl_app_generated_srcs=str_lists["openssl_app_generated_srcs"],
@@ -485,47 +500,6 @@ def _get_platform_metadata(platform: str) -> tuple[str, str, str]:
     return ("Unix", "DLFCN", ".so")
 
 
-class _ConfigProfile(NamedTuple):
-    """Distinct config header output profile (for deduplication)."""
-
-    b64l: bool
-    b64: bool
-    b32: bool
-    bn_ll: bool
-    rc4_int: str
-    processor: str
-    openssl_sys_defines: tuple[str, ...]
-    openssl_api_defines: tuple[str, ...]
-    openssl_feature_defines: tuple[str, ...]
-    perl_platform: str
-    dso_scheme: str
-    dso_extension: str
-    disablables: tuple[str, ...]
-
-
-def _make_profile(
-    hdr: ConfigHeaderData,
-    platform: str,
-    disablables: list[str],
-) -> _ConfigProfile:
-    perl_platform, dso_scheme, dso_extension = _get_platform_metadata(platform)
-    return _ConfigProfile(
-        b64l=hdr.b64l,
-        b64=hdr.b64,
-        b32=hdr.b32,
-        bn_ll=hdr.bn_ll,
-        rc4_int=hdr.rc4_int,
-        processor=hdr.processor,
-        openssl_sys_defines=tuple(hdr.openssl_sys_defines),
-        openssl_api_defines=tuple(hdr.openssl_api_defines),
-        openssl_feature_defines=tuple(hdr.openssl_feature_defines),
-        perl_platform=perl_platform,
-        dso_scheme=dso_scheme,
-        dso_extension=dso_extension,
-        disablables=tuple(disablables),
-    )
-
-
 def _render_perl_list(items: tuple[str, ...] | list[str]) -> str:
     """Render a Python list as a Perl array literal."""
     if not items:
@@ -534,27 +508,36 @@ def _render_perl_list(items: tuple[str, ...] | list[str]) -> str:
     return f"[{inner}]"
 
 
-def _render_configdata_stub(profile: _ConfigProfile, srcs: OverlaySources) -> str:
-    """Render a complete configdata.pm stub for a given config profile."""
-    feature_lines = [f'        "{d}",' for d in profile.openssl_feature_defines]
+def _render_configdata_stub(
+    hdr: ConfigHeaderData,
+    platform: str,
+    disablables: list[str],
+    disablables_int: list[str],
+    srcs: OverlaySources,
+) -> str:
+    """Render the configdata.pm stub for one platform."""
+    perl_platform, dso_scheme, dso_extension = _get_platform_metadata(platform)
+    feature_lines = [f'        "{d}",' for d in hdr.openssl_feature_defines]
     feature_block = "[\n" + "\n".join(feature_lines) + "\n    ]" if feature_lines else "[]"
 
-    disablables_str = " ".join(profile.disablables)
-
     replacements = {
-        "@@B64L@@": str(1 if profile.b64l else 0),
-        "@@B64@@": str(1 if profile.b64 else 0),
-        "@@B32@@": str(1 if profile.b32 else 0),
-        "@@BN_LL@@": str(1 if profile.bn_ll else 0),
-        "@@RC4_INT@@": profile.rc4_int,
-        "@@PROCESSOR@@": profile.processor,
-        "@@SYS_DEFINES@@": _render_perl_list(profile.openssl_sys_defines),
-        "@@API_DEFINES@@": _render_perl_list(profile.openssl_api_defines),
+        "@@B64L@@": str(1 if hdr.b64l else 0),
+        "@@B64@@": str(1 if hdr.b64 else 0),
+        "@@B32@@": str(1 if hdr.b32 else 0),
+        "@@BN_LL@@": str(1 if hdr.bn_ll else 0),
+        "@@RC4_INT@@": hdr.rc4_int,
+        "@@PROCESSOR@@": hdr.processor,
+        "@@SYS_DEFINES@@": _render_perl_list(hdr.openssl_sys_defines),
+        "@@API_DEFINES@@": _render_perl_list(hdr.openssl_api_defines),
         "@@FEATURE_DEFINES@@": feature_block,
-        "@@PERL_PLATFORM@@": profile.perl_platform,
-        "@@DSO_SCHEME@@": profile.dso_scheme,
-        "@@DSO_EXTENSION@@": profile.dso_extension,
-        "@@DISABLABLES@@": disablables_str,
+        "@@DISABLED_PROTOCOLS@@": _render_perl_list(hdr.openssl_disabled_protocols),
+        "@@DISABLED_ALGORITHMS@@": _render_perl_list(hdr.openssl_disabled_algorithms),
+        "@@DISABLED_FEATURES@@": _render_perl_list(hdr.openssl_disabled_features),
+        "@@PERL_PLATFORM@@": perl_platform,
+        "@@DSO_SCHEME@@": dso_scheme,
+        "@@DSO_EXTENSION@@": dso_extension,
+        "@@DISABLABLES@@": " ".join(disablables),
+        "@@DISABLABLES_INT@@": " ".join(disablables_int),
     }
 
     result = srcs.read_text(_CONFIGDATA_TEMPLATE)
@@ -578,20 +561,15 @@ def generate_configdata_stubs(
     configdata_base = output_dir / "configdata"
     configdata_base.mkdir(parents=True, exist_ok=True)
 
-    # @disablables is identical across all platforms; take from any.
-    disablables = next(iter(platform_data.values())).disablables
+    # @disablables / @disablables_int are identical across all platforms; take from any.
+    first = next(iter(platform_data.values()))
+    disablables, disablables_int = first.disablables, first.disablables_int
 
-    for platform, data in platform_data.items():
-        config_name = get_simple_config_name(platform)
-        profile = _make_profile(data.config_header_data, platform, disablables)
-        subdir = configdata_base / config_name
+    for platform, data in list(platform_data.items()) + [(NO_ASM_TARGET, no_asm_data)]:
+        subdir = configdata_base / get_simple_config_name(platform)
         subdir.mkdir(parents=True, exist_ok=True)
-        (subdir / "configdata.pm").write_text(_render_configdata_stub(profile, srcs))
-
-    no_asm_profile = _make_profile(no_asm_data.config_header_data, NO_ASM_TARGET, disablables)
-    no_asm_subdir = configdata_base / "no_asm"
-    no_asm_subdir.mkdir(parents=True, exist_ok=True)
-    (no_asm_subdir / "configdata.pm").write_text(_render_configdata_stub(no_asm_profile, srcs))
+        stub = _render_configdata_stub(data.config_header_data, platform, disablables, disablables_int, srcs)
+        (subdir / "configdata.pm").write_text(stub)
 
 
 def write_constants_build(output_dir: Path) -> None:
@@ -601,6 +579,25 @@ def write_constants_build(output_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Pre-generation: template processing, progs, buildinf, perlasm
 # ---------------------------------------------------------------------------
+
+
+T = TypeVar("T")
+
+
+def _union_across_configs(
+    platform_data: dict[str, PlatformData],
+    no_asm_data: PlatformData,
+    pick: Callable[[PlatformData], dict[str, T]],
+    what: str,
+) -> dict[str, T]:
+    """Merge a per-configuration mapping across all configurations; the same key must agree everywhere."""
+    merged: dict[str, T] = {}
+    for data in list(platform_data.values()) + [no_asm_data]:
+        for key, value in pick(data).items():
+            prev = merged.setdefault(key, value)
+            if prev != value:
+                raise RuntimeError(f"{what} {key} differs between configurations: {prev} vs {value}")
+    return dict(sorted(merged.items()))
 
 
 def collect_dofile_templates(
@@ -614,22 +611,78 @@ def collect_dofile_templates(
     removed templates in a different OpenSSL version are picked up without
     editing this script or the overlay rules.
     """
-    found: dict[str, str] = {}
-    for data in list(platform_data.values()) + [no_asm_data]:
-        for template_in, template_out in data.dofile_templates.items():
-            prev = found.setdefault(template_in, template_out)
-            if prev != template_out:
-                raise RuntimeError(f"Template {template_in} has conflicting outputs: {prev} vs {template_out}")
+    found = _union_across_configs(platform_data, no_asm_data, lambda d: d.dofile_templates, "Template")
     if not found:
         raise RuntimeError("configdata.pm lists no *.in dofile templates; is this an OpenSSL 3.0+ source tree?")
-    return dict(sorted(found.items()))
+    return found
 
 
-def write_templates_bzl(constants_dir: Path, templates: dict[str, str]) -> None:
+_SRCDIR = "$(SRCDIR)/"
+_BLDDIR = "$(BLDDIR)/"
+
+
+def collect_stdout_scripts(
+    platform_data: dict[str, PlatformData],
+    no_asm_data: PlatformData,
+) -> dict[str, dict[str, Any]]:
+    """Union of stdout script generators across all configurations, in dependency order.
+
+    An output whose arguments name another generated file (``$(BLDDIR)/...``)
+    is placed after it. Only generated files of the same kind (header or
+    source) may depend on each other, matching what the overlay rule supports.
+    """
+    merged = _union_across_configs(platform_data, no_asm_data, lambda d: d.stdout_scripts, "Generated file")
+
+    def generated_inputs(spec: dict[str, Any]) -> list[str]:
+        return [a[len(_BLDDIR) :] for a in spec["args"] if a.startswith(_BLDDIR)]
+
+    ordered: dict[str, dict[str, Any]] = {}
+
+    def visit(out: str, chain: tuple[str, ...]) -> None:
+        if out in ordered:
+            return
+        if out in chain:
+            raise RuntimeError(f"Cycle among generated files: {' -> '.join(chain + (out,))}")
+        for dep in generated_inputs(merged[out]):
+            if dep not in merged:
+                raise RuntimeError(f"{out} needs generated file {dep}, which no supported generator produces")
+            if dep.endswith(".c") != out.endswith(".c"):
+                raise RuntimeError(f"{out} depends on {dep}; header/source cross-dependencies are not supported")
+            visit(dep, chain + (out,))
+        ordered[out] = merged[out]
+
+    for out in merged:
+        visit(out, ())
+    return ordered
+
+
+# Fixed clock for everything generated at build or generation time: the
+# SOURCE_DATE_EPOCH that mkbuildinf.pl/progs.pl honour (and run_generator.pl
+# pins localtime() to), and the matching year for OpenSSL::copyright, which
+# otherwise asks git or the clock. Emitted into templates.bzl so the overlay's
+# actions use the identical environment.
+_HERMETIC_EPOCH = 443779200
+_HERMETIC_ENV = {
+    "SOURCE_DATE_EPOCH": str(_HERMETIC_EPOCH),
+    "OSSL_COPYRIGHT_YEAR": str(time.gmtime(_HERMETIC_EPOCH).tm_year),
+}
+
+
+def _hermetic_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env.update(_HERMETIC_ENV)
+    return env
+
+
+def write_templates_bzl(
+    constants_dir: Path,
+    templates: dict[str, str],
+    stdout_scripts: dict[str, dict[str, Any]],
+) -> None:
     """Write templates.bzl, consumed by bazel/openssl_genrule.bzl for the Perl (from-source) path.
 
     Keeping this generated guarantees the Perl path and the pre-generated path
-    produce exactly the same set of files.
+    produce exactly the same set of files, from the same environment.
     """
     indent = " " * 4
     hdrs = {k: v for k, v in templates.items() if not v.endswith(".c")}
@@ -637,18 +690,24 @@ def write_templates_bzl(constants_dir: Path, templates: dict[str, str]) -> None:
     content = f"""\
 # Generated code. DO NOT EDIT.
 #
-# util/dofile.pl templates (template -> output), extracted from configdata.pm.
+# Build-time generated files, extracted from configdata.pm:
+#   util/dofile.pl templates (template -> output), and
+#   scripts that write a file to stdout (output -> script, args, deps; e.g.
+#   util/mkerr.pl and crypto/objects/objects.pl on OpenSSL 4.1+), in
+#   dependency order. $(SRCDIR)/ marks a source file argument, $(BLDDIR)/
+#   another generated file.
+# HERMETIC_ENV is the environment every generator runs with.
 
 DOFILE_HDR_TEMPLATES = {json.dumps(hdrs, indent=indent)}
 
 DOFILE_SRC_TEMPLATES = {json.dumps(srcs, indent=indent)}
+
+STDOUT_SCRIPTS = {json.dumps(stdout_scripts, indent=indent)}
+
+HERMETIC_ENV = {json.dumps(_HERMETIC_ENV, indent=indent)}
 """
     (constants_dir / "templates.bzl").write_text(content)
 
-
-_HERMETIC_DOFILE_ENV = {
-    "SOURCE_DATE_EPOCH": "443779200",
-}
 
 # Perlasm flavor → source platform (whose perlasm_gen_commands define the
 # script set), the config_names that consume this flavor, and the toolchain
@@ -793,13 +852,10 @@ def _run_batch_dofile(
         "-Mconfigdata",
         f"-I{openssl_dir / 'util' / 'perl'}",
         f"-I{openssl_dir / 'providers' / 'common' / 'der'}",
-        "-Moids_to_c",
         str(openssl_dir / _BATCH_DOFILE_IN_SOURCE),
         f"@{params_file}",
     ]
-    env = os.environ.copy()
-    env.update(_HERMETIC_DOFILE_ENV)
-    result = subprocess.run(cmd, cwd=openssl_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    result = subprocess.run(cmd, cwd=openssl_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_hermetic_env())
     params_file.unlink()
     if result.returncode != 0:
         raise RuntimeError(f"batch_dofile.pl failed (configdata {configdata_dir}):\n{result.stderr.decode()}")
@@ -878,6 +934,15 @@ def pregenerate_templates(
         print(f"    platform-specific: {out}")
 
 
+def _perl_to_file(argv: list[str], openssl_dir: Path, dst: Path, what: str) -> None:
+    """Run a Perl generator from the OpenSSL root with the hermetic environment, writing its stdout to dst."""
+    result = subprocess.run(argv, cwd=openssl_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_hermetic_env())
+    if result.returncode != 0:
+        raise RuntimeError(f"{what} failed:\n{result.stderr.decode()}")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_bytes(result.stdout)
+
+
 def pregenerate_progs(
     openssl_dir: Path,
     output_dir: Path,
@@ -889,14 +954,8 @@ def pregenerate_progs(
     The configdata_dir must be inside the OpenSSL source tree so that
     $_repo_root resolves correctly (see _place_configdata_in_source).
     """
-    generated_dir = output_dir / "generated" / "common" / "apps"
-    generated_dir.mkdir(parents=True, exist_ok=True)
-
-    env = os.environ.copy()
-    env.update(_HERMETIC_DOFILE_ENV)
-
     for flag, filename in [("-H", "progs.h"), ("-C", "progs.c")]:
-        result = subprocess.run(
+        _perl_to_file(
             [
                 perl_path,
                 f"-I{configdata_dir}",
@@ -905,19 +964,52 @@ def pregenerate_progs(
                 flag,
                 "apps/openssl",
             ],
-            cwd=openssl_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
+            openssl_dir,
+            output_dir / "generated" / "common" / "apps" / filename,
+            f"progs.pl {flag}",
         )
-        if result.returncode != 0:
-            raise RuntimeError(f"progs.pl {flag} failed:\n{result.stderr.decode()}")
-        (generated_dir / filename).write_bytes(result.stdout)
         print(f"    apps/{filename}")
 
 
-# Fixed epoch matching _HERMETIC_DOFILE_ENV for reproducible builds.
-_BUILDINF_EPOCH = 443779200
+_GENERATOR_RUNNER = f"{OVERLAY_DIR}/bazel/run_generator.pl"
+
+
+def pregenerate_stdout_scripts(
+    openssl_dir: Path,
+    output_dir: Path,
+    configdata_dir: Path,
+    generators: dict[str, dict[str, Any]],
+    srcs: OverlaySources,
+    perl_path: str = "perl",
+) -> None:
+    """Pre-generate the stdout-script outputs (mkerr.pl error files, obj_mac.h, ...), in dependency order.
+
+    Runs the same clock-pinning runner the overlay uses at build time, so the
+    pre-generated files are byte-identical to the from-source ones. Nothing
+    these scripts read varies by platform (mkerr.pl only consults the
+    platform-independent @disablables), so the output goes to generated/common/.
+    """
+    common_dir = output_dir / "generated" / "common"
+    runner = srcs.resolve(_GENERATOR_RUNNER)
+    # mkerr.pl does `use lib "."` before `require configdata`; the configdata.pm
+    # that Configure left at the source root would shadow the stub in
+    # configdata_dir, so drop it (it is this generator's own residue).
+    (openssl_dir / "configdata.pm").unlink(missing_ok=True)
+    for out, spec in generators.items():
+        args = []
+        for arg in spec["args"]:
+            if arg.startswith(_SRCDIR):
+                args.append(arg[len(_SRCDIR) :])
+            elif arg.startswith(_BLDDIR):
+                args.append(str(common_dir / arg[len(_BLDDIR) :]))
+            else:
+                args.append(arg)
+        _perl_to_file(
+            [perl_path, f"-I{configdata_dir}", str(runner), spec["script"], *args],
+            openssl_dir,
+            common_dir / out,
+            f"{spec['script']} generating {out}",
+        )
 
 
 def _render_compiler_flags_array(compiler_info: str) -> str:
@@ -940,7 +1032,7 @@ def generate_buildinf_h(output_dir: Path, srcs: OverlaySources) -> None:
     crypto_dir = output_dir / "generated" / "common" / "crypto"
     crypto_dir.mkdir(parents=True, exist_ok=True)
 
-    date = time.strftime("%a %b %d %H:%M:%S %Y", time.gmtime(_BUILDINF_EPOCH)) + " UTC"
+    date = time.strftime("%a %b %d %H:%M:%S %Y", time.gmtime(_HERMETIC_EPOCH)) + " UTC"
 
     content = srcs.read_text(_BUILDINF_TEMPLATE)
     content = content.replace("@@PLATFORM@@", "bazel")
@@ -1409,11 +1501,12 @@ def main(
     print("=== Computing tiered constants ===")
     tiered = compute_tiered_constants(platform_data, no_asm_data)
     templates = collect_dofile_templates(platform_data, no_asm_data)
+    stdout_scripts = collect_stdout_scripts(platform_data, no_asm_data)
 
     print("=== Writing .bzl files ===")
     write_common_bzl(constants_dir, tiered)
     write_no_asm_bzl(constants_dir, tiered)
-    write_templates_bzl(constants_dir, templates)
+    write_templates_bzl(constants_dir, templates, stdout_scripts)
     write_generated_srcs_bzl(constants_dir, tiered)
     write_constants_build(constants_dir)
 
@@ -1447,6 +1540,9 @@ def main(
         )
         print("=== Pre-generating progs.h/progs.c ===")
         pregenerate_progs(openssl_dir, out, local_configdata, perl_path=perl_path)
+        if stdout_scripts:
+            print(f"=== Pre-generating {len(stdout_scripts)} script-generated files ===")
+            pregenerate_stdout_scripts(openssl_dir, out, local_configdata, stdout_scripts, srcs, perl_path=perl_path)
     finally:
         _cleanup_source_configdata(openssl_dir)
 
@@ -1467,6 +1563,8 @@ def main(
         shutil.move(str(generated_src), str(generated_dst))
     srcs.copy_tree(PREGEN_DIR, pregen)
     (pregen / "WORKSPACE.bazel").write_text('workspace(name = "openssl_pregen")\n')
+    # The archive only holds files derived from OpenSSL sources; ship its license with them.
+    shutil.copyfile(openssl_dir / "LICENSE.txt", pregen / "LICENSE.txt")
     print(f"Pregen files written to: {pregen}")
 
     # Overlay root = out. overlay/ in this repo has the same layout as the
