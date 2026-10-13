@@ -17,7 +17,19 @@ Generates a bzlmod overlay to compile OpenSSL with `cc_library` targets. Based o
 `overlay/`, `pregen/` and `versions/` are in `.bazelignore`: their `BUILD.bazel` files are
 templates, not packages of this repository.
 
-## Supporting any OpenSSL version
+## Supported versions
+
+The focus of this repository is OpenSSL's **long-term support** releases: the LTS line
+(currently 3.5, supported upstream until April 2030) is what gets released here first and
+kept green. The current non-LTS release line is supported as well, and any 3.0 or later
+release can be generated.
+
+| Line     | Upstream status                | Here                                                  |
+| -------- | ------------------------------ | ----------------------------------------------------- |
+| 3.5 LTS  | Supported until 2030-04        | Primary target; in the pull request matrix.           |
+| 4.0      | Current release, 1-year support | In the pull request matrix.                            |
+| 3.0 LTS  | End of life 2026-09-07         | Still builds (verified with 3.0.22); not in the matrix. |
+| `master` | Development                    | Built nightly to catch upcoming changes early.         |
 
 The generator takes an OpenSSL source tree and reads its version from `VERSION.dat`.
 Everything that varies between releases comes from OpenSSL's own `configdata.pm`: source

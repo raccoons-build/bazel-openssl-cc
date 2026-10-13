@@ -10,6 +10,9 @@ our @disablables;
 
 my %perlasm;
 
+# Generated files under these trees are not part of the libraries or apps.
+my $SKIP_DIRS = qr{^(?:test|fuzz|demos|doc)/};
+
 sub normalize_path {
     my ($path) = @_;
     $path =~ s{\\}{/}g;
@@ -86,24 +89,59 @@ foreach my $src (keys %libcrypto_srcs) {
 # rest (pkg-config files, man pages, CMake exporters, ...) are ignored. Keyed
 # by template path, valued by output path.
 my %dofile_templates;
-foreach my $out (sort keys %{$unified_info{generate}}) {
-    my @gen = @{$unified_info{generate}->{$out}};
-    next unless $gen[0] =~ m/\.in$/;
+# stdout script generators: output -> { script, args, deps }. Arguments keep
+# their $(SRCDIR)/ and $(BLDDIR)/ prefixes (source file vs. another generated
+# file); the overlay resolves them.
+my %stdout_scripts;
+foreach my $raw_out (sort keys %{$unified_info{generate}}) {
+    my $out = normalize_path($raw_out);
+    my ($script, @args) = map { normalize_path($_) } @{$unified_info{generate}->{$raw_out}};
     next unless $out =~ m/\.(h|c|inc)$/;
-    next if $out =~ m{^(test|fuzz|demos|doc)/};
-    $dofile_templates{normalize_path($gen[0])} = normalize_path($out);
+    next if $out =~ $SKIP_DIRS;
+    if (is_dofile_template($script)) {
+        $dofile_templates{$script} = $out;
+    } elsif (is_stdout_script($script)) {
+        $stdout_scripts{$out} = {
+            script => $script,
+            args => \@args,
+            deps => [ map { normalize_path($_) } @{$unified_info{depends}->{$raw_out} || []} ],
+        };
+    }
 }
 
-# Sources that are *generated* from util/dofile.pl templates and belong to a
-# library on this platform. These are excluded from the plain source lists
-# below (they do not exist in the source tree) and tracked separately so the
-# overlay compiles exactly the generated files Configure would, per platform.
+# Templates Configure renders itself at configure time, hardcoded in
+# configdata.pm.in rather than declared with GENERATE: include/openssl/
+# configuration.h (which does also carry a {skip} GENERATE entry) and, since
+# OpenSSL 4.1, apps/include/configuration.h. Both are ordinary dofile
+# templates for the overlay's purposes.
+foreach my $out (qw(include/openssl/configuration.h apps/include/configuration.h)) {
+    my $template = "$out.in";
+    next unless -f $template;
+    next if exists $unified_info{generate}->{$out};
+    die "$template exists but Configure did not render $out\n" unless -f $out;
+    $dofile_templates{$template} = $out;
+}
+
+# Generators the overlay knows how to run at build time, mirroring what
+# OpenSSL's own build files do: util/dofile.pl templates (*.in), and Perl
+# scripts that write the file to stdout (util/mkerr.pl, crypto/objects/
+# objects.pl, ...). apps/progs.pl and util/mkbuildinf.pl are stdout scripts
+# too but take Make-variable arguments, so the overlay handles them explicitly.
+sub is_dofile_template { return $_[0] =~ m/\.in$/; }
+sub is_stdout_script { return $_[0] =~ m/\.pl$/ && $_[0] !~ m{(^|/)(progs|mkbuildinf)\.pl$}; }
+sub is_known_generator { return is_dofile_template($_[0]) || is_stdout_script($_[0]); }
+
+# Sources that are *generated* and belong to a library on this platform.
+# These are excluded from the plain source lists below (they do not exist in
+# the source tree) and tracked separately so the overlay compiles exactly the
+# generated files Configure would, per platform.
 sub generated_c_srcs {
     my ($srcs) = @_;
     my @list;
     foreach my $src (sort keys %$srcs) {
         next unless exists($unified_info{generate}->{$src});
-        next unless $src =~ m/\.c$/ && $unified_info{generate}->{$src}[0] =~ m/\.in$/;
+        my $generator = $unified_info{generate}->{$src}[0];
+        next unless $src =~ m/\.c$/ && is_known_generator($generator);
         push(@list, normalize_path($src));
     }
     return @list;
@@ -246,6 +284,12 @@ my %output_data = (
     config_openssl_feature_defines => \@config_openssl_feature_defines,
     disablables => \@disablables,
     dofile_templates => \%dofile_templates,
+    stdout_scripts => \%stdout_scripts,
+    disablables_int => \@configdata::disablables_int,
+    # OpenSSL 4.1+: consumed by apps/include/configuration.h.in.
+    config_openssl_disabled_protocols => ($config{openssl_disabled_protocols} // []),
+    config_openssl_disabled_algorithms => ($config{openssl_disabled_algorithms} // []),
+    config_openssl_disabled_features => ($config{openssl_disabled_features} // []),
     libcrypto_generated_srcs => \@libcrypto_generated_srcs_list,
     libssl_generated_srcs => \@libssl_generated_srcs_list,
     openssl_app_generated_srcs => \@openssl_app_generated_srcs_list,

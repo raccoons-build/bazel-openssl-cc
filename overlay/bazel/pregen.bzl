@@ -30,21 +30,17 @@ def _pregen_files_impl(ctx):
     crypto_outs = []
     app_outs = []
 
-    for src in ctx.files.common_srcs:
-        canonical = _strip_prefix(src.short_path, ctx.attr.common_prefix)
-        out = ctx.actions.declare_file(canonical)
-        ctx.actions.symlink(output = out, target_file = src)
-        if canonical.startswith("apps/"):
-            app_outs.append(out)
-        else:
-            crypto_outs.append(out)
-
-    prefix = ctx.attr.platform_prefix
-    for src in ctx.files.platform_srcs:
-        canonical = _strip_prefix(src.short_path, prefix)
-        out = ctx.actions.declare_file(canonical)
-        ctx.actions.symlink(output = out, target_file = src)
-        crypto_outs.append(out)
+    # Files under apps/ (progs.*, and on 4.1+ apps/include/configuration.h,
+    # which varies by platform) belong to the openssl binary.
+    for srcs, prefix in [
+        (ctx.files.common_srcs, ctx.attr.common_prefix),
+        (ctx.files.platform_srcs, ctx.attr.platform_prefix),
+    ]:
+        for src in srcs:
+            canonical = _strip_prefix(src.short_path, prefix)
+            out = ctx.actions.declare_file(canonical)
+            ctx.actions.symlink(output = out, target_file = src)
+            (app_outs if canonical.startswith("apps/") else crypto_outs).append(out)
 
     return [
         DefaultInfo(files = depset(crypto_outs)),
@@ -95,6 +91,10 @@ def pregen_filegroups():
     Exposes the raw generated files so that pregen_files rules in the
     @openssl overlay can consume them as label inputs.
     """
+
+    # Everything in the archive is derived from OpenSSL sources, so the
+    # generator ships OpenSSL's LICENSE.txt alongside them.
+    native.exports_files(["LICENSE.txt"])
 
     # Globs are deliberately broad: the set of generated files (and where
     # they live) changes between OpenSSL versions, and the generator already

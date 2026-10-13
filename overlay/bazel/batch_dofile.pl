@@ -9,8 +9,7 @@
 # Arguments of the form @<file> name a Bazel params file containing one
 # argument per line; they are expanded in place.
 #
-# Must be invoked with -Mconfigdata (and any other -M flags the
-# templates need, e.g. -Moids_to_c).
+# Must be invoked with -Mconfigdata.
 
 use strict;
 use warnings;
@@ -21,17 +20,36 @@ use lib "$FindBin::Bin/perl";
 use OpenSSL::fallback "$FindBin::Bin/../external/perl/MODULES.txt";
 use OpenSSL::Template;
 
+# Upstream loads oids_to_c with -Moids_to_c. It carries a leftover
+# `use re 'debugcolor'`, which makes re.pm look up terminal colours through
+# Term::Cap whenever the module is compiled; on Windows, where Term::Cap
+# falls back to TERM=dumb, that prints "Use of uninitialized value in join"
+# six times per load. Only the colours of regex debug output depend on it,
+# so the lookup is stubbed out before the module is loaded (here and on
+# every reload below).
+BEGIN {
+    require re;
+    no warnings 'redefine';
+    *re::setcolor = sub { };
+}
+use oids_to_c;
+
 # OpenSSL renders every template in its own perl process. Some helper modules
 # keep process-global state that would leak between templates when batched:
-# OpenSSL::OID (used via oids_to_c) registers every OID it parses, and an OID
-# registered as a leaf by one .asn1 file silently becomes an arc once another
-# file uses it as a parent, changing what process_leaves() emits. To keep the
-# per-process semantics, both modules are unloaded and oids_to_c re-required
-# (which pulls in a fresh OpenSSL::OID) before each template.
+#   * OpenSSL::OID (used via oids_to_c) registers every OID it parses, and an
+#     OID registered as a leaf by one .asn1 file silently becomes an arc once
+#     another file uses it as a parent, changing what process_leaves() emits;
+#   * OpenSSL::paramnames (4.1+) emits its #include preamble only on the first
+#     produce_param_decoder() call in a process.
+# To keep the per-process semantics, these modules are unloaded before each
+# template; oids_to_c is loaded at startup and so is re-required,
+# OpenSSL::paramnames is `use`d by the templates themselves.
+my @RESET_MODULES = qw(oids_to_c OpenSSL::OID OpenSSL::paramnames);
+
 sub reset_stateful_modules {
-    return unless exists $INC{'oids_to_c.pm'};
-    for my $mod (qw(oids_to_c OpenSSL::OID)) {
+    for my $mod (@RESET_MODULES) {
         (my $file = "$mod.pm") =~ s{::}{/}g;
+        next unless exists $INC{$file};
         delete $INC{$file};
         Symbol::delete_package($mod);
     }

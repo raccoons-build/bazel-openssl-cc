@@ -83,6 +83,11 @@ our %config = (
     openssl_api_defines     => @@API_DEFINES@@,
     openssl_feature_defines => @@FEATURE_DEFINES@@,
 
+    # OpenSSL 4.1+: listed by `openssl list`, via apps/include/configuration.h.in.
+    openssl_disabled_protocols  => @@DISABLED_PROTOCOLS@@,
+    openssl_disabled_algorithms => @@DISABLED_ALGORITHMS@@,
+    openssl_disabled_features   => @@DISABLED_FEATURES@@,
+
     FIPSKEY => "f4556650ac31d35461610bac4ed81b1a181b2d8a43ea2854cbae22ca74560813",
 );
 
@@ -122,5 +127,9 @@ our %unified_info = (
 );
 
 our @disablables = qw(@@DISABLABLES@@);
+
+# Features Configure can disable but that are not user-facing options;
+# util/mkerr.pl consults it to decide which error tables get #ifndef guards.
+our @disablables_int = qw(@@DISABLABLES_INT@@);
 
 1;
