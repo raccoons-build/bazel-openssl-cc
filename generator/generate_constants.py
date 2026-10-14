@@ -1460,6 +1460,37 @@ def perlasm_only(
     print(f"Assembly written to: {out / 'generated' / 'asm'}")
 
 
+_ASM_INCLUDE_RE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
+
+
+def check_perlasm_includes(generated_asm: Path, openssl_dir: Path) -> None:
+    """Fail if pre-generated assembly includes a header the overlay would not provide.
+
+    The overlay serves libcrypto headers from include/ and crypto/ (every .h,
+    .inc and .def below them), reached as upstream's -I. -Iinclude -Icrypto
+    reach them (Bazel always adds the repository root as a quote include
+    directory). The assembly is only ever compiled on its own architecture,
+    so a header that moved elsewhere (4.1 moved crypto/arm_arch.h to
+    include/arch/) would otherwise surface only on that architecture's CI.
+    """
+    problems = []
+    for asm in sorted(generated_asm.rglob("*.[sS]")):
+        for include in _ASM_INCLUDE_RE.findall(asm.read_text(errors="replace")):
+            resolved = [openssl_dir / root / include for root in (".", "include", "crypto")]
+            resolved = [f for f in resolved if f.suffix in (".h", ".inc", ".def")]
+            served = [
+                f
+                for f in resolved
+                if f.is_file() and f.resolve().relative_to(openssl_dir.resolve()).parts[0] in ("include", "crypto")
+            ]
+            if not served:
+                problems.append(f"{asm.relative_to(generated_asm)}: {include}")
+    if problems:
+        raise RuntimeError(
+            "pre-generated assembly includes headers outside include/ and crypto/:\n  " + "\n  ".join(problems)
+        )
+
+
 def main(
     openssl_source_dir: str,
     output_dir: str,
@@ -1551,6 +1582,7 @@ def main(
 
     print("=== Pre-generating perlasm assembly ===")
     pregenerate_perlasm(openssl_dir, platform_data, out, perl_path=perl_path)
+    check_perlasm_includes(out / "generated" / "asm", openssl_dir)
 
     # Move generated/ to a separate pregen directory so the overlay stays small.
     pregen = Path(pregen_dir) if pregen_dir else out.parent / "pregen"

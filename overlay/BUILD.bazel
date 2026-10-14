@@ -437,10 +437,8 @@ CRYPTO_TEXTUAL_HDRS = [
 ] + glob(
     include = ["providers/implementations/**/*.c"],
 ) + select({
-    "@platforms//os:windows": [
-        "crypto/LPdir_win.c",
-        "crypto/LPdir_win32.c",
-        "crypto/LPdir_wince.c",
+    # LPdir_win.c, LPdir_win32.c and, before 4.1, LPdir_wince.c.
+    "@platforms//os:windows": glob(["crypto/LPdir_win*.c"]) + [
         "ms/applink.c",
         "ms/uplink.h",
     ] + _ENGINE_TEXTUAL_HDRS,
@@ -571,22 +569,25 @@ _WINDOWS_SYSTEM_LIBS_GNU = [
 
 # --- libcrypto ---
 
+# Everything under include/ and crypto/, as upstream's -I. -Iinclude -Icrypto
+# serve them: the layout below those roots changes between versions (4.1 moved
+# crypto/arm_arch.h to include/arch/arm_arch.h, for one).
 COMMON_LIBCRYPTO_HDRS = _ROOT_HDRS + glob(
     include = [
         "crypto/**/*.h",
-        "crypto/*.h",
-        "include/crypto/**/*.h",
-        "include/internal/*.h",
-        "include/openssl/*.h",
+        "include/**/*.h",
         "providers/**/*.h",
         "providers/*.inc",
         "providers/implementations/**/*.inc",
     ],
 ) + glob(
     # Textually included fragments that are not .h, e.g.
-    # include/internal/qlog_events.inc or crypto/ec/curve448/arch_64/*.inc (4.1+).
+    # include/internal/qlog_events.inc, crypto/ec/curve448/arch_64/*.inc (4.1+)
+    # or riscv_arch.def.
     [
+        "crypto/**/*.def",
         "crypto/**/*.inc",
+        "include/**/*.def",
         "include/**/*.inc",
     ],
     allow_empty = True,
@@ -736,8 +737,7 @@ COMMON_APP_HDRS = _ROOT_HDRS + glob(
     include = [
         "apps/*.h",
         "apps/include/*.h",
-        "include/internal/*.h",
-        "include/openssl/*.h",
+        "include/**/*.h",
     ],
 )
 
