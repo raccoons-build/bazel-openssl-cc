@@ -209,6 +209,15 @@ jobs:
         with:
           name: cquery-${{ inputs.bcr_tag }}-${{ matrix.os }}-bazel${{ matrix.bazel }}-pregen${{ matrix.use_pregenerated }}
           path: workspace/cquery.txt
+      # Source files of every select() branch must exist, whichever platform
+      # this job runs on (see the script).
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ inputs.ref }}
+          path: repo
+      - run:
+          cd workspace &&
+          ../repo/.github/scripts/check_source_files.sh --registry="file:///tmp/bazel-central-registry"
       - run:
           cd workspace &&
           bazel test ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--verbose_failures --incompatible_auto_exec_groups --registry="file:///tmp/bazel-central-registry" @openssl//...

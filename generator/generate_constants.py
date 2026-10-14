@@ -1460,25 +1460,6 @@ def perlasm_only(
     print(f"Assembly written to: {out / 'generated' / 'asm'}")
 
 
-# Upstream files overlay/BUILD.bazel names directly (ms/applink.c, ...) rather
-# than through the generated constants or a glob. Upstream removes and moves
-# files between versions (4.1 dropped crypto/LPdir_wince.c), and such a path
-# only fails on the platform whose select() branch uses it, so check them
-# against the source tree at generation time instead.
-_OVERLAY_SOURCE_PATH_RE = re.compile(
-    r'"((?:apps|crypto|engines|include|ms|providers|ssl|util|Configurations|external)/'
-    r'[A-Za-z0-9_./-]+\.(?:c|h|S|s|pl|pm|inc|def|asn1))"'
-)
-
-
-def check_overlay_source_paths(overlay_dir: Path, openssl_dir: Path) -> None:
-    """Fail if overlay/BUILD.bazel names a source file this OpenSSL version does not have."""
-    literals = set(_OVERLAY_SOURCE_PATH_RE.findall((overlay_dir / "BUILD.bazel").read_text()))
-    missing = sorted(path for path in literals if "*" not in path and not (openssl_dir / path).exists())
-    if missing:
-        raise RuntimeError(f"overlay/BUILD.bazel names files missing from this OpenSSL version: {', '.join(missing)}")
-
-
 _ASM_INCLUDE_RE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
 
 
@@ -1622,7 +1603,6 @@ def main(
     # overlay shipped to BCR, so it is copied as-is (with version overrides),
     # except MODULE.bazel, which is rendered with the module version below.
     srcs.copy_tree(OVERLAY_DIR, out, exclude=frozenset({"MODULE.bazel"}))
-    check_overlay_source_paths(out, openssl_dir)
 
     if buildifier_path:
         print("=== Formatting with buildifier ===")

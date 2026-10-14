@@ -165,3 +165,8 @@ bazel test //test_bazel_build/...
 bazel build //... --@openssl//:use-pregenerated=False   # test Perl path
 bazel build //... --@openssl//:use-no-asm-fallback=True  # test no-asm path
 ```
+
+A build only exercises the current platform's `select()` branches. To check
+that the source files named by every branch exist in this OpenSSL version,
+run `.github/scripts/check_source_files.sh` from a workspace that depends on
+the module; CI does this on every pull request.
