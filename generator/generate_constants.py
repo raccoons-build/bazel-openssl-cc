@@ -134,7 +134,8 @@ class PlatformData(NamedTuple):
     libcrypto_srcs: list[str]
     libssl_srcs: list[str]
     openssl_app_srcs: list[str]
-    perlasm_gen_commands: list[str]
+    # perlasm: output -> {script, args}; see extract_srcs.pl.
+    perlasm: dict[str, dict[str, Any]]
     libcrypto_defines: list[str]
     libssl_defines: list[str]
     openssl_app_defines: list[str]
@@ -171,7 +172,6 @@ class PlatformData(NamedTuple):
             "libcrypto_srcs",
             "libssl_srcs",
             "openssl_app_srcs",
-            "perlasm_gen_commands",
             "libcrypto_defines",
             "libssl_defines",
             "openssl_app_defines",
@@ -187,7 +187,7 @@ class PlatformData(NamedTuple):
             libcrypto_srcs=str_lists["libcrypto_srcs"],
             libssl_srcs=str_lists["libssl_srcs"],
             openssl_app_srcs=str_lists["openssl_app_srcs"],
-            perlasm_gen_commands=sorted(set(str_lists["perlasm_gen_commands"])),
+            perlasm={out: dict(v) for out, v in sorted(_dict("perlasm").items())},
             libcrypto_defines=sorted(set(str_lists["libcrypto_defines"])),
             libssl_defines=sorted(set(str_lists["libssl_defines"])),
             openssl_app_defines=sorted(set(str_lists["openssl_app_defines"])),
@@ -390,7 +390,7 @@ def compute_tiered_constants(
             "asm_crypto_extra": sorted(data.all_crypto_srcs() - common_crypto),
             "asm_ssl_extra": sorted(data.all_ssl_srcs() - common_ssl),
             "asm_app_extra": sorted(data.all_app_srcs() - common_app),
-            "perlasm_gen": data.perlasm_gen_commands,
+            "perlasm": data.perlasm,
             "libcrypto_defines": data.libcrypto_defines,
             "libssl_defines": data.libssl_defines,
             "openssl_app_defines": data.openssl_app_defines,
@@ -474,7 +474,7 @@ ASM_SSL_EXTRA_SRCS = {json.dumps(platform_delta["asm_ssl_extra"], indent=indent)
 
 ASM_APP_EXTRA_SRCS = {json.dumps(platform_delta["asm_app_extra"], indent=indent)}
 
-PERLASM_GEN = "\\n".join({json.dumps(platform_delta["perlasm_gen"], indent=indent)})
+PERLASM = {json.dumps(platform_delta["perlasm"], indent=indent)}
 
 LIBCRYPTO_DEFINES = {json.dumps(platform_delta["libcrypto_defines"], indent=indent)}
 
@@ -709,10 +709,12 @@ HERMETIC_ENV = {json.dumps(_HERMETIC_ENV, indent=indent)}
     (constants_dir / "templates.bzl").write_text(content)
 
 
-# Perlasm flavor → source platform (whose perlasm_gen_commands define the
-# script set), the config_names that consume this flavor, and the toolchain
-# profile the perlasm scripts are told they are generating for (see
-# _PERLASM_PROBE_PROFILES).
+# Pre-generated assembly groups. Each group is one directory under
+# generated/asm/, produced by running the perlasm scripts of `source_platform`
+# (whose perlasm entries define the script set) with the perlasm
+# `scheme` upstream's Configure passes for that target, under the compiler
+# `probe_profile` (see _PERLASM_PROBE_PROFILES). `consumers` lists the config
+# names that compile the group.
 _PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
     "elf": {
         "source_platform": "linux-x86_64-clang",
@@ -724,10 +726,6 @@ _PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
         "consumers": ["darwin_x86_64"],
         "probe_profile": "clang",
     },
-    "masm": {
-        "source_platform": "VC-WIN64A-masm",
-        "consumers": ["windows_x64"],
-    },
     "ios64": {
         "source_platform": "darwin64-arm64-cc",
         "consumers": ["darwin_arm64", "ios_arm64"],
@@ -738,26 +736,65 @@ _PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
         "consumers": ["linux_aarch64", "android_arm64", "freebsd_aarch64"],
         "probe_profile": "gnu",
     },
+    "linux32": {
+        "source_platform": "linux-armv4",
+        "consumers": ["linux_arm"],
+        "probe_profile": "gnu",
+    },
+    "linux64le": {
+        "source_platform": "linux-ppc64le",
+        "consumers": ["linux_ppc64le"],
+        "probe_profile": "gnu",
+    },
+    "riscv64": {
+        "source_platform": "linux64-riscv64",
+        "consumers": ["linux_riscv64"],
+        "probe_profile": "gnu",
+        "scheme": "linux64",
+    },
+    "s390x": {
+        "source_platform": "linux64-s390x",
+        "consumers": ["linux_s390x"],
+        "probe_profile": "gnu",
+        "scheme": "64",
+    },
+    # Windows groups are MSVC flavoured (MASM for x64, clang-cl's win64 for
+    # arm64), as upstream's VC-WIN64A-masm and VC-WIN64-CLANGASM-ARM targets
+    # are; mingw builds use the from-source path. With cl.exe the scripts'
+    # gcc/clang version probes never match, hence the "none" profile.
+    "masm": {
+        "source_platform": "VC-WIN64A-masm",
+        "consumers": ["windows_x64"],
+        "probe_profile": "none",
+    },
     "win64": {
         "source_platform": "VC-WIN64-CLANGASM-ARM",
         "consumers": ["windows_arm64"],
+        "probe_profile": "none",
     },
 }
 
-# The perlasm scripts decide which instruction-set paths to emit by running
-# $CC and parsing its version output (GNU as version, clang version,
-# __clang_major__). Pre-generated assembly must not depend on whichever
-# compiler happens to be installed where the generator runs, so instead of a
-# real compiler the scripts are given a stub that answers those probes with
-# these pinned values. They therefore also define the minimum assembler a
-# consumer of the pre-generated files needs; anyone with an older one can
+
+def _perlasm_scheme(group: str) -> str:
+    """The perlasm scheme argument for a pre-generated assembly group (its name unless overridden)."""
+    return str(_PERLASM_FLAVORS[group].get("scheme", group))
+
+
+# What the perlasm scripts' compiler probes are told while pre-generating.
+# Several scripts (aesni-sha*-x86_64.pl, the avx512/avxifma ones, ...) emit or
+# withhold instruction-set paths depending on the assembler and compiler
+# version they find in $CC, so the pre-generated files are only reproducible
+# with these pinned values. They therefore also define the minimum assembler
+# a consumer of the pre-generated files needs; anyone with an older one can
 # build with --@openssl//:use-pregenerated=False, which probes their real
 # toolchain at build time. The values match what the CI runners that
 # produced earlier releases reported (binutils 2.38 on ubuntu-22.04, Apple
-# clang 15 on macos-14), so they do not change the shipped output.
+# clang 15 on macos-14), so they do not change the shipped output. "none"
+# answers nothing, which is what the probes get from cl.exe.
 _PERLASM_PROBE_PROFILES: dict[str, dict[str, str]] = {
     "gnu": {"as_version": "2.38", "clang_version": ""},
     "clang": {"as_version": "", "clang_version": "15.0.0"},
+    "none": {"as_version": "", "clang_version": ""},
 }
 
 _PERLASM_PROBE_STUB = """\
@@ -784,11 +821,6 @@ def _write_probe_stub(directory: Path, profile: str) -> Path:
     stub.write_text(_PERLASM_PROBE_STUB.format(**_PERLASM_PROBE_PROFILES[profile]))
     stub.chmod(0o755)
     return stub
-
-
-# Windows assembly is generated at build time via openssl_perlasm (not
-# pre-generated) to ensure correct assembler probing.
-_WINDOWS_PERLASM_FLAVORS = frozenset({"masm", "win64"})
 
 
 def _place_configdata_in_source(
@@ -1042,46 +1074,9 @@ def generate_buildinf_h(output_dir: Path, srcs: OverlaySources) -> None:
     (crypto_dir / "buildinf.h").write_text(content)
 
 
-def _parse_perlasm_commands(commands: list[str]) -> list[tuple[str, str]]:
-    """Parse perlasm_gen_commands into (tool_path, output_path) pairs.
-
-    Each command has the format (6 space-separated tokens):
-      $(PERL) $(execpath <tool>) <scheme> $(execpath <output>);
-    """
-    pairs = []
-    for cmd in commands:
-        parts = cmd.split(" ")
-        if len(parts) != 6:
-            continue
-        tool = parts[2].rstrip(");")
-        output = parts[5].rstrip(");")
-        pairs.append((tool, output))
-    return pairs
-
-
-def _fix_masm_segment(path: Path) -> None:
-    """Ensure MASM output has a segment before any PROC directive.
-
-    Some perlasm scripts (e.g. aes-gcm-avx512.pl, rsaz-2k-avx512.pl) emit
-    functions before the first .text directive.  In GAS this is fine
-    (implicit .text), but MASM requires all code inside an explicit segment
-    block.  This is an upstream structural bug and applies regardless of the
-    host that ran the perlasm scripts.
-    """
-    lines = path.read_text().splitlines(keepends=True)
-    has_segment = False
-    insert_idx = None
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if "SEGMENT" in stripped:
-            has_segment = True
-            break
-        if stripped.endswith("PROC PUBLIC") or stripped.endswith("PROC PRIVATE"):
-            insert_idx = i
-            break
-    if insert_idx is not None and not has_segment:
-        lines.insert(insert_idx, ".text$\tSEGMENT ALIGN(256) 'CODE'\n")
-        path.write_text("".join(lines))
+def _perlasm_jobs(perlasm: dict[str, dict[str, Any]]) -> list[tuple[str, list[str], str]]:
+    """(script, extra args, output) for each perlasm output of a platform."""
+    return [(str(e["script"]), [str(a) for a in e["args"]], out) for out, e in perlasm.items()]
 
 
 def pregenerate_perlasm(
@@ -1098,46 +1093,45 @@ def pregenerate_perlasm(
     """
     generated_asm = output_dir / "generated" / "asm"
 
-    # Build a lookup from Configure target → PlatformData.
+    # Build a lookup from Configure target -> PlatformData.
     lookup = {p: d for p, d in platform_data.items()}
 
     if flavors is None:
-        selected = ((f, info) for f, info in _PERLASM_FLAVORS.items() if f not in _WINDOWS_PERLASM_FLAVORS)
+        selected = iter(_PERLASM_FLAVORS.items())
     else:
         selected = ((f, _PERLASM_FLAVORS[f]) for f in flavors if f in _PERLASM_FLAVORS)
     for flavor, info in selected:
         source_platform = info["source_platform"]
         data = lookup.get(source_platform)
-        if data is None or not data.perlasm_gen_commands:
+        if data is None or not data.perlasm:
             print(f"    Skipping {flavor}: no perlasm commands")
             continue
 
-        pairs = _parse_perlasm_commands(data.perlasm_gen_commands)
+        jobs = _perlasm_jobs(data.perlasm)
         flavor_dir = generated_asm / flavor
         flavor_dir.mkdir(parents=True, exist_ok=True)
-        print(f"    {flavor}: {len(pairs)} scripts ({info['probe_profile']} probe profile)")
+        print(f"    {flavor}: {len(jobs)} scripts ({info['probe_profile']} probe profile)")
 
         # Only the pinned stub may answer the scripts' compiler probes; drop
         # anything from the environment they might consult.
         env = {k: v for k, v in os.environ.items() if k not in ("CC", "ASM", "CFLAGS")}
         env["CC"] = str(_write_probe_stub(generated_asm, info["probe_profile"]))
 
-        for tool_path, output_path in pairs:
+        for script, args, output_path in jobs:
             out_file = flavor_dir / output_path
             out_file.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(
                 [
                     perl_path,
-                    str(openssl_dir / tool_path),
-                    flavor,
+                    str(openssl_dir / script),
+                    _perlasm_scheme(flavor),
+                    *args,
                     str(out_file),
                 ],
                 cwd=openssl_dir,
                 env=env,
                 check=True,
             )
-            if flavor == "masm":
-                _fix_masm_segment(out_file)
 
     for stub in generated_asm.glob("perlasm-cc-*.sh"):
         stub.unlink()
@@ -1295,15 +1289,12 @@ def write_features_bzl(
     (constants_dir / "features.bzl").write_text("".join(lines))
 
 
-_WINDOWS_CONFIG_NAMES = frozenset({"windows_arm64", "windows_x64"})
-
-
 def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
     """Render the openssl_pregen_config_settings() Starlark macro.
 
     Four tiers of config_settings:
 
-      _pregen_asm_<plat> (non-Windows; os+cpu + pregen=True + noasm=False)
+      _pregen_asm_<plat> (all known; os+cpu + pregen=True + noasm=False)
          specialises ↓
       _asm_<plat>        (all known; os+cpu + noasm=False)
          mutually exclusive with ↓
@@ -1312,8 +1303,9 @@ def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
       _pregen_<plat>     (all known; os+cpu + pregen=True)
          Used only for include-path routing, independent of asm mode.
 
-    Windows is excluded from _pregen_asm_* because its assembly is
-    generated at build time via openssl_perlasm.
+    Platforms are os+cpu only: glibc is assumed on Linux and MSVC-flavoured
+    output on Windows. libc constraints could come from
+    https://github.com/bazel-contrib/platforms_contrib/ in the future.
     """
     if not known_platforms:
         return "def openssl_pregen_config_settings():\n    pass\n"
@@ -1393,12 +1385,10 @@ def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
             f"    )\n"
         )
 
-    # _pregen_asm_<platform>: pre-generated assembly routing (non-Windows).
+    # _pregen_asm_<platform>: pre-generated assembly routing.
     # Requires use-pregenerated=True AND use-no-asm-fallback=False.
     # Specialises _asm_<platform> in the srcs select.
     for platform in known_platforms:
-        if platform in _WINDOWS_CONFIG_NAMES:
-            continue
         constraints = PLATFORM_CONSTRAINTS.get(platform)
         if not constraints:
             continue

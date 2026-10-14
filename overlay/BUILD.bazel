@@ -4,9 +4,8 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_perl//perl:perl.bzl", "perl_binary", "perl_library")
 load("//bazel:collate_into_directory.bzl", "collate_into_directory")
 load("//bazel:openssl_genrule.bzl", "openssl_perl_genrule")
-load("//bazel:perlasm.bzl", "openssl_perlasm", "openssl_perlasm_scripts", "openssl_perlasm_tools")
+load("//bazel:perlasm.bzl", "openssl_perlasm", "openssl_perlasm_args", "openssl_perlasm_scripts", "openssl_perlasm_tools")
 load("//bazel:pregen.bzl", "pregen_overlay_targets")
-load("//bazel:utils.bzl", "parse_perlasm_gen")
 load(
     "//bazel/constants:android_arm64.bzl",
     _ANDROID_ARM64_ASM_APP_EXTRA = "ASM_APP_EXTRA_SRCS",
@@ -16,6 +15,7 @@ load(
     _ANDROID_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _ANDROID_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _ANDROID_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _ANDROID_ARM64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:android_x86_64.bzl",
@@ -26,6 +26,7 @@ load(
     _ANDROID_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _ANDROID_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _ANDROID_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _ANDROID_X86_64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:common.bzl",
@@ -42,7 +43,7 @@ load(
     _DARWIN_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _DARWIN_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _DARWIN_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _DARWIN_ARM64_PERLASM_GEN = "PERLASM_GEN",
+    _DARWIN_ARM64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:darwin_x86_64.bzl",
@@ -53,6 +54,7 @@ load(
     _DARWIN_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _DARWIN_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _DARWIN_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _DARWIN_X86_64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:features.bzl",
@@ -68,6 +70,7 @@ load(
     _FREEBSD_AARCH64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _FREEBSD_AARCH64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _FREEBSD_AARCH64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _FREEBSD_AARCH64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:freebsd_x86_64.bzl",
@@ -78,6 +81,7 @@ load(
     _FREEBSD_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _FREEBSD_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _FREEBSD_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _FREEBSD_X86_64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:ios_arm64.bzl",
@@ -88,6 +92,7 @@ load(
     _IOS_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _IOS_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _IOS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _IOS_ARM64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:linux_aarch64.bzl",
@@ -98,6 +103,7 @@ load(
     _LINUX_AARCH64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _LINUX_AARCH64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _LINUX_AARCH64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _LINUX_AARCH64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:linux_arm.bzl",
@@ -108,6 +114,7 @@ load(
     _LINUX_ARM_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _LINUX_ARM_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _LINUX_ARM_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _LINUX_ARM_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:linux_ppc64le.bzl",
@@ -118,6 +125,7 @@ load(
     _LINUX_PPC64LE_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _LINUX_PPC64LE_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _LINUX_PPC64LE_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _LINUX_PPC64LE_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:linux_riscv64.bzl",
@@ -128,6 +136,7 @@ load(
     _LINUX_RISCV64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _LINUX_RISCV64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _LINUX_RISCV64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _LINUX_RISCV64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:linux_s390x.bzl",
@@ -138,6 +147,7 @@ load(
     _LINUX_S390X_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _LINUX_S390X_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _LINUX_S390X_OPENSSL_DEFINES = "OPENSSL_DEFINES",
+    _LINUX_S390X_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:linux_x86_64.bzl",
@@ -148,7 +158,7 @@ load(
     _LINUX_X86_64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _LINUX_X86_64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _LINUX_X86_64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _LINUX_X86_64_PERLASM_GEN = "PERLASM_GEN",
+    _LINUX_X86_64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:no_asm.bzl",
@@ -171,7 +181,7 @@ load(
     _WINDOWS_ARM64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _WINDOWS_ARM64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _WINDOWS_ARM64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _WINDOWS_ARM64_PERLASM_GEN = "PERLASM_GEN",
+    _WINDOWS_ARM64_PERLASM_ENTRIES = "PERLASM",
 )
 load(
     "//bazel/constants:windows_x64.bzl",
@@ -182,7 +192,7 @@ load(
     _WINDOWS_X64_LIBSSL_DEFINES = "LIBSSL_DEFINES",
     _WINDOWS_X64_OPENSSL_APP_DEFINES = "OPENSSL_APP_DEFINES",
     _WINDOWS_X64_OPENSSL_DEFINES = "OPENSSL_DEFINES",
-    _WINDOWS_X64_PERLASM_GEN = "PERLASM_GEN",
+    _WINDOWS_X64_PERLASM_ENTRIES = "PERLASM",
 )
 
 package(default_visibility = ["//:__subpackages__"])
@@ -341,27 +351,30 @@ filegroup(
 
 # --- Assembly generation ---
 
-_NIX_ARM64_PERLASM, _NIX_ARM64_PERLASM_DUPES = parse_perlasm_gen(_DARWIN_ARM64_PERLASM_GEN)
-
-_NIX_X86_64_PERLASM, _NIX_X86_64_PERLASM_DUPES = parse_perlasm_gen(_LINUX_X86_64_PERLASM_GEN)
-
-_WIN_ARM64_PERLASM, _WIN_ARM64_PERLASM_DUPES = parse_perlasm_gen(_WINDOWS_ARM64_PERLASM_GEN)
-
-_WIN_X64_PERLASM, _WIN_X64_PERLASM_DUPES = parse_perlasm_gen(_WINDOWS_X64_PERLASM_GEN)
-
-# Every perlasm script any supported platform uses, each wrapped in a
-# perl_binary built for the execution platform. The scripts locate their
-# helpers relative to their own path, so those helpers ride along as data.
-_PERLASM_SCRIPTS = {
-    script: None
-    for scripts in [
-        _NIX_ARM64_PERLASM,
-        _NIX_X86_64_PERLASM,
-        _WIN_ARM64_PERLASM,
-        _WIN_X64_PERLASM,
+# Every perlasm output any supported platform uses, each with a perl_binary
+# built for the execution platform. The scripts locate their helpers relative
+# to their own path, so those helpers ride along as data.
+_PERLASM = {
+    out: entry
+    for perlasm in [
+        _ANDROID_ARM64_PERLASM_ENTRIES,
+        _ANDROID_X86_64_PERLASM_ENTRIES,
+        _DARWIN_ARM64_PERLASM_ENTRIES,
+        _DARWIN_X86_64_PERLASM_ENTRIES,
+        _FREEBSD_AARCH64_PERLASM_ENTRIES,
+        _FREEBSD_X86_64_PERLASM_ENTRIES,
+        _IOS_ARM64_PERLASM_ENTRIES,
+        _LINUX_AARCH64_PERLASM_ENTRIES,
+        _LINUX_ARM_PERLASM_ENTRIES,
+        _LINUX_PPC64LE_PERLASM_ENTRIES,
+        _LINUX_RISCV64_PERLASM_ENTRIES,
+        _LINUX_S390X_PERLASM_ENTRIES,
+        _LINUX_X86_64_PERLASM_ENTRIES,
+        _WINDOWS_ARM64_PERLASM_ENTRIES,
+        _WINDOWS_X64_PERLASM_ENTRIES,
     ]
-    for script in scripts
-}.keys()
+    for out, entry in perlasm.items()
+}
 
 openssl_perlasm_scripts(
     name = "perlasm_scripts",
@@ -370,12 +383,15 @@ openssl_perlasm_scripts(
         "ms/applink.c",
         "ms/uplink-common.pl",
     ],
-    scripts = _PERLASM_SCRIPTS,
+    perlasm = _PERLASM,
     tags = ["manual"],
 )
 
 openssl_perlasm(
     name = "perlasm_genfiles",
+    # The perlasm scheme upstream's Configure passes for the matching target.
+    # On Windows, cl.exe and clang-cl assemble through ml64 (MASM syntax,
+    # MSVC-flavoured arm64), mingw and clang through gas.
     assembly_flavor = select({
         "//configs:android_arm64": "linux64",
         "//configs:android_x86_64": "elf",
@@ -385,39 +401,38 @@ openssl_perlasm(
         "//configs:freebsd_x86_64": "elf",
         "//configs:ios_arm64": "ios64",
         "//configs:linux_aarch64": "linux64",
+        "//configs:linux_arm": "linux32",
+        "//configs:linux_ppc64le": "linux64le",
+        "//configs:linux_riscv64": "linux64",
+        "//configs:linux_s390x": "64",
         "//configs:linux_x86_64": "elf",
+        "//configs:windows_arm64_clang": "linux64",
+        "//configs:windows_arm64_clang_cl": "win64",
+        "//configs:windows_arm64_mingw": "linux64",
         "//configs:windows_arm64_msvc": "win64",
-        "//configs:windows_arm64_non_msvc": "linux64",
+        "//configs:windows_x64_clang": "mingw64",
+        "//configs:windows_x64_clang_cl": "masm",
+        "//configs:windows_x64_mingw": "mingw64",
         "//configs:windows_x64_msvc": "masm",
-        "//configs:windows_x64_non_msvc": "mingw64",
         "//conditions:default": "",
     }),
+    script_args = openssl_perlasm_args(_PERLASM),
     scripts = select({
-        "//configs:android_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
-        "//configs:android_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
-        "//configs:darwin_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
-        "//configs:darwin_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
-        "//configs:freebsd_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
-        "//configs:freebsd_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
-        "//configs:ios_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
-        "//configs:linux_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM),
-        "//configs:linux_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM),
-        "//configs:windows_arm64": openssl_perlasm_tools(_WIN_ARM64_PERLASM),
-        "//configs:windows_x64": openssl_perlasm_tools(_WIN_X64_PERLASM),
-        "//conditions:default": {},
-    }),
-    scripts_second_output = select({
-        "//configs:android_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
-        "//configs:android_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
-        "//configs:darwin_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
-        "//configs:darwin_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
-        "//configs:freebsd_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
-        "//configs:freebsd_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
-        "//configs:ios_arm64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
-        "//configs:linux_aarch64": openssl_perlasm_tools(_NIX_ARM64_PERLASM_DUPES),
-        "//configs:linux_x86_64": openssl_perlasm_tools(_NIX_X86_64_PERLASM_DUPES),
-        "//configs:windows_arm64": openssl_perlasm_tools(_WIN_ARM64_PERLASM_DUPES),
-        "//configs:windows_x64": openssl_perlasm_tools(_WIN_X64_PERLASM_DUPES),
+        "//configs:android_arm64": openssl_perlasm_tools(_ANDROID_ARM64_PERLASM_ENTRIES),
+        "//configs:android_x86_64": openssl_perlasm_tools(_ANDROID_X86_64_PERLASM_ENTRIES),
+        "//configs:darwin_arm64": openssl_perlasm_tools(_DARWIN_ARM64_PERLASM_ENTRIES),
+        "//configs:darwin_x86_64": openssl_perlasm_tools(_DARWIN_X86_64_PERLASM_ENTRIES),
+        "//configs:freebsd_aarch64": openssl_perlasm_tools(_FREEBSD_AARCH64_PERLASM_ENTRIES),
+        "//configs:freebsd_x86_64": openssl_perlasm_tools(_FREEBSD_X86_64_PERLASM_ENTRIES),
+        "//configs:ios_arm64": openssl_perlasm_tools(_IOS_ARM64_PERLASM_ENTRIES),
+        "//configs:linux_aarch64": openssl_perlasm_tools(_LINUX_AARCH64_PERLASM_ENTRIES),
+        "//configs:linux_arm": openssl_perlasm_tools(_LINUX_ARM_PERLASM_ENTRIES),
+        "//configs:linux_ppc64le": openssl_perlasm_tools(_LINUX_PPC64LE_PERLASM_ENTRIES),
+        "//configs:linux_riscv64": openssl_perlasm_tools(_LINUX_RISCV64_PERLASM_ENTRIES),
+        "//configs:linux_s390x": openssl_perlasm_tools(_LINUX_S390X_PERLASM_ENTRIES),
+        "//configs:linux_x86_64": openssl_perlasm_tools(_LINUX_X86_64_PERLASM_ENTRIES),
+        "//configs:windows_arm64": openssl_perlasm_tools(_WINDOWS_ARM64_PERLASM_ENTRIES),
+        "//configs:windows_x64": openssl_perlasm_tools(_WINDOWS_X64_PERLASM_ENTRIES),
         "//conditions:default": {},
     }),
     tags = ["manual"],
@@ -485,10 +500,11 @@ COMMON_OPENSSL_COPTS = [
     ],
 })
 
+# All Windows constants come from upstream's VC-WIN64A / VC-WIN64-CLANGASM-ARM
+# targets, i.e. MSVC is assumed on Windows (mingw's own Configure target is
+# not modelled); glibc is assumed on Linux. libc constraints could come from
+# https://github.com/bazel-contrib/platforms_contrib/ in the future.
 COMMON_DEFINES = select({
-    "//configs:windows_msvc": [
-        "OPENSSL_SYS_WINCE",
-    ],
     "//configs:windows_non_msvc": [
         "SIO_UDP_NETRESET=0x9800001C",
     ],
@@ -605,16 +621,19 @@ cc_library(
         "//configs:_asm_freebsd_x86_64": _FREEBSD_X86_64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
         "//configs:_asm_ios_arm64": _IOS_ARM64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
         "//configs:_asm_linux_aarch64": _LINUX_AARCH64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
-        "//configs:_asm_linux_arm": _LINUX_ARM_ASM_CRYPTO_EXTRA,
-        "//configs:_asm_linux_ppc64le": _LINUX_PPC64LE_ASM_CRYPTO_EXTRA,
-        "//configs:_asm_linux_riscv64": _LINUX_RISCV64_ASM_CRYPTO_EXTRA,
-        "//configs:_asm_linux_s390x": _LINUX_S390X_ASM_CRYPTO_EXTRA,
+        "//configs:_asm_linux_arm": _LINUX_ARM_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:_asm_linux_ppc64le": _LINUX_PPC64LE_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:_asm_linux_riscv64": _LINUX_RISCV64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
+        "//configs:_asm_linux_s390x": _LINUX_S390X_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
         "//configs:_asm_linux_x86_64": _LINUX_X86_64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
         "//configs:_asm_windows_arm64": _WINDOWS_ARM64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
         "//configs:_asm_windows_x64": _WINDOWS_X64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
         # No-asm escape hatch (mutually exclusive with _asm_*/_pregen_asm_*)
         "//configs:_no_asm_fallback": NO_ASM_CRYPTO_EXTRA_SRCS,
-        # Pre-generated assembly (non-Windows, most specialized)
+        # Pre-generated assembly (most specialized). Linux groups assume glibc
+        # and the Windows groups are MSVC flavoured; libc constraints could
+        # come from https://github.com/bazel-contrib/platforms_contrib/ in
+        # the future. mingw builds use --@openssl//:use-pregenerated=False.
         "//configs:_pregen_asm_android_arm64": _ANDROID_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux64"],
         "//configs:_pregen_asm_android_x86_64": _ANDROID_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
         "//configs:_pregen_asm_darwin_arm64": _DARWIN_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_ios64"],
@@ -623,7 +642,13 @@ cc_library(
         "//configs:_pregen_asm_freebsd_x86_64": _FREEBSD_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
         "//configs:_pregen_asm_ios_arm64": _IOS_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_ios64"],
         "//configs:_pregen_asm_linux_aarch64": _LINUX_AARCH64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux64"],
+        "//configs:_pregen_asm_linux_arm": _LINUX_ARM_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux32"],
+        "//configs:_pregen_asm_linux_ppc64le": _LINUX_PPC64LE_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux64le"],
+        "//configs:_pregen_asm_linux_riscv64": _LINUX_RISCV64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_riscv64"],
+        "//configs:_pregen_asm_linux_s390x": _LINUX_S390X_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_s390x"],
         "//configs:_pregen_asm_linux_x86_64": _LINUX_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
+        "//configs:_pregen_asm_windows_arm64": _WINDOWS_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_win64"],
+        "//configs:_pregen_asm_windows_x64": _WINDOWS_X64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_masm"],
         # Unknown platforms
         "//conditions:default": NO_ASM_CRYPTO_EXTRA_SRCS,
     }) + select({

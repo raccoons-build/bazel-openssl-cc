@@ -18,36 +18,45 @@ load("@rules_perl//perl:perl.bzl", "perl_binary")
 # resolved for the same execution platform, so both live in one exec group.
 _EXEC_GROUP = "perlasm"
 
-def openssl_perlasm_tool_name(script):
-    """Name of the perl_binary wrapping a perlasm script (e.g. "perlasm/crypto/aes/asm/aesni-x86_64.pl")."""
-    return "perlasm/" + script
+# The generated PERLASM constants map each assembly output to the script that
+# writes it and the script's extra arguments. One perl_binary is declared per
+# output (a few scripts write two outputs, e.g. sha512-x86_64.pl also writes
+# sha256), so the constants feed the rule's attributes without reshaping.
 
-def openssl_perlasm_tools(scripts_to_outs):
-    """Turn a {script path: output path} dict from parse_perlasm_gen into {perl_binary label: output path}."""
-    return {":" + openssl_perlasm_tool_name(script): out for script, out in scripts_to_outs.items()}
+def openssl_perlasm_tool_name(out):
+    """Name of the perl_binary that writes perlasm output `out` (e.g. "perlasm/crypto/aes/aesni-x86_64.s")."""
+    return "perlasm/" + out
 
-def openssl_perlasm_scripts(name, scripts, data, **kwargs):
-    """Declare one perl_binary per perlasm script, plus a filegroup `name` listing them.
+def openssl_perlasm_tools(perlasm):
+    """The `scripts` attribute of openssl_perlasm for a platform's PERLASM constant: {perl_binary label: output}."""
+    return {":" + openssl_perlasm_tool_name(out): out for out in perlasm}
+
+def openssl_perlasm_args(perlasm):
+    """The `script_args` attribute of openssl_perlasm: {output: extra arguments} for outputs that take any."""
+    return {out: entry["args"] for out, entry in perlasm.items() if entry["args"]}
+
+def openssl_perlasm_scripts(name, perlasm, data, **kwargs):
+    """Declare the perl_binary behind every perlasm output, plus a filegroup `name` listing them.
 
     Args:
         name: Name of the filegroup collecting the binaries.
-        scripts: perlasm script paths (relative to the OpenSSL root).
+        perlasm: Union of the platforms' PERLASM constants: {output: {script, args}}.
         data: Files the scripts read relative to their own location at run
             time, e.g. crypto/perlasm/*-xlate.pl and ecp_nistz256_table.c.
             Included in every binary's runfiles.
         **kwargs: Forwarded to each perl_binary and the filegroup (e.g. tags).
     """
-    for script in scripts:
+    for out, entry in perlasm.items():
         perl_binary(
-            name = openssl_perlasm_tool_name(script),
-            srcs = [script],
-            main = script,
+            name = openssl_perlasm_tool_name(out),
+            srcs = [entry["script"]],
+            main = entry["script"],
             data = data,
             **kwargs
         )
     native.filegroup(
         name = name,
-        srcs = [":" + openssl_perlasm_tool_name(script) for script in scripts],
+        srcs = [":" + openssl_perlasm_tool_name(out) for out in perlasm],
         **kwargs
     )
 
@@ -82,29 +91,29 @@ def _openssl_perlasm_impl(ctx):
     env["CC"] = cc_path
 
     outs_as_files = []
-    for tools_to_outs in [ctx.attr.scripts, ctx.attr.scripts_second_output]:
-        for tool, out in tools_to_outs.items():
-            out_file = ctx.actions.declare_file(out)
-            outs_as_files.append(out_file)
+    for tool, out in ctx.attr.scripts.items():
+        out_file = ctx.actions.declare_file(out)
+        outs_as_files.append(out_file)
 
-            # The compiler probes are written for gcc/clang on a POSIX shell;
-            # elsewhere (cl.exe through cmd.exe) they fail on stderr, and
-            # upstream's build just lets that scroll by. quiet_run keeps the
-            # output for failures only, so consumers never see it on success.
-            ctx.actions.run(
-                executable = ctx.executable._quiet_run,
-                arguments = [tool[DefaultInfo].files_to_run.executable.path, ctx.attr.assembly_flavor, out_file.path],
-                inputs = cc_toolchain.all_files,
-                outputs = [out_file],
-                env = env,
-                tools = [tool[DefaultInfo].files_to_run],
-                mnemonic = "OpenSSLPerlasm",
-                # exec_group decides where the action runs; toolchain records
-                # which of that group's toolchains it uses (the probed C++
-                # compiler). Bazel requires the two to agree.
-                exec_group = _EXEC_GROUP,
-                toolchain = CC_TOOLCHAIN_TYPE,
-            )
+        # The compiler probes are written for gcc/clang on a POSIX shell;
+        # elsewhere (cl.exe through cmd.exe) they fail on stderr, and
+        # upstream's build just lets that scroll by. quiet_run keeps the
+        # output for failures only, so consumers never see it on success.
+        extra_args = ctx.attr.script_args.get(out, [])
+        ctx.actions.run(
+            executable = ctx.executable._quiet_run,
+            arguments = [tool[DefaultInfo].files_to_run.executable.path, ctx.attr.assembly_flavor] + extra_args + [out_file.path],
+            inputs = cc_toolchain.all_files,
+            outputs = [out_file],
+            env = env,
+            tools = [tool[DefaultInfo].files_to_run],
+            mnemonic = "OpenSSLPerlasm",
+            # exec_group decides where the action runs; toolchain records
+            # which of that group's toolchains it uses (the probed C++
+            # compiler). Bazel requires the two to agree.
+            exec_group = _EXEC_GROUP,
+            toolchain = CC_TOOLCHAIN_TYPE,
+        )
 
     if not outs_as_files:
         return [
@@ -133,10 +142,8 @@ openssl_perlasm = rule(
             cfg = config.exec(exec_group = _EXEC_GROUP),
             providers = [DefaultInfo],
         ),
-        "scripts_second_output": attr.label_keyed_string_dict(
-            doc = "Like scripts, for scripts run a second time to write a different file (e.g. sha512-x86_64.pl also writes sha256).",
-            cfg = config.exec(exec_group = _EXEC_GROUP),
-            providers = [DefaultInfo],
+        "script_args": attr.string_list_dict(
+            doc = "Output path -> extra arguments passed between the flavour and the output (e.g. RISC-V extension variants).",
         ),
         "_quiet_run": attr.label(
             cfg = config.exec(exec_group = _EXEC_GROUP),
