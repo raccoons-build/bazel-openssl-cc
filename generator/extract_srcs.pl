@@ -182,19 +182,17 @@ foreach my $src (sort keys %openssl_app_srcs) {
     }
 }
 
-# Build perlasm data structures
-my @perlasm_gen_commands;
+# perlasm: output -> script and the extra arguments upstream passes after the
+# perlasm scheme (e.g. the RISC-V extension variants). The scheme itself is
+# chosen by the overlay per configuration, so it is not recorded here.
+my %perlasm_entries;
 
-foreach (sort keys %perlasm) {
-    my $generation = $perlasm{$_};
-    my @cmdlinebits;
-    push(@cmdlinebits, $target{perlasm_scheme});
-    if (@{$generation}[1,]) {
-        push(@cmdlinebits, @{$generation}[1,]);
-    }
-    my $cmdline = join(" ", @cmdlinebits);
-    my $cmd = "\$(PERL) \$(execpath " . normalize_path(@{$generation}[0]) . ") " . $cmdline . " \$(execpath " . normalize_path($_) . ");";
-    push(@perlasm_gen_commands, $cmd);
+foreach my $out (keys %perlasm) {
+    my ($script, @args) = @{$perlasm{$out}};
+    $perlasm_entries{normalize_path($out)} = {
+        script => normalize_path($script),
+        args   => [ @args ],
+    };
 }
 
 # -D flags that upstream passes on the command line through *cppflags*
@@ -268,7 +266,7 @@ my %output_data = (
     libcrypto_srcs => \@libcrypto_srcs_list,
     libssl_srcs => \@libssl_srcs_list,
     openssl_app_srcs => \@openssl_app_srcs_list,
-    perlasm_gen_commands => \@perlasm_gen_commands,
+    perlasm => \%perlasm_entries,
     libcrypto_defines => \@libcrypto_defines_list,
     libssl_defines => \@libssl_defines_list,
     openssl_app_defines => \@openssl_app_defines_list,

@@ -47,7 +47,9 @@ ALL_PLATFORMS = UNIX_PLATFORMS + WINDOWS_PLATFORMS + ANDROID_PLATFORMS + IOS_PLA
 
 NO_ASM_TARGET = "no-asm"
 
-# config_name → (os, cpu) constraint labels for Bazel config_setting targets.
+# config_name -> (os, cpu) constraint labels for Bazel config_setting targets.
+# os+cpu only: glibc is assumed on Linux. libc constraints could come from
+# https://github.com/bazel-contrib/platforms_contrib/ in the future.
 PLATFORM_CONSTRAINTS: dict[str, tuple[str, str]] = {
     "darwin_arm64": ("@platforms//os:macos", "@platforms//cpu:arm64"),
     "darwin_x86_64": ("@platforms//os:macos", "@platforms//cpu:x86_64"),

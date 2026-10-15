@@ -59,8 +59,14 @@ At build time, `select()` routes between three modes:
 | Mode                        | When                                          | What happens                                                                                         |
 | --------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | **Pre-generated** (default) | Known platform, `use-pregenerated=True`       | `pregen_files` symlinks static files to canonical output paths. Zero Perl.                           |
-| **Perl fallback**           | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `openssl_perlasm` run Perl via `rules_perl`. Always used for Windows assembly. |
+| **Perl fallback**           | Unknown platform, or `use-pregenerated=False` | `openssl_perl_genrule` + `openssl_perlasm` run Perl via `rules_perl`.                                |
 | **No-asm**                  | `use-no-asm-fallback=True`                    | Portable C only. No assembly, no Perl.                                                               |
+
+Platforms are identified by OS and CPU, plus the compiler on Windows. glibc is
+assumed on Linux and MSVC on Windows (the pre-generated Windows assembly is
+MASM flavoured; mingw builds need `use-pregenerated=False`). libc constraints
+could come from [platforms_contrib](https://github.com/bazel-contrib/platforms_contrib/)
+in the future.
 
 Both pregen and Perl paths produce outputs at identical canonical paths (e.g.
 `include/openssl/bio.h`), so downstream targets need no mode-specific include paths.
@@ -85,7 +91,7 @@ A release is a tag `<OPENSSL_VERSION>.bcr.<N>`, e.g. `4.0.1.bcr.3`: upstream Ope
 revision 3 of this overlay for it (revisions start at 0).
 [`release.yaml`](.github/workflows/release.yaml) runs the same pipeline however it starts:
 
-- **Manually (recommended):** Actions → Release → Run workflow. Pick the branch (normally
+- **Manually (recommended):** Actions -> Release -> Run workflow. Pick the branch (normally
   `main`) and enter the release, e.g. `4.0.1.bcr.3`, or just `4.0.1` for the next unused
   revision. The tag is created at the end, only after every job has passed.
 - **By tag:** push the tag. To re-run an existing tag, run the workflow on that tag with the

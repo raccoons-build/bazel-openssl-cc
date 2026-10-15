@@ -218,6 +218,13 @@ jobs:
       - run:
           cd workspace &&
           ../repo/.github/scripts/check_source_files.sh --registry="file:///tmp/bazel-central-registry"
+      # With pre-generated files the public targets must not need Perl at all.
+      - if: matrix.use_pregenerated
+        shell: bash
+        run: |
+          cd workspace
+          perl_deps=$(bazel cquery --registry="file:///tmp/bazel-central-registry" 'kind("perl_binary", deps(@openssl//:crypto + @openssl//:ssl + @openssl//:openssl + @openssl//:install))' --output=label)
+          test -z "$perl_deps" || { echo "Perl binaries in the pre-generated build:"; echo "$perl_deps"; exit 1; }
       - run:
           cd workspace &&
           bazel test ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--verbose_failures --incompatible_auto_exec_groups --registry="file:///tmp/bazel-central-registry" @openssl//...
@@ -284,6 +291,13 @@ jobs:
         with:
           name: cquery-${{ inputs.bcr_tag }}-windows-bazel${{ matrix.bazel }}-pregen${{ matrix.use_pregenerated }}
           path: workspace/cquery.txt
+      # With pre-generated files the public targets must not need Perl at all.
+      - if: matrix.use_pregenerated
+        shell: bash
+        run: |
+          cd workspace
+          perl_deps=$(bazel cquery --registry="file:///C:/bazel-central-registry" 'kind("perl_binary", deps(@openssl//:crypto + @openssl//:ssl + @openssl//:openssl + @openssl//:install))' --output=label)
+          test -z "$perl_deps" || { echo "Perl binaries in the pre-generated build:"; echo "$perl_deps"; exit 1; }
       - run:
           cd workspace &&
           bazel test ${{ matrix.use_pregenerated == false && '"--@openssl//:use-pregenerated=False" ' || '' }}--verbose_failures --incompatible_auto_exec_groups --registry="file:///C:/bazel-central-registry" @openssl//...
