@@ -1,4 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@package_metadata//licenses/rules:license.bzl", "license")
+load("@package_metadata//purl:purl.bzl", "purl")
+load("@package_metadata//rules:package_metadata.bzl", "package_metadata")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_perl//perl:perl.bzl", "perl_binary", "perl_library")
@@ -195,9 +198,31 @@ load(
     _WINDOWS_X64_PERLASM_ENTRIES = "PERLASM",
 )
 
-package(default_visibility = ["//:__subpackages__"])
+package(
+    default_package_metadata = [":package_metadata"],
+    default_visibility = ["//:__subpackages__"],
+)
 
-# OpenSSL's license (Apache-2.0) and contributor list, for notice bundling.
+# Supply-chain metadata for every target in this module: OpenSSL is
+# Apache-2.0, identified by the Bazel module name and version.
+package_metadata(
+    name = "package_metadata",
+    attributes = [":license"],
+    purl = purl.bazel(
+        module_name(),
+        module_version(),
+    ),
+    visibility = ["//visibility:public"],
+)
+
+license(
+    name = "license",
+    kind = "@package_metadata//licenses/spdx:Apache-2.0",
+    text = "LICENSE.txt",
+    visibility = ["//visibility:public"],
+)
+
+# OpenSSL's license and contributor list, for notice bundling.
 exports_files(
     [
         "AUTHORS.md",
