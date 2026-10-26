@@ -11,10 +11,13 @@ from pathlib import Path
 from typing import NamedTuple
 
 # Repository layout (all paths relative to the repo root):
+#   .bcr/       the module's registry files, in publish-to-bcr's layout
+#               (metadata.template.json, source.template.json, presubmit.yml)
 #   generator/  the generation scripts and their input templates
 #   overlay/    copied verbatim into the BCR overlay, same layout
 #   pregen/     copied verbatim into the root of the pre-generated archive
 #   versions/   per-OpenSSL-version overrides of any of the above (see versions/README.md)
+BCR_DIR = ".bcr"
 GENERATOR_DIR = "generator"
 OVERLAY_DIR = "overlay"
 PREGEN_DIR = "pregen"
@@ -136,15 +139,6 @@ class OpenSSLVersion(NamedTuple):
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
 
-    @property
-    def archive_name(self) -> str:
-        """Upstream release archive base name (also the strip_prefix)."""
-        return f"openssl-{self}"
-
-    @property
-    def source_url(self) -> str:
-        return f"https://github.com/openssl/openssl/releases/download/{self.archive_name}/{self.archive_name}.tar.gz"
-
     def override_selectors(self) -> list[str]:
         """Names of the ``versions/`` directories that apply to this version, most specific first."""
         return [
@@ -203,19 +197,29 @@ def module_version_key(version: str) -> tuple[list[tuple[int, int | str]], tuple
     return identifiers(release), (1, []) if prerelease is None else (0, identifiers(prerelease))
 
 
-def add_to_metadata(openssl_module_dir: Path, tag: str) -> None:
-    """Register ``tag`` in the BCR module's metadata.json (idempotent).
+def add_to_metadata(openssl_module_dir: Path, tag: str, template: Path) -> None:
+    """Write the BCR module's metadata.json with ``tag`` registered (idempotent).
+
+    ``template`` (.bcr/metadata.template.json, as publish-to-bcr lays it out)
+    owns everything but the version lists: homepage, maintainers, repository. ``versions`` and
+    ``yanked_versions`` are carried over from the metadata.json already in the
+    registry, if there is one, so published versions are never dropped or
+    un-yanked; the template's own lists only seed a registry without the module.
 
     The registry requires ``versions`` sorted by module version, so this sorts
     rather than appends: a 3.x release cut after a 4.x one must land in the
     middle of the list.
     """
+    content = json.loads(template.read_text())
     metadata_path = openssl_module_dir / "metadata.json"
-    with open(metadata_path, "r") as f:
-        content = json.load(f)
+    if metadata_path.exists():
+        existing = json.loads(metadata_path.read_text())
+        content["versions"] = existing.get("versions", [])
+        content["yanked_versions"] = existing.get("yanked_versions", {})
     versions = set(content["versions"])
     versions.add(tag)
     content["versions"] = sorted(versions, key=module_version_key)
+    openssl_module_dir.mkdir(parents=True, exist_ok=True)
     with open(metadata_path, "w") as f:
         f.write(json.dumps(content, sort_keys=True, indent="  ") + "\n")
 
@@ -289,9 +293,9 @@ class OverlaySources:
         """Sanity-check the versions/ tree.
 
         Every directory there must be named like a version selector, files may
-        only live under the known trees (generator/, overlay/, pregen/), and
-        generator inputs must replace an existing file. Anything else is almost
-        always a typo that would otherwise be silently ignored.
+        only live under the known trees (.bcr/, generator/, overlay/, pregen/),
+        and .bcr/ and generator/ files must replace an existing one. Anything
+        else is almost always a typo that would otherwise be silently ignored.
         """
         versions_dir = self.root / VERSIONS_DIR
         if versions_dir.is_dir():
@@ -306,9 +310,10 @@ class OverlaySources:
                     continue
                 rel = f.relative_to(d)
                 top = rel.parts[0]
-                if top not in (GENERATOR_DIR, OVERLAY_DIR, PREGEN_DIR):
+                if top not in (BCR_DIR, GENERATOR_DIR, OVERLAY_DIR, PREGEN_DIR):
                     raise RuntimeError(
-                        f"{f}: override files must live under {GENERATOR_DIR}/, {OVERLAY_DIR}/ or {PREGEN_DIR}/"
+                        f"{f}: override files must live under {BCR_DIR}/, {GENERATOR_DIR}/, {OVERLAY_DIR}/ "
+                        f"or {PREGEN_DIR}/"
                     )
-                if top == GENERATOR_DIR and not (self.root / rel).is_file():
+                if top in (BCR_DIR, GENERATOR_DIR) and not (self.root / rel).is_file():
                     raise RuntimeError(f"{f} overrides {rel}, but {self.root / rel} does not exist")
