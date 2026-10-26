@@ -14,8 +14,8 @@ versions/
 
 Lookup is per file, most specific first: `MAJOR.MINOR.PATCH`, `MAJOR.MINOR`, `MAJOR`, then
 the repository root. Files under `overlay/` and `pregen/` may also be added; files under
-`generator/` must replace an existing one. Anything outside those three trees, or a
-directory not named like a version, is an error.
+`.bcr/` and `generator/` must replace an existing one. Anything outside those four trees,
+or a directory not named like a version, is an error.
 
 Prefer making the shared files handle both cases, e.g. `glob(..., allow_empty = True)` or
 data extracted by the generator: every override is another copy to keep in sync. The

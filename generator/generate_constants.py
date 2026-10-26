@@ -23,6 +23,7 @@ from typing import Any, Callable, NamedTuple, TypeVar
 
 from common import (
     ALL_PLATFORMS,
+    BCR_DIR,
     GENERATOR_DIR,
     IOS_PLATFORMS,
     MAC_PLATFORMS,
@@ -47,6 +48,10 @@ _BUILDINF_TEMPLATE = f"{GENERATOR_DIR}/buildinf.h.in"
 _BATCH_DOFILE_PL = f"{OVERLAY_DIR}/bazel/batch_dofile.pl"
 # Rendered (not copied) into the overlay: see render_module_bazel.
 _MODULE_BAZEL_TEMPLATE = f"{OVERLAY_DIR}/MODULE.bazel"
+# The module's registry files, laid out as publish-to-bcr expects them.
+_METADATA_TEMPLATE = f"{BCR_DIR}/metadata.template.json"
+_SOURCE_TEMPLATE = f"{BCR_DIR}/source.template.json"
+_PRESUBMIT = f"{BCR_DIR}/presubmit.yml"
 
 
 def _resolve_from_rlocation(env_var: str) -> str | None:
@@ -1613,8 +1618,8 @@ def main(
             source_archive,
             version,
             srcs,
-            source_url=source_url or version.source_url,
-            source_strip_prefix=source_strip_prefix or version.archive_name,
+            source_url=source_url,
+            source_strip_prefix=source_strip_prefix,
         )
 
     print("=== Done ===")
@@ -1637,6 +1642,21 @@ def render_module_bazel(srcs: OverlaySources, tag: str) -> str:
     return content
 
 
+def render_source_template(srcs: OverlaySources, version: OpenSSLVersion, tag: str) -> dict[str, Any]:
+    """Render .bcr/source.template.json for a module version.
+
+    Same placeholders as publish-to-bcr: ``{VERSION}`` is the OpenSSL version
+    (what the upstream archive is named after) and ``{TAG}`` the module version
+    this repository releases as. ``integrity`` is left for the caller to fill in.
+    """
+    text = srcs.read_text(_SOURCE_TEMPLATE).replace("{VERSION}", str(version)).replace("{TAG}", tag)
+    leftover = sorted(set(re.findall(r"\{[A-Z_]+\}", text)))
+    if leftover:
+        raise RuntimeError(f"Unknown placeholders in {_SOURCE_TEMPLATE}: {leftover}")
+    source: dict[str, Any] = json.loads(text)
+    return source
+
+
 def write_bcr_files(
     out: Path,
     bcr_dir: str,
@@ -1644,20 +1664,21 @@ def write_bcr_files(
     source_archive: str,
     version: OpenSSLVersion,
     srcs: OverlaySources,
-    source_url: str,
-    source_strip_prefix: str,
+    source_url: str | None,
+    source_strip_prefix: str | None,
 ) -> None:
     """Write BCR module files. Overlay root is out (contains BUILD.bazel, bazel/, configs/, etc.).
 
-    ``source_url``/``source_strip_prefix`` describe ``source_archive`` for
-    source.json: the upstream release tarball for releases, a commit archive
-    for snapshots such as the nightly build of upstream master.
+    source.json comes from .bcr/source.template.json, which describes the
+    upstream release tarball; ``source_url``/``source_strip_prefix`` replace
+    its values when ``source_archive`` is something else, such as the commit
+    archive of the nightly build of upstream master.
     """
     openssl_module_dir = Path(bcr_dir) / "modules" / "openssl"
     out_dir = openssl_module_dir / tag
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(out / "presubmit.yml", out_dir / "presubmit.yml")
+    srcs.copy_to(_PRESUBMIT, out_dir / "presubmit.yml")
 
     module_bazel_content = render_module_bazel(srcs, tag)
 
@@ -1684,15 +1705,16 @@ def write_bcr_files(
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(full_path, dst)
 
-    source_json = {
-        "integrity": integrity_hash(Path(source_archive)),
-        "url": source_url,
-        "strip_prefix": source_strip_prefix,
-        "overlay": overlay_info,
-    }
+    source_json = render_source_template(srcs, version, tag)
+    if source_url:
+        source_json["url"] = source_url
+    if source_strip_prefix:
+        source_json["strip_prefix"] = source_strip_prefix
+    source_json["integrity"] = integrity_hash(Path(source_archive))
+    source_json["overlay"] = overlay_info
     (out_dir / "source.json").write_text(json.dumps(source_json, indent="    ", sort_keys=True) + "\n")
 
-    add_to_metadata(openssl_module_dir, tag)
+    add_to_metadata(openssl_module_dir, tag, srcs.resolve(_METADATA_TEMPLATE))
 
 
 if __name__ == "__main__":
@@ -1715,12 +1737,12 @@ if __name__ == "__main__":
         "--source_url",
         default=None,
         help="URL recorded in source.json for --source_archive (default: the upstream release tarball URL "
-        "for the version in VERSION.dat). Use with a snapshot archive, e.g. a GitHub commit archive.",
+        "from .bcr/source.template.json). Use with a snapshot archive, e.g. a GitHub commit archive.",
     )
     parser.add_argument(
         "--source_strip_prefix",
         default=None,
-        help="strip_prefix recorded in source.json for --source_archive (default: openssl-<version>).",
+        help="strip_prefix recorded in source.json for --source_archive (default: from .bcr/source.template.json).",
     )
     parser.add_argument(
         "--perl",

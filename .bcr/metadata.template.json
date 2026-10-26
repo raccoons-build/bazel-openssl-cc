@@ -1,0 +1,22 @@
+{
+  "homepage": "https://www.openssl.org/",
+  "maintainers": [
+    {
+      "email": "dawagner@gmail.com",
+      "github": "illicitonion",
+      "github_user_id": 1131704,
+      "name": "Daniel Wagner-Hall"
+    },
+    {
+      "email": "26427366+UebelAndre@users.noreply.github.com",
+      "github": "UebelAndre",
+      "github_user_id": 26427366,
+      "name": "UebelAndre"
+    }
+  ],
+  "repository": [
+    "github:openssl/openssl"
+  ],
+  "versions": [],
+  "yanked_versions": {}
+}
