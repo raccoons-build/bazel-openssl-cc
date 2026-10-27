@@ -93,7 +93,10 @@ revision 3 of this overlay for it (revisions start at 0).
 
 - **Manually (recommended):** Actions -> Release -> Run workflow. Pick the branch (normally
   `main`) and enter the release, e.g. `4.0.1.bcr.3`, or just `4.0.1` for the next unused
-  revision. The tag is created at the end, only after every job has passed.
+  revision. Several releases can be cut in one run, comma separated, e.g. `3.5.4,4.0.1`:
+  each gets its own tag and GitHub release, and the registry gets a single pull request
+  titled `openssl@3.5.4.bcr.0, openssl@4.0.1.bcr.0`, so the registry changes never conflict
+  with each other. The tags are created at the end, only after every job has passed.
 - **By tag:** push the tag. To re-run an existing tag, run the workflow on that tag with the
   release field empty.
 
@@ -107,14 +110,18 @@ The pipeline:
 3. Build and test `@openssl//...` from the local copy on Linux x86_64 and arm64, macOS and
    Windows, with Bazel 7, 8 and 9, in both modes, with `--incompatible_auto_exec_groups`.
    This is the pull request matrix.
-4. Assemble the registry change (module version plus `metadata.json` entry) and run the
-   registry's `bcr_validation.py` on it.
-5. Create the tag if needed, upload `bazel-openssl-cc-<tag>.tar.gz` as a release asset, and
-   open a pull request to publish the module on the Bazel Central Registry.
+4. Assemble the registry change (every module version plus their `metadata.json` entries,
+   in one commit) and run the registry's `bcr_validation.py` on it.
+5. Create each tag if needed, upload `bazel-openssl-cc-<tag>.tar.gz` as a release asset, and
+   open one pull request to publish the modules on the Bazel Central Registry, from the
+   branch `openssl-release-<run number>` of the fork.
 
-If anything fails, nothing is published and no tag is created; fix `main` and release
-again. Tags are never reused. Creating the tag needs `contents: write`; if a tag protection
-rule blocks `GITHUB_TOKEN`, push the tag by hand and re-run on it.
+Steps 1 to 3 run per version, in parallel; steps 4 and 5 run once, and only after every
+version has passed. If anything fails, nothing is published and no tag is created: re-run
+the failed jobs (same run, same registry branch), or fix `main` and release again, leaving
+out a version that needs more work. Tags are never reused. Creating the tags needs
+`contents: write`; if a tag protection rule blocks `GITHUB_TOKEN`, push the tag by hand
+and re-run on it.
 
 **Nightly.** [`nightly.yaml`](.github/workflows/nightly.yaml) runs steps 1 to 4 every night
 against a snapshot of the current upstream `master` commit. A red nightly means the next
