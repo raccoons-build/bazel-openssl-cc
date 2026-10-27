@@ -712,6 +712,7 @@ cc_library(
         "@platforms//os:linux": [
             "-ldl",
             "-pthread",
+            "-lc",
         ],
         "//configs:windows_msvc": _WINDOWS_SYSTEM_LIBS_MSVC,
         "//configs:windows_clang_cl": _WINDOWS_SYSTEM_LIBS_MSVC,

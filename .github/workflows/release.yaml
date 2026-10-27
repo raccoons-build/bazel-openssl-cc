@@ -1,43 +1,38 @@
-# Build, test and publish one OpenSSL version to the Bazel Central Registry.
-# See README.md, "Releasing".
+# Build, test and publish one or more OpenSSL versions to the Bazel Central
+# Registry. See README.md, "Releasing".
 #
-# Start it manually with the release to cut (4.0.1.bcr.3, or 4.0.1 for the
-# next revision), or by pushing such a tag. Nothing is published and no tag is
-# created unless every build and test job passes. Naming an existing release
+# Start it manually with the releases to cut, comma separated (4.0.1.bcr.3, or
+# 4.0.1 for the next revision), or by pushing such a tag. Every version gets
+# its own tag and GitHub release; the registry gets one pull request with one
+# commit covering all of them. Nothing is published and no tag is created
+# unless every build and test job of every version passes: re-run the failed
+# jobs, or start again without the broken version. Naming an existing release
 # re-runs it from its tagged commit: an archive already on the GitHub release
 # is kept, and the registry pull request is opened (or refreshed) from it.
 # nightly.yaml calls it with dry_run=true against a snapshot of upstream master.
 #
-# The registry change is pushed to the raccoons-build fork of the registry and
-# the pull request opened as the raccoons-build-bot account; BCR_GITHUB_TOKEN
-# is that account's token.
+# The registry change is pushed to the raccoons-build fork of the registry as
+# branch openssl-release-<run number> and the pull request opened as the
+# raccoons-build-bot account; BCR_GITHUB_TOKEN is that account's token.
 name: Release
 'on':
   workflow_dispatch:
     inputs:
       release:
         description: >-
-          Release to cut, e.g. 4.0.1.bcr.3 (builds upstream OpenSSL 4.0.1, publishes the
-          module as 4.0.1.bcr.3). Give just the OpenSSL version, e.g. 4.0.1, to use the next
-          unused .bcr.<N>. An existing release tag re-runs that release from its commit. Leave
-          empty when running the workflow on a release tag.
+          Releases to cut, comma separated: 4.0.1.bcr.3, or 4.0.1 for the next revision.
+          Leave empty when running on a release tag.
         required: false
         type: string
       dry_run:
-        description: Run everything except creating the tag, the GitHub release and the registry PR.
+        description: Build and test only; do not tag, release or open the registry PR.
         required: false
         type: boolean
         default: false
-      openssl_ref:
-        description: >-
-          Dry runs only: build a snapshot of this openssl/openssl git ref (commit SHA) instead
-          of the release tarball. openssl_version must match the ref's VERSION.dat.
-        required: false
-        type: string
   workflow_call:
     inputs:
       release:
-        description: Release tag (<version>.bcr.<N>) or OpenSSL version (next unused revision).
+        description: Release tags or OpenSSL versions, comma separated.
         required: true
         type: string
       dry_run:
@@ -45,6 +40,9 @@ name: Release
         type: boolean
         default: false
       openssl_ref:
+        description: >-
+          Dry runs of a single release only (nightly.yaml): build a snapshot of this
+          openssl/openssl commit instead of the release tarball.
         required: false
         type: string
         default: ""
@@ -60,17 +58,17 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      bcr_tag: ${{ steps.tag.outputs.bcr_tag }}
-      # Commit the release is built from: the tag's if it exists, else the
-      # commit the workflow runs on (which the tag is then created at).
-      sha: ${{ steps.tag.outputs.sha }}
+      # JSON list of {tag, version, sha}. sha is the commit the release is
+      # built from: the tag's if it exists, else the commit the workflow runs
+      # on (which the tag is then created at).
+      releases: ${{ steps.releases.outputs.releases }}
     steps:
       - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
           fetch-tags: true
-      - name: Determine the release tag
-        id: tag
+      - name: Determine the release tags
+        id: releases
         env:
           RELEASE: ${{ inputs.release }}
           DRY_RUN: ${{ inputs.dry_run && 'true' || '' }}
@@ -81,43 +79,74 @@ jobs:
             echo "::error::openssl_ref builds a snapshot, not a release; it is only allowed with dry_run."
             exit 1
           fi
+          entries=()
           if [[ -z "$RELEASE" ]]; then
             # Push of a tag, or a manual run on an existing tag.
             if [[ "$GITHUB_REF_TYPE" != "tag" ]]; then
-              echo "::error::Give the release to cut (e.g. 4.0.1.bcr.3), or run this workflow on a release tag."
+              echo "::error::Give the releases to cut (e.g. 4.0.1.bcr.3 or 3.5.4,4.0.1), or run this workflow on a release tag."
               exit 1
             fi
-            TAG="$GITHUB_REF_NAME"
-          elif [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            # Just an OpenSSL version: next unused revision for it.
-            last=$(git tag -l "$RELEASE.bcr.*" | sed -E 's/.*\.bcr\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
-            TAG="$RELEASE.bcr.$(( ${last:--1} + 1 ))"
+            entries=("$GITHUB_REF_NAME")
           else
-            TAG="$RELEASE"
+            IFS=',' read -ra raw <<< "$RELEASE"
+            for entry in "${raw[@]}"; do
+              entry="${entry//[[:space:]]/}"
+              [[ -n "$entry" ]] && entries+=("$entry")
+            done
+            if (( ${#entries[@]} == 0 )); then
+              echo "::error::No release given."
+              exit 1
+            fi
           fi
-          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.bcr\.[0-9A-Za-z.-]+$ ]]; then
-            echo "::error::'$TAG' is not a release (<MAJOR.MINOR.PATCH>.bcr.<N>)"
+          if [[ -n "$OPENSSL_REF" && ${#entries[@]} -ne 1 ]]; then
+            echo "::error::openssl_ref builds a single snapshot; give exactly one release with it."
             exit 1
           fi
-          if SHA=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}"); then
-            echo "Tag $TAG already exists at $SHA; re-running its release from that commit."
-          else
-            SHA="$GITHUB_SHA"
-          fi
-          echo "Releasing $TAG from $SHA${DRY_RUN:+ (dry run: nothing will be published)}"
-          echo "bcr_tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          releases='[]'
+          for entry in "${entries[@]}"; do
+            if [[ "$entry" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              # Just an OpenSSL version: next unused revision for it.
+              last=$(git tag -l "$entry.bcr.*" | sed -E 's/.*\.bcr\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+              tag="$entry.bcr.$(( ${last:--1} + 1 ))"
+            else
+              tag="$entry"
+            fi
+            if [[ ! "$tag" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.bcr\.[0-9A-Za-z.-]+$ ]]; then
+              echo "::error::'$tag' is not a release (<MAJOR.MINOR.PATCH>.bcr.<N>)"
+              exit 1
+            fi
+            version="${BASH_REMATCH[1]}"
+            if jq -e --arg v "$version" 'any(.version == $v)' <<< "$releases" > /dev/null; then
+              echo "::error::OpenSSL $version is listed twice; one release per OpenSSL version."
+              exit 1
+            fi
+            if sha=$(git rev-parse -q --verify "refs/tags/$tag^{commit}"); then
+              echo "Tag $tag already exists at $sha; re-running its release from that commit."
+            else
+              sha="$GITHUB_SHA"
+            fi
+            echo "Releasing $tag from $sha${DRY_RUN:+ (dry run: nothing will be published)}"
+            releases=$(jq -c --arg tag "$tag" --arg version "$version" --arg sha "$sha" \
+              '. + [{tag: $tag, version: $version, sha: $sha}]' <<< "$releases")
+          done
+          echo "releases=$releases" >> "$GITHUB_OUTPUT"
 
-  # Generates from the release's commit, then runs the full test matrix;
-  # `release` below only starts once every job in the called workflow has
-  # succeeded.
+  # Generates each release from its commit, then runs the full test matrix
+  # for it; `release` below only starts once every job of every version has
+  # succeeded. A failing version does not cancel the others, so a re-run of
+  # the failed jobs is enough to finish the batch.
   generate:
+    name: generate ${{ matrix.tag }}
     needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.releases) }}
     uses: ./.github/workflows/generate.yaml
     with:
-      bcr_tag: ${{ needs.prepare.outputs.bcr_tag }}
+      bcr_tag: ${{ matrix.tag }}
       openssl_ref: ${{ inputs.openssl_ref }}
-      ref: ${{ needs.prepare.outputs.sha }}
+      ref: ${{ matrix.sha }}
 
   release:
     runs-on: ubuntu-latest
@@ -127,67 +156,81 @@ jobs:
     permissions:
       contents: write
     env:
-      BCR_TAG: ${{ needs.prepare.outputs.bcr_tag }}
-      PREGEN_TARBALL: bazel-openssl-cc-${{ needs.prepare.outputs.bcr_tag }}.tar.gz
+      RELEASES: ${{ needs.prepare.outputs.releases }}
+      # A re-run of failed jobs keeps the run number, so it refreshes the same
+      # branch and pull request; a new run gets its own.
+      BRANCH: openssl-release-${{ github.run_number }}
     steps:
       # Scripts and the metadata template come from the commit the workflow
-      # runs on; the module itself was generated from the release's commit.
+      # runs on; each module was generated from its release's commit.
       - name: Checkout repo for scripts
         uses: actions/checkout@v4.2.2
         with:
           path: repo
-      - name: Download the pre-generated archive built by this run
+      # One directory per artifact: artifacts/pregen-<tag>/ and
+      # artifacts/bcr-core-<tag>/.
+      - name: Download the pre-generated archives built by this run
         uses: actions/download-artifact@v4
         with:
-          name: pregen-${{ env.BCR_TAG }}
-          path: built
-      # The module before the archive hash was filled in: it is patched below
+          pattern: pregen-*
+          path: artifacts
+      # The modules before the archive hash was filled in: patched below
       # against whichever archive actually gets published.
-      - name: Download generated module
+      - name: Download generated modules
         uses: actions/download-artifact@v4
         with:
-          name: bcr-core-${{ env.BCR_TAG }}
-          path: /tmp/
-      - run: mkdir -p /tmp/generated && tar xzf /tmp/bcr-core.tar.gz -C /tmp/generated
+          pattern: bcr-core-*
+          path: artifacts
       # A published archive is never replaced: once a module version in the
       # registry points at it, changing it would break every consumer. When
       # the GitHub release already carries the archive (a re-run of a release
       # whose registry pull request never made it), the module is published
       # against that archive and the one built by this run is only tested.
-      - name: Pick the archive to publish
-        id: archive
+      #
+      # Leaves /tmp/releases.json: the prepare output plus, per release, the
+      # archive to publish and whether it was already published.
+      - name: Pick the archive to publish for each release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${BCR_TAG}" > /tmp/release.json 2> /tmp/release.err; then
-            if jq -e --arg name "$PREGEN_TARBALL" '.assets[] | select(.name == $name)' /tmp/release.json > /dev/null; then
-              mkdir -p published
-              gh release download "$BCR_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$PREGEN_TARBALL" --dir published
-              echo "Release $BCR_TAG already has $PREGEN_TARBALL; keeping it and publishing the module against it."
-              echo "path=published/$PREGEN_TARBALL" >> "$GITHUB_OUTPUT"
-              echo "published=true" >> "$GITHUB_OUTPUT"
-              exit 0
+          state='[]'
+          while read -r row; do
+            tag=$(jq -r .tag <<< "$row")
+            tarball="bazel-openssl-cc-${tag}.tar.gz"
+            mkdir -p "/tmp/generated/${tag}"
+            tar xzf "artifacts/bcr-core-${tag}/bcr-core.tar.gz" -C "/tmp/generated/${tag}"
+            archive="artifacts/pregen-${tag}/${tarball}"
+            published=false
+            if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" > /tmp/release.json 2> /tmp/release.err; then
+              if jq -e --arg name "$tarball" '.assets[] | select(.name == $name)' /tmp/release.json > /dev/null; then
+                mkdir -p "published/${tag}"
+                gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$tarball" --dir "published/${tag}"
+                archive="published/${tag}/${tarball}"
+                published=true
+                echo "Release $tag already has $tarball; keeping it and publishing the module against it."
+              else
+                echo "Release $tag exists without $tarball; it gets the archive built by this run."
+              fi
+            elif grep -q "HTTP 404" /tmp/release.err; then
+              echo "No GitHub release $tag yet; it gets the archive built by this run."
+            else
+              echo "::error::Could not look up the GitHub release $tag"
+              cat /tmp/release.err
+              exit 1
             fi
-            echo "Release $BCR_TAG exists without $PREGEN_TARBALL; it gets the archive built by this run."
-          elif grep -q "HTTP 404" /tmp/release.err; then
-            echo "No GitHub release $BCR_TAG yet; it gets the archive built by this run."
-          else
-            echo "::error::Could not look up the GitHub release $BCR_TAG"
-            cat /tmp/release.err
-            exit 1
-          fi
-          echo "path=built/$PREGEN_TARBALL" >> "$GITHUB_OUTPUT"
-          echo "published=false" >> "$GITHUB_OUTPUT"
-      - name: Fill in the archive hash
-        env:
-          ARCHIVE: ${{ steps.archive.outputs.path }}
-        run: |
-          sha256sum "$ARCHIVE"
-          python3 repo/generator/patch_bcr_pregen.py \
-            --tarball="$ARCHIVE" \
-            --bcr_dir=/tmp/generated/bazel-central-registry \
-            --tag="$BCR_TAG"
+            sha256sum "$archive"
+            python3 repo/generator/patch_bcr_pregen.py \
+              --tarball="$archive" \
+              --bcr_dir="/tmp/generated/${tag}/bazel-central-registry" \
+              --tag="$tag"
+            state=$(jq -c --argjson row "$row" --arg archive "$archive" --argjson published "$published" \
+              '. + [$row + {archive: $archive, published: $published}]' <<< "$state")
+          done < <(jq -c '.[]' <<< "$RELEASES")
+          echo "$state" > /tmp/releases.json
+          jq . /tmp/releases.json
+          # "openssl@4.0.1.bcr.3, openssl@3.5.4.bcr.1": commit and pull request title.
+          echo "RELEASE_TITLE=$(jq -r '[.[] | "openssl@" + .tag] | join(", ")' /tmp/releases.json)" >> "$GITHUB_ENV"
       # The registry change is prepared on the fork for a real release and on
       # a plain upstream checkout for a dry run (no secret needed).
       - name: Checkout BCR fork
@@ -210,49 +253,67 @@ jobs:
           git config --global user.name "raccoons-build-bot"
           git config --global user.email "348386851+raccoons-build-bot@users.noreply.github.com"
       # metadata.json is rendered from .bcr/metadata.template.json; the version
-      # lists are carried over from the registry's copy.
-      - name: Sync with upstream, add the new module version and commit
+      # lists are carried over from the registry's copy, and every release of
+      # this run is added to them.
+      - name: Sync with upstream, add the new module versions and commit
         run: |
           set -euo pipefail
           cd bazel-central-registry
           git remote add upstream "https://github.com/${BCR_UPSTREAM}.git"
           git fetch upstream main
           git reset --hard upstream/main
-          rm -rf "modules/openssl/${BCR_TAG}"
-          cp -r "/tmp/generated/bazel-central-registry/modules/openssl/${BCR_TAG}" modules/openssl/
-          PYTHONPATH=../repo/generator python3 -c 'import sys; from pathlib import Path; from common import add_to_metadata; add_to_metadata(Path("modules/openssl"), sys.argv[1], Path(sys.argv[2]))' "$BCR_TAG" ../repo/.bcr/metadata.template.json
-          git checkout -B "prep-${BCR_TAG}"
+          for tag in $(jq -r '.[].tag' /tmp/releases.json); do
+            rm -rf "modules/openssl/${tag}"
+            cp -r "/tmp/generated/${tag}/bazel-central-registry/modules/openssl/${tag}" modules/openssl/
+            PYTHONPATH=../repo/generator python3 -c 'import sys; from pathlib import Path; from common import add_to_metadata; add_to_metadata(Path("modules/openssl"), sys.argv[1], Path(sys.argv[2]))' "$tag" ../repo/.bcr/metadata.template.json
+          done
+          git checkout -B "$BRANCH"
           git add .
-          git commit -m "Release openssl ${BCR_TAG}"
+          git commit -m "$RELEASE_TITLE"
           git show --stat HEAD
       # The registry's own presubmit checks (source archive integrity, overlay
       # hashes, metadata.json ordering, ...), run here so a problem fails the
       # release instead of the registry PR.
-      - name: Validate the module with the registry's checks
+      - name: Validate the modules with the registry's checks
         env:
           # A snapshot (openssl_ref) points source.json at a GitHub commit
           # archive, which the registry rightly flags as an unstable URL; that
           # check is meaningless for a dry run, the rest still apply.
           SKIP: ${{ inputs.openssl_ref != '' && '--skip_validation=url_stability' || '' }}
         run: |
+          set -euo pipefail
           python3 -m pip install --quiet requests pyyaml zstandard
           cd bazel-central-registry
-          python3 tools/bcr_validation.py --registry . --check "openssl@${BCR_TAG}" $SKIP
-      # Creates the tag at the release's commit if it does not exist yet, then
+          python3 tools/bcr_validation.py --registry . $(jq -r '.[] | "--check=openssl@" + .tag' /tmp/releases.json) $SKIP
+      # Creates each tag at its release's commit if it does not exist yet, then
       # the GitHub release with the pre-generated archive. Done before the BCR
-      # PR so the URL the module points at resolves as soon as the PR opens.
-      # Skipped when the release already carries the archive (see above).
-      - name: Create tag and GitHub release
-        if: ${{ !inputs.dry_run && steps.archive.outputs.published != 'true' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.BCR_TAG }}
-          target_commitish: ${{ needs.prepare.outputs.sha }}
-          files: ${{ steps.archive.outputs.path }}
-          fail_on_unmatched_files: true
-          overwrite_files: false
+      # PR so the URLs the modules point at resolve as soon as the PR opens.
+      # A release that already carries its archive is left alone (see above).
+      - name: Create tags and GitHub releases
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          while read -r row; do
+            tag=$(jq -r .tag <<< "$row")
+            sha=$(jq -r .sha <<< "$row")
+            version=$(jq -r .version <<< "$row")
+            archive=$(jq -r .archive <<< "$row")
+            if [[ "$(jq -r .published <<< "$row")" == true ]]; then
+              echo "Release $tag already carries its archive; left as is."
+            elif gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              gh release upload "$tag" "$archive" --repo "$GITHUB_REPOSITORY"
+              echo "Uploaded $archive to the existing release $tag."
+            else
+              gh release create "$tag" "$archive" --repo "$GITHUB_REPOSITORY" \
+                --target "$sha" --title "$tag" \
+                --notes "Pre-generated files for the openssl@${tag} Bazel module (upstream OpenSSL ${version})."
+              echo "Created release $tag at $sha with $archive."
+            fi
+          done < <(jq -c '.[]' /tmp/releases.json)
       # The branch is force-pushed and an open pull request for it reused, so
-      # that re-running a release picks up where a failed attempt stopped.
+      # that re-running the failed jobs picks up where the attempt stopped.
       - name: Open the registry pull request
         if: ${{ !inputs.dry_run }}
         env:
@@ -260,17 +321,21 @@ jobs:
         run: |
           set -euo pipefail
           cd bazel-central-registry
-          branch="prep-${BCR_TAG}"
-          head="${BCR_FORK%%/*}:${branch}"
-          git push --force -u origin "$branch"
+          head="${BCR_FORK%%/*}:${BRANCH}"
+          git push --force -u origin "$BRANCH"
           existing=$(gh api "repos/${BCR_UPSTREAM}/pulls?state=open&head=${head}" --jq '.[0].html_url // empty')
           if [[ -n "$existing" ]]; then
             echo "Updated the open pull request ${existing}"
           else
+            {
+              echo "Pre-generated archives:"
+              echo
+              jq -r --arg repo "$GITHUB_REPOSITORY" \
+                '.[] | "- openssl@\(.tag): https://github.com/\($repo)/releases/tag/\(.tag)"' /tmp/releases.json
+            } > /tmp/pr-body.md
             gh pr create --repo "$BCR_UPSTREAM" --base main --head "$head" \
-              --title "Add openssl ${BCR_TAG}" \
-              --body "Pre-generated archive: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${BCR_TAG}"
+              --title "$RELEASE_TITLE" --body-file /tmp/pr-body.md
           fi
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
-        run: echo "Dry run of release ${BCR_TAG} from ${{ needs.prepare.outputs.sha }} succeeded; nothing was published."
+        run: echo "Dry run of ${RELEASE_TITLE} succeeded; nothing was published."
