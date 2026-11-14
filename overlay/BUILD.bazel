@@ -655,10 +655,9 @@ cc_library(
         "//configs:_asm_windows_x64": _WINDOWS_X64_ASM_CRYPTO_EXTRA + [":perlasm_genfiles"],
         # No-asm escape hatch (mutually exclusive with _asm_*/_pregen_asm_*)
         "//configs:_no_asm_fallback": NO_ASM_CRYPTO_EXTRA_SRCS,
-        # Pre-generated assembly (most specialized). Linux groups assume glibc
-        # and the Windows groups are MSVC flavoured; libc constraints could
-        # come from https://github.com/bazel-contrib/platforms_contrib/ in
-        # the future. mingw builds use --@openssl//:use-pregenerated=False.
+        # Pre-generated assembly (most specialized). Linux groups assume glibc;
+        # libc constraints could come from
+        # https://github.com/bazel-contrib/platforms_contrib/ in the future.
         "//configs:_pregen_asm_android_arm64": _ANDROID_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_linux64"],
         "//configs:_pregen_asm_android_x86_64": _ANDROID_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
         "//configs:_pregen_asm_darwin_arm64": _DARWIN_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_ios64"],
@@ -674,6 +673,9 @@ cc_library(
         "//configs:_pregen_asm_linux_x86_64": _LINUX_X86_64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_elf"],
         "//configs:_pregen_asm_windows_arm64": _WINDOWS_ARM64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_win64"],
         "//configs:_pregen_asm_windows_x64": _WINDOWS_X64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_masm"],
+        # mingw-gcc and clang assemble GNU syntax, not MASM.
+        "//configs:_pregen_asm_windows_x64_clang": _WINDOWS_X64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_mingw64"],
+        "//configs:_pregen_asm_windows_x64_mingw": _WINDOWS_X64_ASM_CRYPTO_EXTRA + ["@openssl_pregen//:asm_mingw64"],
         # Unknown platforms
         "//conditions:default": NO_ASM_CRYPTO_EXTRA_SRCS,
     }) + select({
