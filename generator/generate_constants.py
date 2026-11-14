@@ -763,14 +763,25 @@ _PERLASM_FLAVORS: dict[str, dict[str, Any]] = {
         "probe_profile": "gnu",
         "scheme": "64",
     },
-    # Windows groups are MSVC flavoured (MASM for x64, clang-cl's win64 for
+    # masm and win64 are MSVC flavoured (MASM for x64, clang-cl's win64 for
     # arm64), as upstream's VC-WIN64A-masm and VC-WIN64-CLANGASM-ARM targets
-    # are; mingw builds use the from-source path. With cl.exe the scripts'
-    # gcc/clang version probes never match, hence the "none" profile.
+    # are. With cl.exe the scripts' gcc/clang version probes never match,
+    # hence the "none" profile.
     "masm": {
         "source_platform": "VC-WIN64A-masm",
         "consumers": ["windows_x64"],
         "probe_profile": "none",
+    },
+    # VC-WIN64A's scripts in GNU syntax, for the windows_x64 compilers in
+    # _PREGEN_ASM_COMPILER_GROUPS. Upstream's mingw64 target omits
+    # ms/uplink-x86_64.pl; it is needed here because the overlay compiles
+    # VC-WIN64A's C sources (OPENSSL_USE_APPLINK) whatever the compiler. The
+    # probe stub prints nothing for x86_64-xlate.pl's __USER_LABEL_PREFIX__
+    # probe, which is Win64's (empty) prefix.
+    "mingw64": {
+        "source_platform": "VC-WIN64A-masm",
+        "consumers": ["windows_x64"],
+        "probe_profile": "gnu",
     },
     "win64": {
         "source_platform": "VC-WIN64-CLANGASM-ARM",
@@ -1294,11 +1305,23 @@ def write_features_bzl(
     (constants_dir / "features.bzl").write_text("".join(lines))
 
 
+# @rules_cc//cc/compiler values whose pre-generated assembly group differs
+# from their platform's: platform -> {config_setting suffix: compiler}. Each
+# gets a _pregen_asm_<platform>_<suffix> config_setting specialising
+# _pregen_asm_<platform>; overlay/BUILD.bazel maps those to the group
+# (mingw64 instead of masm on windows_x64).
+_PREGEN_ASM_COMPILER_GROUPS = {
+    "windows_x64": {"clang": "clang", "mingw": "mingw-gcc"},
+}
+
+
 def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
     """Render the openssl_pregen_config_settings() Starlark macro.
 
-    Four tiers of config_settings:
+    Tiers of config_settings:
 
+      _pregen_asm_<plat>_<compiler> (see _PREGEN_ASM_COMPILER_GROUPS)
+         specialises ↓
       _pregen_asm_<plat> (all known; os+cpu + pregen=True + noasm=False)
          specialises ↓
       _asm_<plat>        (all known; os+cpu + noasm=False)
@@ -1308,8 +1331,8 @@ def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
       _pregen_<plat>     (all known; os+cpu + pregen=True)
          Used only for include-path routing, independent of asm mode.
 
-    Platforms are os+cpu only: glibc is assumed on Linux and MSVC-flavoured
-    output on Windows. libc constraints could come from
+    Platforms are os+cpu, plus the compiler where _PREGEN_ASM_COMPILER_GROUPS
+    says so. glibc is assumed on Linux; libc constraints could come from
     https://github.com/bazel-contrib/platforms_contrib/ in the future.
     """
     if not known_platforms:
@@ -1398,14 +1421,19 @@ def _render_pregen_config_settings_macro(known_platforms: list[str]) -> str:
         if not constraints:
             continue
         os_label, cpu_label = constraints
-        lines.append(
-            f"    native.config_setting(\n"
-            f'        name = "_pregen_asm_{platform}",\n'
-            f'        constraint_values = ["{os_label}", "{cpu_label}"],\n'
-            f'        flag_values = {{"//:use-pregenerated": "True", "//:use-no-asm-fallback": "False"}},\n'
-            f'        visibility = ["//visibility:public"],\n'
-            f"    )\n"
-        )
+        flags = {"//:use-pregenerated": "True", "//:use-no-asm-fallback": "False"}
+        settings = {f"_pregen_asm_{platform}": flags}
+        for suffix, compiler in _PREGEN_ASM_COMPILER_GROUPS.get(platform, {}).items():
+            settings[f"_pregen_asm_{platform}_{suffix}"] = flags | {"@rules_cc//cc/compiler": compiler}
+        for name, flag_values in settings.items():
+            lines.append(
+                f"    native.config_setting(\n"
+                f'        name = "{name}",\n'
+                f'        constraint_values = ["{os_label}", "{cpu_label}"],\n'
+                f"        flag_values = {json.dumps(flag_values)},\n"
+                f'        visibility = ["//visibility:public"],\n'
+                f"    )\n"
+            )
 
     return "".join(lines)
 

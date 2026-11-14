@@ -63,17 +63,18 @@ At build time, `select()` routes between three modes:
 | **No-asm**                  | `use-no-asm-fallback=True`                    | Portable C only. No assembly, no Perl.                                                               |
 
 Platforms are identified by OS and CPU, plus the compiler on Windows. glibc is
-assumed on Linux and MSVC on Windows (the pre-generated Windows assembly is
-MASM flavoured; mingw builds need `use-pregenerated=False`). libc constraints
-could come from [platforms_contrib](https://github.com/bazel-contrib/platforms_contrib/)
-in the future.
+assumed on Linux; libc constraints could come from
+[platforms_contrib](https://github.com/bazel-contrib/platforms_contrib/) in the future.
+On Windows x64 the pre-generated assembly is MASM, except for the `mingw-gcc` and
+`clang` values of `@rules_cc//cc/compiler` (MinGW; not `clang-cl`), which get GNU
+syntax (`mingw64`).
 
 Both pregen and Perl paths produce outputs at identical canonical paths (e.g.
 `include/openssl/bio.h`), so downstream targets need no mode-specific include paths.
 
 The perlasm scripts pick instruction-set paths by probing `$CC`. The Perl path probes the
 configured `cc_toolchain` compiler. The pre-generated path answers the probes with pinned
-values (GNU as 2.38 for `elf`/`linux64`, clang 15 for `macosx`/`ios64`; see
+values (GNU as 2.38 for `elf`/`linux64`/`mingw64`, clang 15 for `macosx`/`ios64`; see
 `_PERLASM_PROBE_PROFILES`), so the shipped assembly does not depend on where it was
 generated. Those versions are its minimum assembler requirement; older toolchains should
 use `use-pregenerated=False`.

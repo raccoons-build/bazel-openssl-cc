@@ -131,7 +131,7 @@ def pregen_filegroups():
 
     # One group per directory the generator writes under generated/asm/
     # (_PERLASM_FLAVORS in generate_constants.py).
-    for flavor in ["elf", "ios64", "linux32", "linux64", "linux64le", "macosx", "masm", "riscv64", "s390x", "win64"]:
+    for flavor in ["elf", "ios64", "linux32", "linux64", "linux64le", "macosx", "masm", "mingw64", "riscv64", "s390x", "win64"]:
         native.filegroup(
             name = "asm_" + flavor,
             srcs = native.glob(
